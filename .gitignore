@@ -1,0 +1,137 @@
+# =====================================
+# PYTHON
+# =====================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+# =====================================
+# NODEJS / REACT
+# =====================================
+node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+frontend-react/build/
+frontend-react/dist/
+
+# =====================================
+# ENVIRONMENT
+# =====================================
+.env
+.env.*
+!.env.example
+
+# =====================================
+# LOGS
+# =====================================
+logs/
+*.log
+
+backend-python/logs/
+wa-engine-node/logs/
+
+# =====================================
+# TEMP FILES
+# =====================================
+tmp/
+temp/
+
+# =====================================
+# IDE
+# =====================================
+.vscode/
+.idea/
+
+# =====================================
+# OS
+# =====================================
+.DS_Store
+Thumbs.db
+
+# =====================================
+# MONGODB
+# =====================================
+
+# MongoDB local database files
+data/db/
+mongodb-data/
+mongo-data/
+
+# MongoDB dump backup
+dump/
+*.archive
+
+# Export database
+*.bson
+*.json.gz
+
+# =====================================
+# DATABASE CONFIG
+# =====================================
+mongodb.env
+mongo.env
+
+# =====================================
+# WHATSAPP SESSION
+# =====================================
+
+# whatsapp-web.js
+wa-engine-node/.wwebjs_auth/
+wa-engine-node/.wwebjs_cache/
+
+# Baileys
+wa-engine-node/auth_info/
+wa-engine-node/session/
+wa-engine-node/sessions/
+
+# =====================================
+# FILE UPLOADS
+# =====================================
+uploads/
+media/
+# Pengecualian: kode sumber pengunduh media (bukan unggahan pengguna) harus ter-commit
+!backend/src/modules/media/
+storage/
+
+# =====================================
+# CERTIFICATE / SECRET
+# =====================================
+*.pem
+*.key
+*.crt
+*.p12
+
+# =====================================
+# NGINX
+# =====================================
+nginx/logs/
+
+# =====================================
+# DOCKER VOLUME
+# =====================================
+docker-volumes/
+docker-data/
+
+# =====================================
+# BACKEND SECRET FILE
+# =====================================
+backend-python/config.local.py
+backend-python/credentials.json
+backend-python/token.json
+# WhatsApp auth state / session data (never commit)
+backend/data/
+
+# Build output backend (hasil tsc; jangan di-commit)
+backend/dist/

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc && rm -rf dist/database/migrations dist/database/legacy && cp -r src/database/migrations src/database/legacy dist/database/",
+    "build": "tsc && rm -rf dist/database/migrations && cp -r src/database/migrations dist/database/",
     "start": "node dist/server.js",
     "migrate": "tsx src/database/migrate-cli.ts",
     "migrate:prod": "node dist/database/migrate-cli.js",

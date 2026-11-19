@@ -513,3 +513,9 @@ Diuji pemilik proyek terhadap sesi nyata (server dev, nomor gateway + satu HP la
 -   Tests: typecheck OK; `npm test` **238/238** (230 -> 238: `test/review-fixes.test.ts`), stabil 2 kali.
 -   Masih terbuka: `/security-review`; keputusan apakah kuota efektif harus dipotong ke ceiling yang diturunkan; perubahan belum di-commit ke cabang bersih.
 -   Documents updated: API_CONTRACT, DECISION_LOG (ADR-035), SECURITY_POLICY, FRONTEND_HANDOFF, TEST_PLAN, BACKEND_PROGRESS, CHANGELOG.
+
+### Verifikasi role DB di staging lokal (2026-11-20) --- DONE
+Database `wazap_staging` dengan role `wazap_migrator` (pemilik schema) dan `wazap_app` (DML saja), `NODE_ENV=production`, `DB_ROLE_CHECK=enforce`, `AUTO_MIGRATE=false`.
+Bukti: `npm run migrate:prod` menerapkan 0001-0014 (`as: "migrator"`); `verify-db-roles.sh` 15/15 lulus (bukan superuser/BYPASSRLS, bukan pemilik schema, DDL/DISABLE RLS/DROP POLICY/TRUNCATE ditolak, `schema_migrations` tertutup, RLS menyembunyikan baris tanpa konteks, DML platform berfungsi);
+server start bersih; `/health/ready` READY; smoke test register, undangan, permintaan bergabung (setujui, login), audit, usage lulus di role terbatas.
+Temuan: lihat `docs/07_DEPLOYMENT/DB_ROLES.md`. Sisa: staging nyata (server terpisah, Nginx/TLS), pemantauan, entrypoint engine terpisah.

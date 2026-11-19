@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased --- Backend: perbaikan hasil verifikasi role DB di staging (2026-11-20)
+
+-   Perbaikan: `npm run build` gagal dari checkout bersih (menyalin folder `legacy` yang tidak ada); migrator tidak lagi butuh hak CREATE pada database (cek `pg_namespace` sebelum `CREATE SCHEMA`).
+-   Dokumen: `DB_ROLES.md` berstatus TERUJI (migrasi, `verify-db-roles.sh` 15/15, start `DB_ROLE_CHECK=enforce`, smoke test dengan role `wazap_app`); langkah REVOKE `schema_migrations` (default privileges ikut memberi hak app pada tabel itu).
+
 ## Unreleased --- Backend: perbaikan hasil code-review (2026-11-20)
 
 -   Perbaikan: `tz` offset di `/usage/messages` ditolak 400 (sebelumnya bergeser 14 jam); `reissue` undangan kedaluwarsa memeriksa kuota anggota; audit tidak lagi membuang `max_api_keys`;

@@ -31,7 +31,10 @@ export async function migrate(pool: pg.Pool, schema: string, dir = resolveMigrat
   const result: MigrationResult = { applied: [], skipped: [] };
   try {
     await client.query('SELECT pg_advisory_lock(hashtext($1))', [`migrate:${schema}`]);
-    await client.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
+    // PostgreSQL memeriksa hak CREATE pada database SEBELUM menilai IF NOT EXISTS, sehingga role migrator berhak-minimal
+    // (pemilik schema yang sudah dibuat DBA, tanpa CREATE di database) gagal walau schema sudah ada. Buat hanya bila belum ada.
+    const exists = await client.query('SELECT 1 FROM pg_namespace WHERE nspname = $1', [schema]);
+    if (exists.rowCount === 0) await client.query(`CREATE SCHEMA ${schema}`);
     await client.query(`SET search_path TO ${schema}`);
     await client.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
       version text PRIMARY KEY, name text NOT NULL, checksum char(64) NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())`);

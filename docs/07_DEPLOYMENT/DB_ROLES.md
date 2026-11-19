@@ -1,9 +1,10 @@
 # Pemisahan role database (migrator vs aplikasi)
 
-> **STATUS: skrip SQL di bawah BELUM DIUJI.** Saat Fase G tidak ada akses admin PostgreSQL untuk membuat role
-> uji. Yang teruji: kode aplikasi (kredensial migrasi terpisah, `AUTO_MIGRATE`, `npm run migrate:prod`,
-> pemeriksaan role saat start) dan tes cakupan RLS. Jalankan skrip ini di staging oleh DBA, lalu ikuti
-> daftar verifikasi di bawah sebelum dipakai di produksi.
+> **STATUS: TERUJI di PostgreSQL staging lokal (2026-11-20)** dengan role `wazap_migrator` dan `wazap_app` sungguhan. Hasil: migrasi 0001-0014
+> sukses sebagai migrator; `scripts/verify-db-roles.sh` 15/15 lulus; server start dengan `DB_ROLE_CHECK=enforce` tanpa peringatan; smoke test (register, undangan,
+> permintaan bergabung, audit, usage) lulus. Temuan saat pengujian (sudah diperbaiki di kode/dokumen): `CREATE SCHEMA IF NOT EXISTS` butuh hak CREATE pada database
+> (migrator kini memeriksa `pg_namespace` dahulu); `ALTER DEFAULT PRIVILEGES` memberi hak DML app pada `schema_migrations` (lihat langkah REVOKE di bawah).
+> **Belum:** pengujian di staging nyata (server terpisah, Nginx, TLS) dan dengan DBA sungguhan; pemantauan.
 
 ## Mengapa
 
@@ -56,14 +57,15 @@ Deploy: `npm run build && npm run migrate:prod` (memakai `DB_MIGRATE_*`), lalu `
 -   Tabel yang dimiliki migrator juga tunduk pada FORCE RLS: **migrasi yang melakukan UPDATE/DELETE data
     (backfill) akan melihat 0 baris**. Tulis backfill sebagai langkah terpisah dengan konteks platform, atau
     sementara beri migrator `BYPASSRLS` hanya selama migrasi itu.
--   `schema_migrations` dimiliki migrator dan tidak diberi hak ke app (app tidak membutuhkannya).
+-   `schema_migrations` dimiliki migrator, tetapi `ALTER DEFAULT PRIVILEGES` di atas MEMBERI hak DML ke app pada tabel ini juga
+    (ditemukan saat verifikasi staging). App tidak membutuhkannya dan dapat mengubah checksum migrasi bila dibobol, jadi setelah
+    migrasi PERTAMA jalankan sekali: `REVOKE ALL ON gateway.schema_migrations FROM wazap_app;` (skrip verifikasi memeriksanya).
 -   Runtime tidak menjalankan DDL (`CREATE SCHEMA`/`CREATE TABLE`) sama sekali; semua DDL ada di migrator.
 
 ## Daftar verifikasi (staging, sebelum produksi)
 
 Otomatis: `backend/scripts/verify-db-roles.sh` (butir 2, 4, 5 di bawah + uji DDL ditolak; semua uji berisiko dibungkus rollback).
-Skrip ini sudah diuji terhadap role dev (pemilik schema): ia benar mendeteksi pelanggaran dan tidak mengubah apa pun.
-Yang BELUM terjadi: dijalankan terhadap role `wazap_app` sungguhan (menunggu staging).
+Skrip ini diuji terhadap role dev (pemilik schema: mendeteksi pelanggaran) dan terhadap `wazap_app` sungguhan di staging lokal (2026-11-20: semua lulus setelah REVOKE `schema_migrations`).
 
 
 1.  `npm run migrate:prod` sukses dengan `DB_MIGRATE_*`; log menunjukkan `as: "migrator"`.

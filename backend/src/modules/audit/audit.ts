@@ -26,12 +26,17 @@ export interface RequestMeta { ip?: string; requestId?: string }
  * Catat audit DI DALAM transaksi perubahan: perubahan dan jejaknya atomik (rollback membatalkan keduanya).
  * Kunci yang tampak sebagai rahasia dibuang sebagai pertahanan berlapis.
  */
-const SECRET_KEY = /token|secret|password|hash|authorization|api[_-]?key|cookie/i;
+/**
+ * Kunci yang tampak rahasia dibuang. Pencocokan memakai BATAS KATA (pemisah `_`/`-`), bukan substring: `max_api_keys` (kuota) harus tetap tercatat,
+ * sedangkan `api_key`, `x-api-key`, `token_hash`, `invitation_token`, `webhook_secret`, `password_hash`, `authorization`, `cookie` dibuang.
+ */
+const SECRET_KEY = /(^|[_-])(token|secret|password|passwd|hash|authorization|cookie)s?($|[_-])|(^|[_-])api[_-]?key($|[_-])|^key$/i;
+export const isSecretKey = (k: string) => SECRET_KEY.test(k);
 const clean = (v: unknown, depth = 0): unknown => {
   if (Array.isArray(v)) return depth > 3 ? [] : v.slice(0, 50).map((x) => clean(x, depth + 1));
   if (v && typeof v === 'object') {
     if (depth > 3) return {};
-    return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k]) => !SECRET_KEY.test(k)).map(([k, x]) => [k, clean(x, depth + 1)]));
+    return Object.fromEntries(Object.entries(v as Record<string, unknown>).filter(([k]) => !isSecretKey(k)).map(([k, x]) => [k, clean(x, depth + 1)]));
   }
   return typeof v === 'string' ? v.slice(0, 300) : v;
 };

@@ -24,7 +24,7 @@ export async function usageRoutes(app: FastifyInstance, { usage, authenticate }:
 
   app.get('/usage/messages', { preHandler: read }, async (req) => {
     const q = SeriesQ.parse(req.query);
-    if (!validTimeZone(q.tz)) throw new AppError('VALIDATION_ERROR', 400, 'Zona waktu tidak dikenal (gunakan nama IANA, mis. Asia/Jakarta)');
+    if (!validTimeZone(q.tz) || !(await usage.timezoneKnown(q.tz))) throw new AppError('VALIDATION_ERROR', 400, 'Zona waktu tidak dikenal (gunakan nama IANA, mis. Asia/Jakarta; bentuk offset seperti +07:00 tidak didukung)');
     const range = resolveRange(q);
     return ok(await usage.series(req.auth!.tenantId, range, { unit: q.group_by, tz: q.tz, sessionId: q.session_id }),
       { from: range.from.toISOString(), to: range.to.toISOString(), group_by: q.group_by, tz: q.tz });

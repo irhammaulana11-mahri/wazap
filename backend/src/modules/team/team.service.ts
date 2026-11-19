@@ -6,10 +6,12 @@ import { AppError } from '../../http/errors.js';
 import type { Role } from '../identity/principal.js';
 import { sha256hex } from '../identity/tokens.js';
 import { recordAudit, type AuditAction } from '../audit/audit.js';
+import { readMembership, teamLock } from './team-lock.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN_RE = /^inv_[A-Za-z0-9_-]{43}$/;
 const ROLES: Role[] = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'];
+const RANK: Record<Role, number> = { OWNER: 3, ADMIN: 2, MEMBER: 1, VIEWER: 0 };
 
 /** OWNER mengelola semua; ADMIN hanya MEMBER/VIEWER (tidak dapat menyentuh OWNER/ADMIN). */
 export const canManageRole = (actor: Role, target: Role) => actor === 'OWNER' || (actor === 'ADMIN' && (target === 'MEMBER' || target === 'VIEWER'));
@@ -37,13 +39,13 @@ const invView = (r: any) => ({ id: r.id, email: r.email, role: r.role, status: r
  * tidak dapat dilewati lewat balapan. Peran aktor datang dari principal terverifikasi, bukan dari klien.
  */
 export function createTeamService(db: GatewayDb) {
-  const lock = (c: pg.PoolClient, tenantId: string) => c.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['wazap:team:' + tenantId]);
+  const lock = teamLock;
 
   /** Peran aktor dibaca ulang DI DALAM lock: peran di token bisa saja baru diturunkan oleh permintaan lain yang bersamaan. */
   async function freshActor(c: pg.PoolClient, a: TeamActor): Promise<TeamActor> {
-    const m = (await c.query('SELECT role, status, member_email FROM tenant_memberships WHERE tenant_id = $1 AND user_id = $2', [a.tenantId, a.userId])).rows[0];
+    const m = await readMembership(c, a.tenantId, a.userId);
     if (!m || m.status !== 'ACTIVE') throw forbidden();
-    return { ...a, role: m.role as Role, email: m.member_email as string | null };
+    return { ...a, role: m.role, email: m.email };
   }
 
   /** Jejak audit dalam transaksi yang sama dengan perubahan. */
@@ -56,6 +58,17 @@ export function createTeamService(db: GatewayDb) {
     if (!t) throw memberNotFound();
     return t as { user_id: string; role: Role; status: string; member_email: string | null; created_at: Date };
   }
+  /**
+   * Undangan tertunda milik seorang anggota dicabut bila ia dihapus, ditangguhkan, atau diturunkan perannya: undangan tidak boleh hidup
+   * lebih lama daripada wewenang pembuatnya (penerima nanti masuk dengan peran yang diberikan di bawah wewenang yang sudah dicabut).
+   * Pemeriksaan wewenang saat penerimaan tidak mungkin (penerima belum anggota dan RLS menutup pembacaan keanggotaan tenant), jadi dicabut di sini.
+   */
+  async function revokeInvitationsBy(c: pg.PoolClient, actor: TeamActor, inviterId: string, reason: string): Promise<number> {
+    const rows = (await c.query(`UPDATE tenant_invitations SET status = 'REVOKED' WHERE tenant_id = $1 AND invited_by = $2 AND status = 'PENDING' RETURNING id, email, role`, [actor.tenantId, inviterId])).rows;
+    for (const r of rows) await audit(c, actor, 'invitation.revoked', 'invitation', r.id, r.email, { role: r.role, reason });
+    return rows.length;
+  }
+
   /** Tolak bila operasi menyisakan tenant tanpa OWNER aktif. */
   async function assertNotLastOwner(c: pg.PoolClient, tenantId: string, t: { user_id: string; role: Role; status: string }) {
     if (t.role !== 'OWNER' || t.status !== 'ACTIVE') return;
@@ -89,6 +102,9 @@ export function createTeamService(db: GatewayDb) {
            RETURNING user_id, member_email, role, status, created_at`, [actor.tenantId, userId, patch.role ?? null, patch.status ?? null])).rows[0];
         if (patch.role && patch.role !== t.role) await audit(c, actor, 'member.role_changed', 'member', userId, t.member_email, { from: t.role, to: patch.role });
         if (patch.status && patch.status !== t.status) await audit(c, actor, 'member.status_changed', 'member', userId, t.member_email, { from: t.status, to: patch.status });
+        const demoted = patch.role !== undefined && RANK[patch.role] < RANK[t.role];
+        const suspended = patch.status === 'SUSPENDED' && t.status !== 'SUSPENDED';
+        if (demoted || suspended) await revokeInvitationsBy(c, actor, userId, demoted ? 'inviter_demoted' : 'inviter_suspended');
         return memberView(row, actor.userId);
       });
     },
@@ -101,8 +117,15 @@ export function createTeamService(db: GatewayDb) {
         const t = await target(c, actor.tenantId, userId);
         if (t.user_id !== actor.userId && !canManageRole(actor.role, t.role)) throw forbidden();
         await assertNotLastOwner(c, actor.tenantId, t);
+        // Offboarding: kredensial yang dibuat anggota ini ikut dicabut (API key adalah kredensial tenant-wide yang bertahan setelah sesi dashboard mati).
+        // WAJIB SEBELUM keanggotaan dihapus: FK (tenant_id, created_by_user_id) -> tenant_memberships berstatus ON DELETE SET NULL, sehingga sesudah DELETE
+        // pembuat key sudah NULL dan tidak ada lagi yang dapat dicocokkan. Ditangguhkan (bukan dihapus) TIDAK mencabut key: daftar API key menampilkan
+        // pembuatnya agar dapat dicabut manual.
+        const keys = (await c.query(`UPDATE api_keys SET revoked_at = now() WHERE tenant_id = $1 AND created_by_user_id = $2 AND revoked_at IS NULL RETURNING id`, [actor.tenantId, userId])).rows.map((r: any) => r.id as string);
         await c.query('DELETE FROM tenant_memberships WHERE tenant_id = $1 AND user_id = $2', [actor.tenantId, userId]);
-        await audit(c, actor, t.user_id === actor.userId ? 'member.left' : 'member.removed', 'member', userId, t.member_email, { role: t.role, status: t.status });
+        const self = t.user_id === actor.userId;
+        const invs = await revokeInvitationsBy(c, actor, userId, self ? 'inviter_left' : 'inviter_removed');
+        await audit(c, actor, self ? 'member.left' : 'member.removed', 'member', userId, t.member_email, { role: t.role, status: t.status, revoked_api_keys: keys, revoked_invitations: invs });
         return { user_id: userId, removed: true };
       });
     },
@@ -176,10 +199,18 @@ export function createTeamService(db: GatewayDb) {
       return db.tx({ tenantId: actor.tenantId }, async (c) => {
         await lock(c, actor.tenantId);
         const fresh = await freshActor(c, actor);
-        const inv = (await c.query('SELECT id, email, role, status FROM tenant_invitations WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [id, actor.tenantId])).rows[0];
+        const inv = (await c.query('SELECT id, email, role, status, (expires_at <= now()) AS expired FROM tenant_invitations WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [id, actor.tenantId])).rows[0];
         if (!inv) throw new AppError('NOT_FOUND', 404, 'Undangan tidak ditemukan');
         if (!canManageRole(fresh.role, inv.role)) throw forbidden();
         if (inv.status !== 'PENDING') throw new AppError('INVALID_STATE', 409, 'Hanya undangan tertunda yang dapat diterbitkan ulang');
+        if (inv.expired) {
+          // Undangan kedaluwarsa tidak dihitung dalam kuota; menghidupkannya kembali menambah satu slot: periksa seperti saat membuat undangan baru.
+          const used = (await c.query(
+            `SELECT (SELECT count(*) FROM tenant_memberships WHERE tenant_id = $1)::int
+                  + (SELECT count(*) FROM tenant_invitations WHERE tenant_id = $1 AND status = 'PENDING' AND expires_at > now())::int AS n,
+                    (SELECT max_members FROM tenant_settings WHERE tenant_id = $1) AS max`, [actor.tenantId])).rows[0];
+          if (used.max == null || used.n >= used.max) throw new AppError('QUOTA_EXCEEDED', 409, 'Batas jumlah anggota (termasuk undangan tertunda) tercapai; undangan kedaluwarsa tidak dapat dihidupkan kembali');
+        }
         const row = (await c.query(
           `UPDATE tenant_invitations SET token_hash = $2, expires_at = now() + make_interval(hours => $3) WHERE id = $1 RETURNING ${INV_COLS}`,
           [id, sha256hex(raw), config.TEAM_INVITATION_TTL_HOURS])).rows[0];

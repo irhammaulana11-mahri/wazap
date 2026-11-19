@@ -3,7 +3,7 @@ import type { GatewayDb } from '../../database/gateway.js';
 import { config } from '../../config/env.js';
 import { AppError } from '../../http/errors.js';
 import { recordAudit } from '../audit/audit.js';
-import type { Role } from '../identity/principal.js';
+import { readMembership, teamLock } from '../team/team-lock.js';
 
 export type LimitKey = 'max_sessions' | 'max_api_keys' | 'max_members' | 'messages_per_minute';
 /** Rentang yang sah per kuota: [min, ceiling]. Ceiling dari env (operator): tenant TIDAK dapat melampauinya. */
@@ -48,8 +48,8 @@ export function createSettingsService(db: GatewayDb) {
 
     async update(actor: SettingsActor, patch: Partial<Record<LimitKey, number>>) {
       return db.tx({ tenantId: actor.tenantId }, async (c) => {
-        await c.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['wazap:team:' + actor.tenantId]); // serial dengan undangan/anggota
-        const me = (await c.query('SELECT role, status, member_email FROM tenant_memberships WHERE tenant_id = $1 AND user_id = $2', [actor.tenantId, actor.userId])).rows[0];
+        await teamLock(c, actor.tenantId); // serial dengan undangan/anggota (satu definisi kunci bersama)
+        const me = await readMembership(c, actor.tenantId, actor.userId);
         if (!me || me.status !== 'ACTIVE' || me.role !== 'OWNER') throw forbidden(); // peran dibaca ulang di dalam lock
         const cur = await read(c, actor.tenantId);
         const problems: { path: string; message: string }[] = [];
@@ -57,6 +57,7 @@ export function createSettingsService(db: GatewayDb) {
         for (const k of LIMIT_KEYS) {
           const v = patch[k];
           if (v === undefined) continue;
+          if (v === cur.limits[k]) continue; // tidak berubah: tetap sah walau ceiling diturunkan operator sesudah nilai ini disimpan (formulir yang mengirim semua field)
           const { min } = SPEC[k]; const ceil = SPEC[k].ceil();
           if (!Number.isInteger(v) || v < min || v > ceil) { problems.push({ path: k, message: `harus bilangan bulat ${min}..${ceil}` }); continue; }
           const usedKey = k === 'max_sessions' ? 'sessions' : k === 'max_api_keys' ? 'api_keys' : k === 'max_members' ? 'members' : null;
@@ -69,7 +70,7 @@ export function createSettingsService(db: GatewayDb) {
             `UPDATE tenant_settings SET max_sessions = COALESCE($2, max_sessions), max_api_keys = COALESCE($3, max_api_keys),
                max_members = COALESCE($4, max_members), messages_per_minute = COALESCE($5, messages_per_minute) WHERE tenant_id = $1`,
             [actor.tenantId, changes.max_sessions?.to ?? null, changes.max_api_keys?.to ?? null, changes.max_members?.to ?? null, changes.messages_per_minute?.to ?? null]);
-          await recordAudit(c, { tenantId: actor.tenantId, actor: { userId: actor.userId, email: me.member_email, role: me.role as Role }, action: 'settings.updated', targetType: 'settings', targetId: actor.tenantId, details: { changes }, ip: actor.ip, requestId: actor.requestId });
+          await recordAudit(c, { tenantId: actor.tenantId, actor: { userId: actor.userId, email: me.email, role: me.role }, action: 'settings.updated', targetType: 'settings', targetId: actor.tenantId, details: { changes }, ip: actor.ip, requestId: actor.requestId });
         }
         return read(c, actor.tenantId);
       });

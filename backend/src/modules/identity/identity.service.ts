@@ -283,12 +283,15 @@ export function createIdentityService(db: GatewayDb) {
         const total = (await c.query('SELECT count(*)::int AS n FROM api_keys WHERE tenant_id = $1', [tenantId])).rows[0].n;
         const rows = (
           await c.query(
-            `SELECT id, name, key_prefix, scopes, last_used_at, expires_at, revoked_at, created_at
-             FROM api_keys WHERE tenant_id = $1 ORDER BY created_at DESC, id LIMIT $2 OFFSET $3`,
+            `SELECT k.id, k.name, k.key_prefix, k.scopes, k.last_used_at, k.expires_at, k.revoked_at, k.created_at,
+                    k.created_by_user_id, m.member_email AS created_by_email
+             FROM api_keys k LEFT JOIN tenant_memberships m ON m.tenant_id = k.tenant_id AND m.user_id = k.created_by_user_id
+             WHERE k.tenant_id = $1 ORDER BY k.created_at DESC, k.id LIMIT $2 OFFSET $3`,
             [tenantId, pageSize, (page - 1) * pageSize]
           )
         ).rows;
-        return { rows, total };
+        // Pembuat: id selalu ada bila dibuat pengguna dashboard; email hanya selama pembuatnya masih anggota (null bila sudah dihapus).
+        return { rows: rows.map(({ created_by_user_id, created_by_email, ...k }: any) => ({ ...k, created_by: created_by_user_id ? { user_id: created_by_user_id, email: created_by_email ?? null } : null })), total };
       });
     },
 

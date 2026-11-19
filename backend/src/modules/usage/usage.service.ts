@@ -16,8 +16,13 @@ export function resolveRange(q: { from?: string; to?: string }, now = new Date()
   return { from, to };
 }
 
-/** Nama zona waktu IANA yang dikenal runtime (mis. Asia/Jakarta); selain itu 400. */
+/**
+ * Nama zona waktu IANA (mis. Asia/Jakarta, Etc/GMT-7) atau UTC. Bentuk OFFSET ('+07:00', 'UTC+7') DITOLAK: Intl menerimanya sebagai UTC+7 tetapi
+ * PostgreSQL `AT TIME ZONE '+07:00'` membacanya sebagai POSIX (UTC-7, tanda terbalik) sehingga data bergeser 14 jam tanpa galat.
+ */
+const TZ_NAME = /^(UTC|[A-Za-z]+(?:[_-][A-Za-z]+)*\/[A-Za-z0-9_+-]+(?:\/[A-Za-z0-9_+-]+)?)$/;
 export function validTimeZone(tz: string): boolean {
+  if (!TZ_NAME.test(tz)) return false;
   try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch { return false; }
 }
 
@@ -28,7 +33,17 @@ const sum = (m: Record<string, number>, ...keys: string[]) => keys.reduce((a, k)
  * SAAT INI; pesan MASUK menurut `created_at` (saat diterima gateway). Data lebih tua dari masa retensi (180 hari) sudah dihapus.
  */
 export function createUsageService(db: GatewayDb) {
+  // Nama zona yang sudah dipastikan dikenal PostgreSQL (pg_timezone_names lambat, jadi di-cache per proses).
+  const knownTz = new Set<string>(['UTC']);
   return {
+    /** Dikenal PostgreSQL? (pemeriksaan kedua setelah validTimeZone, agar nama yang hanya dikenal Intl tidak lolos). */
+    async timezoneKnown(tz: string): Promise<boolean> {
+      if (knownTz.has(tz)) return true;
+      const ok = (await db.pool.query('SELECT 1 FROM pg_timezone_names WHERE name = $1', [tz])).rowCount === 1;
+      if (ok) knownTz.add(tz);
+      return ok;
+    },
+
     async summary(tenantId: string, r: UsageRange) {
       return db.tx({ tenantId }, async (c) => {
         const out = (await c.query(

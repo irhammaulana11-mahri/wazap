@@ -1,0 +1,108 @@
+# Security Policy
+
+## Identity
+
+-   Hash passwords with Argon2id or an approved modern password hashing
+    scheme.
+-   Rate limit registration/login and protect against brute force.
+-   Use secure cookies, CSRF protection where cookie auth is used, and
+    strict CORS.
+-   Rotate/revoke API keys.
+
+## Secrets
+
+-   API key raw value shown once; persist only hash.
+-   Encrypt Baileys auth state and webhook secrets at rest.
+-   Keep encryption master key outside database and source control.
+-   Never log QR payload, credentials, API key, access token, or webhook
+    secret.
+
+## Tenant isolation
+
+-   Tenant derived from verified principal.
+-   Service-level authorization plus PostgreSQL RLS.
+-   Composite tenant foreign keys.
+-   Cross-tenant negative tests for every resource.
+
+## API and webhook
+
+-   Input validation, request size limits, rate limiting.
+-   SSRF protection for webhook destinations.
+-   HMAC signatures and replay protection.
+-   Do not expose internal engine endpoints publicly.
+
+## Operations
+
+-   Least privilege DB roles.
+-   Private storage permissions.
+-   TLS at reverse proxy.
+-   Audit security-sensitive actions.
+-   Encrypted backups and tested restore.
+-   Retention and deletion policy for message/media/auth data.
+
+## WhatsApp compliance
+
+-   Follow applicable WhatsApp terms and policies.
+-   Do not facilitate spam or unsolicited bulk messaging.
+-   Apply tenant/session rate controls and consent-aware usage.
+-   Evaluate official WhatsApp Business Platform for commercial-critical
+    use.
+
+## Implementasi (Fase D)
+
+-   Auth state & QR terenkripsi AES-256-GCM; master key
+    `CREDENTIAL_ENCRYPTION_KEYS` dari environment, bukan DB/repo; pesan error
+    kripto tidak membocorkan kunci/konteks.
+-   Logger Baileys dimatikan (`silent`); tes memindai source agar QR/creds tidak
+    masuk log; payload event disanitasi.
+-   **Risiko tersisa:** kehilangan/bocornya master key; belum ada re-enkripsi
+    massal saat rotasi; satu role DB untuk migrate+runtime di dev; socket zombie
+    dapat bertahan sampai tick berikutnya setelah kehilangan lease.
+
+## Implementasi (Fase E)
+
+-   Isi pesan dan nomor tujuan tersimpan di DB (plaintext) selama job ada dan
+    tidak pernah dicatat di log (tes memindai source). **Risiko:** belum ada
+    kebijakan retensi/penghapusan atau enkripsi isi pesan; tentukan sebelum produksi.
+-   Mitigasi penyalahgunaan/ban: batas pesan/menit per tenant, jeda per
+    sesi, batas antrean, validasi format nomor, pengecekan nomor terdaftar
+    (`VERIFY_RECIPIENT`). Tidak menjamin WhatsApp tidak memblokir nomor.
+
+## Implementasi (Fase F)
+
+-   **Webhook:** HMAC-SHA256 + timestamp (anti-replay 5 menit), secret terenkripsi at-rest dan
+    tampil sekali; SSRF dicegah di tiga lapis (URL, DNS saat dibuat, `lookup` saat koneksi) tanpa
+    redirect; respons penerima tidak disimpan (mencegah kebocoran isi layanan internal);
+    private/`http` hanya via env eksplisit. Tes: IPv4/IPv6 khusus (loopback, link-local,
+    metadata 169.254.169.254, ULA, IPv4-mapped, NAT64, 6to4), DNS rebinding (satu alamat privat
+    menolak), redirect tidak diikuti, tanda tangan tamper/replay.
+-   **Realtime:** token via `auth.token` saja; room dibentuk server; QR tidak pernah lewat
+    socket (sinyal saja); validasi ulang kredensial berkala; batas koneksi per tenant;
+    buffer masuk 4 KB.
+-   **Media:** URL klien diunduh server dengan perlindungan SSRF, batas ukuran/timeout, daftar putih
+    tipe konten. **Risiko tersisa:** tipe konten dipercaya dari header (tanpa sniffing magic
+    bytes/pemindaian malware); unduhan dibuffer di memori.
+-   **Retensi (ADR-022):** isi pesan/nomor dihapus 30 hari, baris 180 hari; outbox 7 hari;
+    delivery webhook 30 hari. **Risiko tersisa:** isi pesan masih plaintext di DB selama masa
+    retensi; teks pesan masuk juga ada di `outbox_events` (<= 7 hari) dan `webhook_deliveries`
+    (<= 30 hari); backup database tidak tercakup; `wa_session_events` tidak dipurge.
+-   **Penyalahgunaan:** bulk dibatasi (`BULK_MAX_MESSAGES`), batas pesan/menit tenant dan jeda
+    per sesi berlaku sama untuk bulk; item ganda ditolak. Tidak menjamin nomor tidak diblokir WhatsApp.
+-   **Risiko tersisa:** endpoint webhook yang terus gagal tetap menerima delivery baru (tanpa
+    circuit breaker/auto-disable); tidak ada rate limit per endpoint.
+
+## Implementasi (Fase G)
+
+-   **RLS ditegakkan tes:** semua tabel RLS ENABLE+FORCE+kebijakan, semua tabel ber-`tenant_id` terlindungi, tanpa kebijakan
+    terbuka, tanpa SECURITY DEFINER. **Role DB:** start ditolak bila superuser/BYPASSRLS (`DB_ROLE_CHECK=enforce`, default produksi);
+    peringatan bila role runtime pemilik schema. Pemisahan migrator/app didukung kode (`DB_MIGRATE_*`, `AUTO_MIGRATE`,
+    `migrate:prod`); skrip role di DB_ROLES.md **belum diuji** (tidak ada akses admin DB saat Fase G).
+-   **Pembatasan laju** per IP (pra-autentikasi) dan per tenant; header keamanan; `requestTimeout`. Batas in-memory per proses.
+-   **Rotasi kunci:** `npm run keys:rotate` (ADR-026) --- menutup risiko "tidak ada re-enkripsi massal" dari Fase D.
+-   **Circuit breaker webhook** (ADR-025) --- menutup risiko endpoint gagal terus-menerus dari Fase F.
+-   **Dependensi:** `npm audit --omit=dev` => 0 kerentanan (2026-11-19). Ulangi sebelum rilis.
+-   **Tidak membocorkan galat internal:** tes memastikan 500 generik (tanpa stack/pesan asli) dan galat parser tidak bocor.
+-   **Risiko tersisa:** (1) skrip pemisahan role belum diuji; (2) batas laju tidak terbagi antar instans; (3) isi pesan plaintext
+    selama masa retensi (ADR-022); (4) kunci enkripsi master hanya di environment (kehilangan = semua sesi pair ulang;
+    belum ada integrasi KMS/secret manager); (5) tipe konten media dipercaya dari header; (6) belum ada pemindaian
+    SAST/DAST, uji penetrasi, maupun uji beban multi-koneksi; (7) `schema_migrations` tidak berRLS (hanya metadata).

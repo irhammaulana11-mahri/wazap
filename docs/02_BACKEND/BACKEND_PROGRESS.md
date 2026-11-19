@@ -1,0 +1,446 @@
+# Backend Progress
+
+  ----------------------------------------------------------------------------
+  Work item        Status         Owner          Evidence / PR  Notes
+                                                 / commit       
+  ---------------- -------------- -------------- -------------- --------------
+  Backend scaffold REVIEW         Backend Agent Fase A, lihat    
+                                                 Latest update  
+
+  PostgreSQL       REVIEW          Backend Agent                 
+  connection and                                                
+  migrations                                                    
+
+  Identity and     REVIEW          Backend Agent                 
+  tenant isolation                                              
+
+  API key and      REVIEW          Backend Agent                 
+  scopes                                                        
+
+  Session registry REVIEW         Backend Agent                 
+
+  Engine registry  REVIEW         Backend Agent                 
+  and lease                                                     
+
+  Baileys adapter  REVIEW         Backend Agent                 
+
+  Message queue    REVIEW         Backend Agent                 
+
+  Messaging API    REVIEW         Backend Agent                 
+
+  Webhook/outbox   REVIEW         Backend Agent                 
+
+  Socket.IO events REVIEW         Backend Agent                 
+
+  Security tests   REVIEW         QA/Backend                    
+  ----------------------------------------------------------------------------
+
+## Fase A (2026-11-19)
+
+-   Date: 2026-11-19
+-   Status: Fase A (scaffold + config + health) = REVIEW
+-   Completed:
+    -   Config tervalidasi Zod (`loadConfig`), fail-fast tanpa
+        membocorkan nilai secret.
+    -   `/health/live`, `/health/ready` (503 saat DB down atau
+        shutdown), `/health` alias.
+    -   Graceful shutdown (`src/runtime/shutdown.ts`): hook LIFO,
+        idempoten, timeout, SIGINT/SIGTERM.
+    -   Redaksi header authorization/x-api-key/cookie di log.
+    -   Dependency di-pin (tanpa `^`), `engines.node >=22`.
+    -   `backend/data/` masuk `.gitignore`.
+    -   Script `typecheck` dan `test` (node:test + tsx).
+-   Files created/changed: `backend/src/config/env.ts`,
+    `backend/src/app.ts`, `backend/src/server.ts`,
+    `backend/src/modules/health/health.routes.ts`,
+    `backend/src/runtime/shutdown.ts`, `backend/test/health.test.ts`,
+    `backend/package.json`, `.gitignore`.
+-   Tests: `npm run typecheck` OK; `npm test` 8/8 pass. Smoke manual:
+    server berjalan, `/health/live` 200, `/health/ready` 200 dengan
+    PostgreSQL dev.
+-   In progress: -
+-   Blocked: -
+-   Known limitations:
+    -   Prototipe masih aktif: `runMigrations()` mengeksekusi semua
+        `.sql` setiap start (diganti runner berversi pada Fase B),
+        `session.manager.ts` menyimpan auth state plaintext di
+        `backend/data/sessions` dan menyambungkan ulang sesi saat
+        start (diganti engine/lease/encrypted store pada Fase C-D),
+        auth login admin + `DEFAULT_TENANT_ID` (diganti Fase B).
+    -   Graceful shutdown baru terverifikasi lewat unit test; SIGTERM
+        live belum terverifikasi.
+    -   Pemisahan proses `api`/`engine`/`worker` belum dibuat; baru
+        entrypoint API.
+    -   Socket.IO belum ditambahkan (Fase F).
+-   Decisions required: runner migrasi (rencana: runner SQL sendiri
+    berversi + tabel `schema_migrations`, tanpa ORM). Mohon konfirmasi
+    sebelum Fase B.
+-   Documents updated: BACKEND_PROGRESS.md, CHANGELOG.md.
+-   Next recommended task: Fase B (migrasi 0001 identity/tenant, RLS,
+    composite FK, API key ter-hash).
+
+
+## Fase B --- migrations + identity/tenant (2026-11-19)
+
+-   Status: **REVIEW** (implementasi + tes lolos; belum ada review/QA).
+-   Completed: runner migrasi berversi; migrasi 0001 (tenants, users,
+    tenant_memberships, tenant_settings, api_keys, refresh_tokens, RLS
+    FORCE, composite FK); register/login/refresh(rotasi + deteksi
+    reuse)/logout/me; API key (hash SHA-256, scopes, expiry, revoke,
+    kuota); rate limit login/register; error envelope + `X-Request-Id`;
+    password Argon2id (`@node-rs/argon2`).
+-   Files: `backend/src/database/{migrator,gateway}.ts`,
+    `database/migrations/0001_identity_tenant.sql`,
+    `database/legacy/001_initial_schema.sql` (dipindah),
+    `backend/src/http/errors.ts`, `backend/src/modules/identity/*`,
+    `backend/src/app.ts`, `server.ts`, `config/env.ts`,
+    `modules/auth/{login.routes,auth.guard}.ts` (legacy),
+    `backend/test/{helpers,migrator,rls,identity}.test.ts`.
+-   Dependency baru (pinned): `@node-rs/argon2@2.2.2`,
+    `@fastify/cookie@11.1.5`.
+-   Tests: `cd backend && npm run typecheck && npm test` => typecheck OK,
+    **40/40 pass** (8 Fase A + 32 baru: migrator 3, RLS 8, identity 21).
+    Tes DB memakai schema sementara `gw_test_*` yang di-drop otomatis.
+    Migrasi 0001 diterapkan ke `gateway` di `wazap_db`; dijalankan dua
+    kali (kedua idempoten).
+-   Known limitations:
+    -   Rate limiter in-memory (per proses); perlu store bersama saat
+        multi-instance.
+    -   Refresh paralel dari dua tab dengan token yang sama dianggap
+        reuse dan mencabut sesi (trade-off keamanan).
+    -   Pembersihan refresh token kedaluwarsa belum ada.
+    -   Belum ada audit_logs (migrasi 0004), invite anggota, reset
+        password, verifikasi email, dan bootstrap platform-admin.
+    -   Dev memakai satu role DB untuk migrasi dan runtime.
+    -   Prototipe legacy (login admin env, public.*, penyimpanan auth state
+        plaintext) masih aktif; route-nya mengembalikan 501 untuk
+        principal baru. Dihapus Fase C.
+    -   Tes belum menjalankan server HTTP sungguhan (memakai
+        `fastify.inject`).
+-   Decisions required: (1) default kuota `tenant_settings` (3 session,
+    20 API key, 60 pesan/menit) perlu dikonfirmasi; (2) token
+    refresh via cookie HttpOnly dipilih sesuai opsi API_CONTRACT dan
+    mengubah cara frontend menyimpan sesi; (3) kapan login legacy
+    dimatikan (usul: akhir Fase C).
+-   Documents updated: DATABASE_DESIGN, TABLE_SPECIFICATION, ERD,
+    MIGRATION_LOG, API_CONTRACT, INTEGRATION_CONTRACT, TENANT_ISOLATION,
+    BACKEND_PROGRESS, CHANGELOG.
+-   Next recommended task: Fase C (migrasi 0002 session registry +
+    engine_nodes + session_leases + session_credentials, lease/fencing).
+
+
+## Fase C --- session registry + engine registry/lease/fencing (2026-11-19)
+
+-   Status: **REVIEW** (implementasi + tes lolos; belum ada engine nyata).
+-   Completed: migrasi 0002; lifecycle terpusat dengan event; API sessions
+    (create/list/get/status/events/connect/disconnect/reconnect/delete);
+    engine registry (register/heartbeat/sweep/drain); penempatan weighted
+    least-loaded dengan kapasitas dan guard memori; lease + fencing (CAS,
+    token monoton, `withFence` FOR SHARE); control-plane (pemulihan lease
+    kedaluwarsa, finalisasi, penempatan adil antar tenant, leader election);
+    ADR-010/011/012; legacy dinonaktifkan secara default.
+-   Files: `backend/src/database/migrations/0002_sessions_engines.sql`,
+    `backend/src/modules/sessions/{lifecycle,sessions.service,sessions.routes}.ts`,
+    `backend/src/modules/engine/{engine.service,lease.service,control-plane}.ts`,
+    `backend/src/modules/identity/guard.ts` (`requireAccess`),
+    `backend/src/database/gateway.ts` (konteks platform), `app.ts`, `server.ts`,
+    `config/env.ts`, `modules/sessions/legacy-session.routes.ts` (rename),
+    `backend/test/{lifecycle,engine,sessions}.test.ts`.
+-   Tests: `cd backend && npm run typecheck && npm test` => typecheck OK,
+    **70/70 pass** (40 sebelumnya + 30: lifecycle 5, engine 15, sessions 11 --
+    termasuk konkurensi lease 8 engine, takeover menunggu penulisan berfencing,
+    tanpa overcommit di bawah konkurensi, fairness antar tenant, isolasi tenant).
+    Migrasi 0002 diterapkan ke `gateway` di `wazap_db` (dua kali, idempoten).
+-   Known limitations:
+    -   Belum ada engine/adapter nyata: sesi hanya mencapai INITIALIZING;
+        konfirmasi terminasi proses lama tidak mungkin sebelum Fase D.
+    -   Control-plane embedded di proses API; proses terpisah belum ada.
+    -   Placement belum memakai CPU; hanya memori opsional.
+    -   Event `wa_session_events` belum punya retensi/partisi.
+    -   Tes konkurensi memakai satu proses Node (banyak koneksi), bukan
+        banyak proses/host.
+    -   Frontend lama tidak berfungsi sampai dimigrasikan (lihat
+        INTEGRATION_CONTRACT).
+    -   Auth state prototipe (plaintext) di `backend/data/sessions` belum
+        dimigrasikan/dienkripsi (Fase D); kode legacy dihapus di Fase D.
+-   Decisions required: (1) kapan kode legacy dihapus (usul: awal Fase D,
+    setelah adapter baru); (2) strategi migrasi 2 sesi WhatsApp prototipe
+    yang ada (re-pair via QR vs impor auth state terenkripsi).
+-   Documents updated: DECISION_LOG, DATABASE_DESIGN, TABLE_SPECIFICATION,
+    ERD, MIGRATION_LOG, SESSION_LIFECYCLE, ENGINE_ORCHESTRATION,
+    API_CONTRACT, INTEGRATION_CONTRACT, TENANT_ISOLATION, BACKEND_PROGRESS,
+    CHANGELOG.
+-   Next recommended task: Fase D (interface adapter, implementasi Baileys,
+    penyimpanan auth state terenkripsi + fencing, lifecycle driver engine,
+    heartbeat/renew loop, reconnect backoff, recovery).
+
+## Fase D --- adapter + engine lifecycle + auth state terenkripsi + recovery (2026-11-19)
+
+-   Status: **REVIEW** (implementasi + tes + dokumen; pairing nyata dengan
+    ponsel BELUM diuji, lihat limitations).
+-   Completed: penghapusan kode legacy (ADR-013); enkripsi kredensial
+    AES-256-GCM berkeyring bervensi (ADR-014); migrasi 0003
+    (`session_auth_state`, `session_qr`); auth store Baileys terenkripsi
+    berfencing; QR store; antarmuka `SessionAdapter` + `BaileysAdapter`
+    (ADR-015); `SessionRunner` (QR, connect, restart-after-pairing, reconnect
+    backoff+jitter, batas percobaan, logout, replaced, nomor duplikat,
+    disconnect, delete, reconnect, kehilangan lease); `EngineRuntime`
+    (register, heartbeat+snapshot, renew, pemulihan lease yatim saat start,
+    shutdown rapi); `GET /sessions/:id/qr`; wiring server (engine embedded,
+    fail fast tanpa kunci enkripsi).
+-   Files: baru `backend/src/security/credential-crypto.ts`,
+    `modules/engine/{auth-store,qr-store,session-runner,engine-runtime}.ts`,
+    `modules/whatsapp/{adapter,baileys-adapter}.ts`,
+    `database/migrations/0003_session_auth_state.sql`,
+    `test/{crypto,auth-store,engine-runtime}.test.ts`, `test/fake-adapter.ts`.
+    Diubah: `app.ts`, `server.ts`, `config/env.ts`, `identity/{guard,identity.routes,principal,tokens}.ts`,
+    `engine/{lease.service,control-plane}.ts`, `sessions/{lifecycle,sessions.service,sessions.routes}.ts`,
+    `.env.example`, tes helpers/health/identity/lifecycle. Dihapus: `modules/{whatsapp/session.manager,
+    messaging,webhook,auth}`, `sessions/legacy-session.routes.ts`, `database/{index.ts,legacy}`.
+-   Contracts changed: API_CONTRACT (QR + penghapusan kompatibilitas legacy),
+    SESSION_LIFECYCLE (tabel kejadian; 2 transisi baru), ENGINE_ORCHESTRATION,
+    INTEGRATION_CONTRACT, env baru/dihapus (CHANGELOG).
+-   Tests: `cd backend && npm run typecheck && npm test` => typecheck OK,
+    **92/92 pass** (70 sebelumnya, 1 dihapus [legacy], +23 baru: crypto 4,
+    auth-store 4, engine-runtime 14, +1 identity). Konsisten di 3 kali ulang
+    `engine-runtime`. Bukti nyata: migrasi 0003 diterapkan ke `gateway` (dua
+    kali, idempoten); `BaileysAdapter` terhubung ke server WhatsApp dan
+    menghasilkan QR (auth state memori); smoke server nyata (embedded engine +
+    control-plane): register -> create -> PENDING_ASSIGNMENT -> INITIALIZING ->
+    QR_REQUIRED -> `GET /qr` 200 `no-store` -> delete 202 -> 404 -> SIGTERM:
+    engine berhenti lebih dulu lalu proses keluar bersih; log tidak memuat QR.
+-   Known limitations:
+    -   **Pairing nyata belum diuji**: alur scan QR -> `restart_required` ->
+        `CONNECTED` -> penyimpanan creds/keys Baileys sungguhan ke DB belum
+        dijalankan (butuh ponsel). Auth store diuji dengan data sintetis
+        (Buffer, app-state-sync-key). Mohon uji manual dengan satu ponsel.
+    -   Kegagalan `keys.set` karena fencing terjadi di dalam internal Baileys;
+        perilaku Baileys terhadap rejection tidak diuji dengan socket nyata
+        (mitigasi: `onFenced` menghentikan runner dan menutup socket).
+    -   Socket zombie dapat tetap terhubung hingga <= sync interval + heartbeat
+        setelah kehilangan lease (penulisan persisten tetap ditolak).
+    -   Dua proses dengan `ENGINE_NODE_NAME` sama akan saling mengambil
+        alih lease (konfigurasi salah; tidak dideteksi).
+    -   Rotasi kunci: versi baru dapat ditambah, tetapi re-enkripsi massal
+        blob lama belum ada. Kehilangan master key = semua sesi pair ulang.
+    -   Renew lease per sesi (N query per heartbeat); belum di-batch.
+    -   Engine embedded di proses API; entrypoint proses engine terpisah belum ada.
+    -   `ENGINE_MAX_SESSIONS=10` hanya pengaman; kapasitas riil belum diukur.
+    -   Pesan masuk/keluar, webhook, Socket.IO belum ada (Fase E/F).
+    -   Sisa prototipe TIDAK dihapus otomatis: tabel `public.*` (termasuk 2 baris
+        `public.wa_sessions`), folder plaintext `backend/data/sessions`
+        (auth state 2 akun WhatsApp; masih sah sampai di-unlink dari ponsel), dan
+        variabel `ADMIN_*` di `backend/.env`. Tenant uji "Smoke D"
+        (`smoke-d@example.test`) tertinggal di schema `gateway` dari smoke test.
+-   Decisions required: (1) hapus `backend/data/sessions` dan tabel
+    `public.*` prototipe? (usul: hapus folder setelah kedua ponsel di-unlink dan
+    di-pair ulang; tabel `public.*` boleh di-drop manual); (2) lanjut Fase E
+    (queue + messaging) atau uji pairing nyata dulu.
+-   Documents updated: DECISION_LOG (ADR-013..015), DATABASE_DESIGN, TABLE_SPECIFICATION,
+    ERD, MIGRATION_LOG, SESSION_LIFECYCLE, ENGINE_ORCHESTRATION, API_CONTRACT,
+    INTEGRATION_CONTRACT, TENANT_ISOLATION, SECURITY_POLICY, BACKEND_PROGRESS, CHANGELOG.
+-   Next recommended task: Fase E (queue PostgreSQL `message_queue` dengan
+    `FOR UPDATE SKIP LOCKED`, idempotency key, retry/backoff, rate limit per
+    tenant/session, `POST /messages`, `SessionAdapter.sendText`, status pesan).
+
+## Fase E --- queue + messaging (2026-11-19)
+
+-   Status: **REVIEW** (implementasi + tes + dokumen; pengiriman ke WhatsApp
+    nyata BELUM diuji karena belum ada sesi yang dipairing).
+-   Completed: migrasi 0004; `/messages/*` (send, list, detail, status, cancel,
+    retry); idempotensi; validasi nomor; batas antrean per tenant; klaim
+    `SKIP LOCKED` berfencing; lane serial per sesi dengan prioritas/jadwal/jeda;
+    rate limit pesan/menit tenant; retry berbackoff+jitter; klasifikasi hasil
+    (sent/retry/failed/unknown); rekonsiliasi PROCESSING terbengkalai; TTL
+    pesan; pembatalan saat sesi dihapus; drain saat disconnect/shutdown;
+    `sendText` Baileys (cek nomor terdaftar + timeout); perbaikan penempatan
+    control-plane (ADR-016).
+-   Files: baru `modules/messaging/{messages.service,messages.routes}.ts`,
+    `modules/engine/message-queue.ts`, `database/migrations/0004_message_queue.sql`,
+    `test/messages.test.ts`. Diubah: `whatsapp/{adapter,baileys-adapter}.ts`,
+    `engine/{session-runner,engine-runtime,control-plane}.ts`, `app.ts`,
+    `server.ts`, `config/env.ts`, `.env.example`, `test/{engine-runtime,fake-adapter}`.
+-   Contracts changed: API_CONTRACT (Fase E), QUEUE_DESIGN, INTEGRATION_CONTRACT.
+-   Tests: `cd backend && npm run typecheck && npm test` => typecheck OK,
+    **112/112 pass** (92 + 20 baru: validasi, otorisasi scope, idempotensi
+    termasuk 10 paralel, batas antrean, isolasi tenant, append-only attempts,
+    kirim sukses, urutan prioritas+serial+jeda, retry/backoff/max attempts,
+    nomor tidak valid, hasil ambigu + retry manual, engine mati saat kirim,
+    rate limit tenant, klaim konkuren + fencing, fairness, cancel vs
+    processing + drain, TTL/sesi dihapus, jadwal, regresi control-plane,
+    log bersih). Stabil 3 kali. Smoke server nyata: migrasi 0004 terapan, send
+    202, replay 202, payload beda 422, job PENDING tanpa sesi tersambung,
+    CANCELLED `SESSION_DELETED` setelah sesi dihapus, shutdown bersih.
+-   Known limitations:
+    -   **Pengiriman nyata belum diuji** (butuh sesi dipairing). `sendText`
+        Baileys (onWhatsApp, sendMessage, klasifikasi error) hanya diuji lewat
+        adapter palsu; asumsi "error saat kirim = ambigu" konservatif.
+    -   `SENT` = diterima socket; DELIVERED/READ belum (butuh event receipt).
+    -   Belum: send-media, bulk, kontak/chat, pesan masuk (`wa_messages`).
+    -   Isi pesan plaintext di DB tanpa retensi (lihat SECURITY_POLICY).
+    -   Pompa polling per sesi (1 query/`QUEUE_POLL_MS` per sesi CONNECTED);
+        belum LISTEN/NOTIFY. Belum ada batas konkurensi kirim global per engine.
+    -   Rate limit pesan/menit menghitung percobaan (termasuk retry), bukan
+        pesan unik; throughput tidak dibenchmark; index belum divalidasi
+        EXPLAIN ANALYZE.
+    -   Tenant uji `smoke-d@example.test` masih ada di `gateway`.
+    -   Event/outbox untuk status pesan belum ada (Fase F).
+-   Decisions required: (1) kebijakan retensi isi pesan (usul: hapus
+    `payload.text` setelah N hari pada status akhir); (2) apakah `send-media`
+    dan `bulk` masuk Fase E tambahan atau digabung setelah Fase F; (3) uji
+    pairing + kirim nyata sebelum Fase F (usul tetap).
+-   Documents updated: DECISION_LOG (ADR-016), QUEUE_DESIGN, API_CONTRACT,
+    DATABASE_DESIGN, TABLE_SPECIFICATION, ERD, MIGRATION_LOG,
+    ENGINE_ORCHESTRATION, INTEGRATION_CONTRACT, TENANT_ISOLATION,
+    SECURITY_POLICY, BACKEND_PROGRESS, CHANGELOG.
+-   Next recommended task: Fase F (outbox_events transaksional pada
+    transisi sesi/pesan, webhook endpoints + delivery bertanda-tangan HMAC dengan
+    retry, Socket.IO dengan otorisasi room per tenant, tanda terima
+    DELIVERED/READ dan pesan masuk).
+
+## Fase F --- webhook/outbox, realtime, pesan masuk & receipt, media, bulk, retensi (2026-11-19)
+
+-   Status: **REVIEW** (implementasi + tes + dokumen). Perilaku terhadap WhatsApp NYATA untuk
+    pesan masuk, receipt, media, dan bulk BELUM diuji manual (hanya adapter palsu + ekstraksi dari
+    objek pesan sintetis). Dua uji manual dari Fase E juga belum dikonfirmasi: kirim pasca-restart dan
+    unlink dari HP.
+-   Completed (sub-tahap, masing-masing diuji sebelum lanjut):
+    -   **F1** outbox transaksional (trigger) + relay; webhook (endpoint CRUD, secret terenkripsi tampil
+        sekali, HMAC + timestamp, SSRF 3 lapis, retry/jitter, dead-letter, replay, test ping, rotasi).
+    -   **F2** Socket.IO (auth handshake, room dari principal, fan-out LISTEN/NOTIFY lintas instans,
+        validasi ulang kredensial, batas koneksi, `session.qr` sebagai sinyal tanpa QR).
+    -   **F3** pesan masuk 1:1 (idempoten, berfencing), receipt DELIVERED/READ (hanya maju), cermin pesan
+        keluar, `/chats`, `/chats/:id/messages`, `/contacts`.
+    -   **F4** `send-media` (unduh server anti-SSRF, batas ukuran/tipe) dan `bulk` (atomik, idempoten per
+        batch, urutan terjaga).
+    -   **F5** retensi sesuai angka yang disetujui (30/180/7/30 hari, via env) + penyapu berbatch.
+-   Files baru: `database/migrations/000{5,6,7,8}_*.sql`; `security/{ssrf,webhook-signature}.ts`;
+    `runtime/poller.ts`; `modules/engine/{outbox-relay,webhook-delivery,inbox,retention}.ts`;
+    `modules/webhooks/*`; `modules/realtime/{event-channel,realtime}.ts`; `modules/chats/*`;
+    `modules/media/fetch.ts`; tes `test/{webhooks,realtime,inbox,media,retention}.test.ts`.
+    Diubah: `whatsapp/{adapter,baileys-adapter}.ts`, `engine/{session-runner,engine-runtime,
+    message-queue,qr-store}.ts`, `messaging/messages.{service,routes}.ts`, `app.ts`, `server.ts`,
+    `config/env.ts`, `.env.example`, `test/fake-adapter.ts`. Dependensi baru: `socket.io@4.8.4`,
+    dev `socket.io-client@4.8.4`.
+-   Contracts changed: API_CONTRACT (webhooks, send-media, bulk, chats, contacts; status DELIVERED/READ;
+    `media`, `content_purged`), WEBHOOK_SPECIFICATION, SOCKET_EVENTS (penyimpangan: `session.qr` sinyal,
+    `queue.updated` ditunda), ADR-017..022.
+-   Tests: `npm run typecheck` OK; `npm test` **172/172** lulus (112 -> 172: webhooks 20, realtime 11,
+    inbox 9, media 13, retention 7), stabil 2 kali berturut-turut. Migrasi 0005-0008 terpasang di dev
+    `wazap_db`/`gateway` (server `/health/ready` READY).
+-   Bug nyata yang ditemukan tes dan diperbaiki: release ganda klien LISTEN (bisa menjatuhkan proses saat
+    shutdown) dan ambiguitas tipe parameter SQL pada relay/pengirim webhook (hasil kirim tidak tercatat;
+    galatnya sempat tertelan karena tes tanpa logger). Dicegah sejak rancangan, lalu dibuktikan tes: urutan
+    bulk (`now()` sama dalam satu transaksi => `scheduled_at` dinaikkan per item).
+-   Known limitations / risks:
+    -   Belum diuji dengan WhatsApp nyata: pesan masuk, receipt (`messages.update` status 3/4/5), media,
+        bulk. Asumsi pemetaan status Baileys dari tipe proto, bukan dari pengamatan.
+    -   Webhook: tanpa circuit breaker/auto-disable dan tanpa rate limit per endpoint; endpoint yang
+        selalu gagal tetap menerima delivery baru (tiap delivery maks 8 percobaan lalu DEAD).
+    -   Realtime: event terlewat saat koneksi putus (tanpa replay by id; ada `realtime.resync`);
+        NOTIFY dibatasi 8 KB (payload besar dipangkas `data`); dedup klien per `(event_id,event)`.
+    -   Pesan masuk: hanya 1:1; `@lid` tanpa pasangan nomor => `phone=null` dan chat balasan
+        (`@s.whatsapp.net`) bisa terpisah dari chat masuk (`@lid`); media masuk tidak diunduh.
+    -   Media: tipe konten dipercaya dari header; dibuffer di memori (<= `MEDIA_MAX_BYTES`); stiker keluar
+        belum ada.
+    -   Retensi: isi plaintext selama masa retensi; teks pesan masuk juga ada di outbox (<=7 hari) dan
+        delivery webhook (<=30 hari); backup/`wa_session_events` tidak tercakup; penyapu per instans
+        (idempoten, tanpa leader).
+    -   Batas antrean pada `send` tunggal tidak memakai advisory lock (bulk memakainya): di bawah
+        konkurensi tinggi batas `MAX_PENDING_PER_TENANT` dapat terlampaui sedikit.
+    -   Pompa kirim masih polling; index belum divalidasi EXPLAIN ANALYZE; tidak ada benchmark.
+-   Decisions required: (1) go-ahead Fase G (security hardening + tes) --- usul: setelah uji manual
+    WhatsApp nyata (lihat di bawah); (2) kebijakan webhook yang terus gagal (auto-disable setelah N
+    DEAD berturut-turut?); (3) apakah teks pesan masuk boleh ikut event webhook/realtime (saat ini ya);
+    (4) housekeeping yang masih menunggu persetujuan: hapus `backend/data/sessions` (auth state
+    plaintext prototipe), tabel legacy `public.*`, tenant uji `smoke-d@example.test`, variabel
+    `ADMIN_*` di `.env`; (5) cadangkan `CREDENTIAL_ENCRYPTION_KEYS` di luar repo.
+-   Uji manual yang disarankan (WhatsApp nyata): terima pesan teks dari HP (cek `/chats`, event webhook
+    `message.incoming`); DELIVERED/READ pada pesan keluar; kirim gambar dan dokumen via `send-media`;
+    `bulk` 3 pesan ke nomor sendiri; webhook ke endpoint uji publik (https) + verifikasi tanda tangan;
+    koneksi Socket.IO dari klien; plus dua uji Fase E yang tersisa.
+-   Documents updated: DECISION_LOG (ADR-017..022), DATABASE_DESIGN, ERD, TABLE_SPECIFICATION,
+    MIGRATION_LOG, API_CONTRACT, SESSION_LIFECYCLE, ENGINE_ORCHESTRATION, QUEUE_DESIGN,
+    INTEGRATION_CONTRACT, WEBHOOK_SPECIFICATION, SOCKET_EVENTS, INTEGRATION_PROGRESS,
+    SECURITY_POLICY, TENANT_ISOLATION, BACKEND_PROGRESS, CHANGELOG, `.env.example`.
+-   Next recommended task: Fase G (security hardening + tes): review RLS menyeluruh dengan role DB
+    non-superuser untuk runtime, pemisahan role migrate/runtime, uji beban/EXPLAIN, rotasi kunci
+    enkripsi, circuit breaker webhook, dan uji integrasi end-to-end.
+
+### Verifikasi manual Fase F dengan WhatsApp nyata (2026-11-19)
+
+Diuji pemilik proyek terhadap sesi nyata (server dev, nomor gateway + satu HP lain):
+
+-   **Lolos:** pesan masuk 1:1 tersimpan (`/chats`, `/chats/:id/messages`, `/contacts`, nama pengirim
+    terisi); receipt `DELIVERED` dan `READ` (API + webhook `message.delivered`/`message.read`);
+    `send-media` gambar dan dokumen (status akhir `DELIVERED`); `bulk` 3 pesan (urut, `DELIVERED`);
+    webhook end-to-end: `message.sent|delivered|read|incoming`, `session.status`, `webhook.test`,
+    tanda tangan HMAC `VALID` dan secret salah ditolak (`INVALID`), retry/dedup `event_id`.
+-   **Temuan:** `READ` baru datang setelah chat dibuka di HP penerima, lalu WhatsApp mengirim receipt
+    untuk semua pesan yang belum terbaca sekaligus. Itu perilaku WhatsApp, bukan bug (pemetaan
+    `messages.update` status 4/5 terbukti benar). Pencatatan diagnostik sementara sudah dihapus.
+-   **Lolos (lanjutan):** kirim pesan setelah restart server (sesi pulih tanpa QR, pesan `DELIVERED` lalu
+    `READ`); unlink dari HP => `LOGGED_OUT` (`status_reason=logged_out`), auth state dan QR terhapus dari DB.
+    Dengan ini dua uji manual Fase E yang tertunda juga terverifikasi.
+-   Pembersihan: webhook uji dan `WEBHOOK_ALLOW_HTTP`/`WEBHOOK_ALLOW_PRIVATE_TARGETS` di `.env` dev harus
+    dihapus/diset `false` (dikerjakan pemilik proyek).
+
+## Fase G --- security hardening + tes (2026-11-19)
+
+-   Status: **REVIEW**. Semua yang dapat diuji tanpa akses admin database telah diuji. **Satu butir TIDAK dapat dibuktikan:**
+    pemisahan role migrator/app (skrip SQL di `docs/07_DEPLOYMENT/DB_ROLES.md` belum dijalankan; saya tidak punya akses admin
+    PostgreSQL dan percobaan memakai akun superuser ditolak oleh kebijakan izin --- tidak dilanjutkan).
+-   Completed:
+    -   **G1** pemeriksaan role DB saat start (tolak start bila superuser/BYPASSRLS di produksi), kredensial migrasi terpisah
+        (`DB_MIGRATE_*`), `AUTO_MIGRATE`, CLI `npm run migrate[:prod]`.
+    -   **G2** circuit breaker webhook (auto-disable setelah N DEAD berturut-turut) --- migrasi 0009.
+    -   **G3** pembatasan laju API (IP + tenant), header keamanan, `requestTimeout`, `TRUST_PROXY`.
+    -   **G4** alat rotasi kunci enkripsi `npm run keys:rotate` (compare-and-swap, idempoten, `--dry-run`, `retireReady`).
+    -   **G5** tes cakupan RLS otomatis seluruh schema (tabel baru wajib RLS+FORCE+kebijakan).
+    -   **G6** validasi indeks pada ~1,3 juta baris (`npm run test:perf`) --- migrasi 0010 + hitungan daftar berbatas.
+    -   **G7** tes end-to-end jalur emas dua tenant (`test/e2e.test.ts`).
+-   Temuan nyata dan tindakannya:
+    -   Penyapu outbox memakai Seq Scan + Sort (~100 ms) pada 200k baris: indeks komposit `(status, dispatched_at)` => ~0,6 ms (0010).
+    -   `count(*)` eksak pada daftar pesan tenant ~50k baris = 84 ms (O(n)): `meta.total` dibatasi `LIST_COUNT_CAP` + `total_capped` (ADR-027).
+    -   Role runtime dev (`wazap_user`) bukan superuser/BYPASSRLS (RLS efektif) tetapi PEMILIK schema: peringatan saat start; pemisahan role di produksi wajib.
+    -   `npm audit --omit=dev`: 0 kerentanan. Galat internal tidak bocor (500 generik). `.env` ter-ignore git.
+-   Files baru: `database/{role-check,migrate-cli}.ts`, migrasi `0009`, `0010`; `runtime/{rotate-keys,rotate-keys-cli}.ts`; tes
+    `test/{security,webhook-breaker,rotate-keys,e2e}.test.ts`, `test/perf/explain.perf.ts`; `docs/07_DEPLOYMENT/DB_ROLES.md`.
+    Diubah: `app.ts`, `server.ts`, `config/env.ts`, `database/gateway.ts`, `identity/guard.ts`, `engine/webhook-delivery.ts`,
+    `engine/auth-store.ts` (ekspor `aadOf`), `webhooks/webhooks.service.ts`, `messaging/messages.{service,routes}.ts`,
+    `chats/chats.{service,routes}.ts`, `package.json` (script `migrate`, `migrate:prod`, `keys:rotate`, `test:perf`), `.env.example`.
+-   Contracts changed: 429 `RATE_LIMITED` + `Retry-After`; header keamanan; `meta.total_capped`; objek webhook (+`consecutive_failures`,
+    `disabled_at`, `disabled_reason`); ADR-023..028.
+-   Tests: typecheck OK; `npm test` **193/193** (172 -> 193), stabil 2 kali berturut-turut; `npm run test:perf` 6/6.
+-   Known limitations / risks (jujur):
+    -   Skrip pemisahan role belum diuji; migrasi berisi backfill data akan terhalang RLS bagi pemilik (lihat DB_ROLES.md).
+    -   Batas laju in-memory per proses (N instans = N kali batas); belum ada penyimpan bersama.
+    -   Kunci master hanya di environment; belum ada integrasi KMS/secret manager; kehilangan kunci = semua sesi pair ulang.
+    -   Validasi performa hanya satu koneksi pada mesin dev dengan PostgreSQL default: BUKAN uji beban. Belum ada uji beban
+        multi-sesi/multi-koneksi, chaos nyata, SAST/DAST, atau uji penetrasi. Pompa kirim masih polling per sesi.
+    -   `total_capped` hanya untuk pesan dan chat; kontak (13 ms pada 5k chat/tenant) dan daftar lain tumbuh linear.
+    -   `CREATE INDEX` migrasi 0010 mengunci tulis `outbox_events` selama pembuatan (gunakan CONCURRENTLY di produksi besar).
+    -   Pemisahan role mengubah cara deploy (langkah migrasi terpisah); belum ada pipeline CI/CD.
+-   Decisions required: (1) siapa/kapan DBA menjalankan dan memverifikasi skrip `DB_ROLES.md` di staging (daftar verifikasi ada di dokumen);
+    (2) penyimpan batas laju bersama (Redis) atau cukup 1 instans untuk saat ini; (3) kunci master: pakai secret manager apa;
+    (4) housekeeping lama masih menunggu persetujuan (jangan dihapus tanpa izin): `backend/data/sessions` (auth state prototipe
+    plaintext), tabel legacy `public.*`, tenant uji `smoke-d@example.test`, variabel `ADMIN_*` di `.env`; (5) cadangkan
+    `CREDENTIAL_ENCRYPTION_KEYS` di luar repo; (6) apakah lanjut ke integrasi frontend (kontrak sudah berubah banyak sejak Fase B)
+    atau uji beban dulu.
+-   Documents updated: DECISION_LOG (ADR-023..028), DB_ROLES (baru), DEPLOYMENT_GUIDE, SECURITY_POLICY, TENANT_ISOLATION,
+    DATABASE_DESIGN (§13), MIGRATION_LOG (0009, 0010), API_CONTRACT, WEBHOOK_SPECIFICATION, INTEGRATION_CONTRACT, TEST_PLAN,
+    LOAD_TEST_PLAN, BACKEND_PROGRESS, CHANGELOG, `.env.example`.
+-   Next recommended task: integrasi frontend terhadap kontrak baru, lalu uji beban/ketahanan di infrastruktur target dan
+    verifikasi pemisahan role di staging.
+
+### Keputusan pemilik proyek pasca-Fase G dan tindak lanjut (2026-11-19)
+
+-   Keputusan: lihat DECISION_LOG ADR-029 (satu instans API tanpa Redis; berkas rahasia tanpa Vault/KMS; verifikasi role di staging;
+    housekeeping disetujui; urutan berikutnya staging -> integrasi frontend -> uji beban).
+-   Dilaksanakan: `ADMIN_*` dihapus dari `.env` dev; `backend/data/sessions` dihapus; schema `public` prototipe dicadangkan
+    (`~/wazap-backups/`, izin 0600, di luar repo; baru di-DROP setelah ~30 hari); sidik jari kunci master dicatat pemilik proyek;
+    `backend/scripts/verify-db-roles.sh` dibuat dan DIUJI terhadap role dev (mendeteksi pelanggaran, semua uji berisiko ter-rollback,
+    RLS dan data dev tidak berubah). Dua bug skrip ditemukan saat diuji dan diperbaiki (search_path koneksi untuk fungsi RLS;
+    probe TRUNCATE yang lulus karena alasan salah).
+-   **Masih terbuka (tindakan manusia):** unlink perangkat tertaut lama pada 2 akun WhatsApp prototipe; salin kunci master ke password
+    manager + offline; jalankan skrip role di staging terhadap role `wazap_app` sungguhan; frontend dibangun ulang oleh agent frontend.

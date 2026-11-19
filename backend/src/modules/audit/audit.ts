@@ -4,13 +4,14 @@ import type { Role } from '../identity/principal.js';
 export type AuditAction =
   | 'member.role_changed' | 'member.status_changed' | 'member.removed' | 'member.left'
   | 'invitation.created' | 'invitation.revoked' | 'invitation.reissued' | 'invitation.accepted'
+  | 'join_code.rotated' | 'join_code.disabled' | 'join_request.approved' | 'join_request.rejected'
   | 'settings.updated';
 
 export interface AuditEntry {
   tenantId: string;
   actor: { userId: string; email?: string | null; role?: Role | null };
   action: AuditAction;
-  targetType: 'member' | 'invitation' | 'settings';
+  targetType: 'member' | 'invitation' | 'settings' | 'join_request' | 'join_code';
   targetId?: string | null;
   targetEmail?: string | null;
   /** Detail perubahan (mis. peran sebelum/sesudah). JANGAN memasukkan token/rahasia. */

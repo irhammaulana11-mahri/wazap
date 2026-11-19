@@ -514,6 +514,14 @@ Diuji pemilik proyek terhadap sesi nyata (server dev, nomor gateway + satu HP la
 -   Masih terbuka: `/security-review`; keputusan apakah kuota efektif harus dipotong ke ceiling yang diturunkan; perubahan belum di-commit ke cabang bersih.
 -   Documents updated: API_CONTRACT, DECISION_LOG (ADR-035), SECURITY_POLICY, FRONTEND_HANDOFF, TEST_PLAN, BACKEND_PROGRESS, CHANGELOG.
 
+## Fase H3 --- permintaan bergabung dengan kode workspace (2026-11-20)
+
+Status: **DONE** (implementasi + tes + dokumen). Migrasi 0014; `team/join.service.ts`, `team/join.routes.ts`; login memberi `JOIN_PENDING/JOIN_REJECTED`; ADR-036.
+Bukti: `npm test` 248 lulus (10 baru: `test/join.test.ts` mencakup alur penuh, kode salah/diputar/dinonaktifkan, email terdaftar, wewenang penyetuju, tolak/kedaluwarsa, kuota, validasi, dan serangan RLS langsung oleh pemohon).
+Belum: batas jumlah permintaan tertunda per tenant dan audit pembuatan permintaan (lihat risiko di ADR-036); UI frontend; verifikasi manual terhadap server nyata.
+Temuan dari verifikasi role DB staging (2026-11-20): skrip `build` menyalin folder `legacy` yang tidak ada (diperbaiki); migrator butuh hak CREATE pada database karena `CREATE SCHEMA IF NOT EXISTS` (diperbaiki: cek `pg_namespace` dahulu);
+`ALTER DEFAULT PRIVILEGES` memberi hak DML app pada `schema_migrations` (dokumen DB_ROLES.md memuat langkah REVOKE).
+
 ### Verifikasi role DB di staging lokal (2026-11-20) --- DONE
 Database `wazap_staging` dengan role `wazap_migrator` (pemilik schema) dan `wazap_app` (DML saja), `NODE_ENV=production`, `DB_ROLE_CHECK=enforce`, `AUTO_MIGRATE=false`.
 Bukti: `npm run migrate:prod` menerapkan 0001-0014 (`as: "migrator"`); `verify-db-roles.sh` 15/15 lulus (bukan superuser/BYPASSRLS, bukan pemilik schema, DDL/DISABLE RLS/DROP POLICY/TRUNCATE ditolak, `schema_migrations` tertutup, RLS menyembunyikan baris tanpa konteks, DML platform berfungsi);

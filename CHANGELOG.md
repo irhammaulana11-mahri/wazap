@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- Backend Fase H3: permintaan bergabung dengan kode workspace (2026-11-20)
+
+-   Baru: kode workspace (`GET|PUT|DELETE /team/join-code`), `POST /auth/join-requests` (publik; kata sandi dibuat pemohon saat mendaftar), `GET /team/join-requests`, `POST /team/join-requests/:id/approve|reject`.
+    Login pemohon sebelum disetujui: `403 JOIN_PENDING` / `JOIN_REJECTED`. Migrasi 0014 (RLS), env `JOIN_REQUEST_TTL_DAYS`, ADR-036. Undangan tetap ada.
+-   Tes: 248 lulus (10 baru di `test/join.test.ts`), termasuk serangan RLS langsung oleh pemohon.
+
 ## Unreleased --- Backend: perbaikan hasil verifikasi role DB di staging (2026-11-20)
 
 -   Perbaikan: `npm run build` gagal dari checkout bersih (menyalin folder `legacy` yang tidak ada); migrator tidak lagi butuh hak CREATE pada database (cek `pg_namespace` sebelum `CREATE SCHEMA`).

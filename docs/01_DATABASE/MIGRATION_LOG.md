@@ -140,3 +140,8 @@ manual deployment action.
 
 -   Memperketat `audit_insert_accept`: selain token, email akun pencatat harus sama dengan email undangan (cegah pemegang token memalsukan catatan "undangan diterima").
     Migrasi baru karena 0012 sudah diterapkan (migrasi lama tidak boleh diedit). Tes: `test/audit.test.ts`.
+
+### 0014 --- `backend/src/database/migrations/0014_join_requests.sql`
+
+-   Tabel `tenant_join_codes` (satu kode aktif per tenant; hanya `code_hash`; `tenant_name` disalin untuk pemohon) dan `tenant_join_requests` (PENDING/APPROVED/REJECTED, `expires_at`, unik PENDING per tenant+pengguna). RLS ENABLE+FORCE, tanpa akses platform.
+-   Kebijakan: pemohon membaca kode hanya lewat `app.join_hash`; membuat permintaan hanya dengan kode valid + email akunnya; menutup permintaan kedaluwarsa miliknya; memutuskan hanya lewat konteks tenant. `audit_logs.target_type` diperluas (`join_request`, `join_code`). ADR-036. Tes: `test/join.test.ts`.

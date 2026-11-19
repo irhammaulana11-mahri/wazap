@@ -11,6 +11,8 @@ import { chatRoutes } from './modules/chats/chats.routes.js';
 import { createChatService, type ChatService } from './modules/chats/chats.service.js';
 import { teamRoutes } from './modules/team/team.routes.js';
 import { createTeamService, type TeamService } from './modules/team/team.service.js';
+import { joinRoutes } from './modules/team/join.routes.js';
+import { createJoinService, type JoinService } from './modules/team/join.service.js';
 import { usageRoutes } from './modules/usage/usage.routes.js';
 import { createUsageService, type UsageService } from './modules/usage/usage.service.js';
 import { auditRoutes } from './modules/audit/audit.routes.js';
@@ -47,6 +49,7 @@ export interface AppDeps {
   webhooks?: WebhookService;
   chats?: ChatService;
   team?: TeamService;
+  join?: JoinService;
   usage?: UsageService;
   audit?: AuditService;
   settings?: SettingsService;
@@ -117,6 +120,7 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
   const webhooks = deps.webhooks ?? createWebhookService(getGatewayDb(), { crypto: tryGetCredentialCrypto(config) });
   const chats = deps.chats ?? createChatService(getGatewayDb());
   const team = deps.team ?? createTeamService(getGatewayDb());
+  const join = deps.join ?? createJoinService(getGatewayDb());
   const usage = deps.usage ?? createUsageService(getGatewayDb());
   const audit = deps.audit ?? createAuditService(getGatewayDb());
   const settings = deps.settings ?? createSettingsService(getGatewayDb());
@@ -141,6 +145,7 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
       await scope.register(webhookRoutes, { webhooks, authenticate });
       await scope.register(chatRoutes, { chats, authenticate });
       await scope.register(teamRoutes, { team, authenticate });
+      await scope.register(joinRoutes, { join, authenticate, limiter: deps.limiter });
       await scope.register(usageRoutes, { usage, authenticate });
       await scope.register(auditRoutes, { audit, authenticate });
       await scope.register(settingsRoutes, { settings, authenticate });

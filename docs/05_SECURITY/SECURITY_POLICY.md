@@ -134,3 +134,11 @@ undangan hidup lebih lama daripada wewenang pembuatnya (#3), API key anggota yan
 diturunkan (#8), helper kunci tim terduplikasi (#7). **Diterima sebagai keterbatasan (#6):** `switch-tenant` tanpa cookie refresh tidak mencabut keluarga refresh lama (kasus sempit: refresh token hanya ada di cookie HttpOnly browser).
 **Risiko tersisa baru dari review:** (a) menurunkan `LIMIT_CEIL_*` tidak menurunkan kuota efektif yang sudah tersimpan (hanya membatasi perubahan berikutnya); (b) API key buatan anggota yang ditangguhkan tetap hidup;
 (c) code-review hanya mencari bug kebenaran: `/security-review` dan uji penetrasi masih perlu.
+
+## Permintaan bergabung dengan kode workspace (Fase H3, ADR-036)
+
+-   Kode workspace: 100 bit (alfabet 31 simbol, 20 karakter), hanya SHA-256 yang disimpan, tampil sekali, dapat diputar/dinonaktifkan oleh OWNER/ADMIN; pencarian kode lewat RLS (`app.join_hash`), tanpa akses platform. Kode salah/diputar/dinonaktifkan dijawab seragam dan tidak membuat akun.
+-   Kata sandi dibuat pemohon SAAT mendaftar (bukan setelah disetujui): persetujuan hanya mengaktifkan keanggotaan, sehingga tidak ada pembajakan akun oleh pihak yang login pertama setelah persetujuan. Email terdaftar harus membuktikan kata sandi.
+-   Pemohon tidak dapat menyetujui diri sendiri atau membuat keanggotaan (RLS; diuji dengan SQL langsung). Peran yang diberikan dibatasi wewenang penyetuju (ADMIN hanya MEMBER/VIEWER), kuota anggota diperiksa saat persetujuan, peran penyetuju dibaca ulang di dalam lock.
+-   Login memberi `JOIN_PENDING/JOIN_REJECTED` hanya setelah kata sandi benar (tidak membuka enumerasi akun melebihi `EMAIL_TAKEN` pada register yang sudah ada).
+-   **Risiko tersisa:** tidak ada batas permintaan tertunda per tenant (mitigasi: 10/jam per IP, kode 100 bit, putar/nonaktifkan kode); pembuatan permintaan tidak diaudit; permintaan lama tidak dibersihkan retensi.

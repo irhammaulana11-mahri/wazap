@@ -82,6 +82,7 @@ bukan di berkas ecosystem PM2 yang di-commit:
 
 ## Alamat dashboard dan batas atas kuota (Fase H2)
 
+-   `JOIN_REQUEST_TTL_DAYS` (default 14): masa berlaku permintaan bergabung (ADR-036). Tautan kode workspace: `<DASHBOARD_BASE_URL>/join#code=...` (fragmen, sama seperti undangan).
 -   `DASHBOARD_BASE_URL`: alamat dashboard yang dibuka pengguna di browser (domain yang dilayani Nginx untuk frontend), mis. `https://wa.contoh.co.id`. Bukan alamat API
     (`127.0.0.1:3000`) dan bukan server dev Vite. Wajib `https` di production (server menolak start bila tidak). Bila dashboard di subpath, sertakan subpathnya dan pastikan rute `/invite`
     dilayani di sana. Tautan undangan yang dihasilkan: `<DASHBOARD_BASE_URL>/invite#token=...`. Token ada di fragmen (`#`) sehingga TIDAK dikirim browser ke Nginx (tidak masuk access log atau Referer);

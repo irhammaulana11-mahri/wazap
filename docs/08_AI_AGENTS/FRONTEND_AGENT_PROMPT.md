@@ -34,7 +34,7 @@ Socket.IO Client. Proxy dev Vite: `/api` dan `/health` -> `http://127.0.0.1:3000
 Auth (`register`, `login`, `refresh`, `logout`, `me`, `switch-tenant`), API key, sesi
 (`create/list/get/status/events/qr/connect/disconnect/reconnect/delete`), pesan
 (`send`, `send-media`, `bulk`, daftar dengan filter `status`, `session_id`, `from`, `to`, detail, status, cancel, retry),
-chat dan kontak, webhook (CRUD, rotate secret, test, deliveries, replay), **tim** (anggota, undangan, terima undangan, terbit ulang tautan),
+chat dan kontak, webhook (CRUD, rotate secret, test, deliveries, replay), **tim** (anggota, undangan, terima undangan, terbit ulang tautan, **permintaan bergabung dengan kode workspace**: `/auth/join-requests`, `/team/join-code`, `/team/join-requests`),
 **usage** (`summary`, `messages` deret waktu, `sessions`), **audit log** (`GET /audit-logs`), **pengaturan/kuota tenant** (`GET|PATCH /tenant/settings`), dan Socket.IO realtime.
 Yang BELUM ada: pencarian teks pesan, ekspor, audit untuk aksi selain tim/pengaturan, email undangan otomatis
 (keputusan produk: TANPA email), ganti email/kata sandi, endpoint `/messages/history` gabungan (lihat `FRONTEND_HANDOFF.md` bagian 6).
@@ -51,6 +51,7 @@ Yang BELUM ada: pencarian teks pesan, ekspor, audit untuk aksi selain tim/pengat
 8.  Webhook management.
 9.  **Tim:** daftar anggota, undang, ubah peran/status, hapus/keluar, halaman terima undangan, pindah workspace. **Undangan tanpa email:**
     dialog sekali tampil dengan `invite_url` + opsi salin tautan, QR (klien), kirim lewat WhatsApp (`wa.me` atau `POST /messages/send` dari sesi tenant), dan "Buat ulang tautan" (`reissue`).
+    **Permintaan bergabung (`FRONTEND_HANDOFF.md` 4.10):** halaman publik `/join` (kode di fragmen, kata sandi dibuat pemohon saat mendaftar), pesan login `JOIN_PENDING`/`JOIN_REJECTED`, kelola kode dan setujui/tolak oleh OWNER/ADMIN.
     **Audit log:** halaman untuk OWNER/ADMIN (filter aksi dan tanggal). **Pengaturan kuota:** form untuk OWNER (batas dari `minimums`/`ceilings` pada respons, tampilkan `used`).
 10. Realtime updates dan reconnection.
 
@@ -77,6 +78,7 @@ Yang BELUM ada: pencarian teks pesan, ekspor, audit untuk aksi selain tim/pengat
     "sekali tampil" (API key, secret webhook, token dan `invite_url` undangan) ditampilkan di dialog "salin sekarang" lalu dibuang dari memori.
 -   **Halaman terima undangan (`/invite`):** token ada di FRAGMEN URL (`#token=...`, bukan query). Baca dari `location.hash`, langsung hapus dari address bar (`history.replaceState`),
     simpan hanya di memori, jangan kirim ke log/analytics/pihak ketiga; pengguna yang belum login diarahkan ke login/daftar tanpa kehilangan token (state memori, bukan URL/storage).
+-   **Halaman `/join`:** kode workspace ada di FRAGMEN (`#code=`), perlakuannya sama dengan token undangan (baca dari `location.hash`, hapus dengan `history.replaceState`, hanya memori). Kata sandi dibuat di formulir ini, bukan setelah disetujui.
 -   Kuota: hanya OWNER yang dapat `PATCH /tenant/settings`; batas input diambil dari `minimums`/`ceilings` respons GET (jangan hardcode); tangani `LIMIT_BELOW_USAGE`.
     Audit log hanya untuk OWNER/ADMIN; tampilkan IP sebagai data pribadi seperlunya.
 -   QR hanya ditampilkan kepada user yang berwenang (OWNER/ADMIN/MEMBER); pakai hanya `qr_data_url`; bersihkan saat

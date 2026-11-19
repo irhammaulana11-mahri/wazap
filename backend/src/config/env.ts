@@ -102,6 +102,8 @@ const baseSchema = z.object({
   LIST_COUNT_CAP: z.coerce.number().int().min(100).default(10000),
   // Fase H: tim
   TEAM_INVITATION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
+  // Fase H3: permintaan bergabung dengan kode workspace; permintaan tertunda yang lewat masa ini tidak dapat disetujui.
+  JOIN_REQUEST_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(14),
   // Fase H2: undangan tanpa email (tautan), audit, dan batas atas kuota yang boleh diatur OWNER (operator mengubah lewat env).
   // Alamat dashboard (frontend) yang dibuka pengguna di browser: skema + host (+ port bila bukan standar, + subpath bila di-host di subpath).
   // Bukan alamat API/backend. Tanpa kredensial, query, atau fragment; di production wajib https (token ada di tautan).

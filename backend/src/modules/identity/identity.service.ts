@@ -98,7 +98,13 @@ export function createIdentityService(db: GatewayDb) {
             [user.id, input.tenantId ?? null]
           )
         ).rows[0];
-        if (!m) throw new AppError('NO_ACTIVE_TENANT', 403, 'Tidak ada workspace aktif untuk akun ini');
+        if (!m) {
+          // Kata sandi sudah benar (diperiksa di atas), jadi pesan ini tidak membuka enumerasi akun.
+          const jr = (await c.query(`SELECT status, expires_at > now() AS live FROM tenant_join_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [user.id])).rows[0];
+          if (jr?.status === 'PENDING' && jr.live) throw new AppError('JOIN_PENDING', 403, 'Permintaan bergabung Anda menunggu persetujuan admin workspace');
+          if (jr && !(jr.status === 'PENDING' && jr.live) && jr.status !== 'APPROVED') throw new AppError('JOIN_REJECTED', 403, 'Permintaan bergabung Anda ditolak atau kedaluwarsa');
+          throw new AppError('NO_ACTIVE_TENANT', 403, 'Tidak ada workspace aktif untuk akun ini');
+        }
         await c.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
         const rt = await issueRefresh(c, user.id, m.id);
         return {

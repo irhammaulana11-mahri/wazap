@@ -337,3 +337,17 @@ daripada wewenang pembuatnya. Pemeriksaan wewenang saat penerimaan tidak mungkin
 (2) **API key** yang dibuat anggota dicabut saat ia DIHAPUS atau KELUAR; saat hanya DITANGGUHKAN key tetap hidup (penangguhan dapat bersifat sementara) dan daftar API key menampilkan pembuatnya agar dapat dicabut manual.
 Pencabutan key harus dilakukan sebelum keanggotaan dihapus (FK `ON DELETE SET NULL` mengosongkan pembuat; ditemukan oleh tes). Semuanya dicatat di audit. **Belum dicakup:** key buatan anggota yang ditangguhkan tidak dicabut
 otomatis; key tidak punya pemilik setelah pembuatnya dihapus sehingga tidak dapat ditelusuri dari daftar (hanya dari audit).
+
+## ADR-036 --- Permintaan bergabung dengan kode workspace (kata sandi dibuat saat mendaftar)
+
+**Status:** Accepted (pemilik proyek, 2026-11-20: "opsi 1, kata sandi dibuat saat mendaftar")\
+Pelengkap undangan (ADR-034), bukan pengganti. OWNER/ADMIN membuat **kode workspace** (`PUT /team/join-code`, tampil sekali, hanya hash disimpan, 100 bit, dapat diputar/dinonaktifkan). Calon anggota memanggil
+`POST /auth/join-requests` dengan kode, email, dan **kata sandi pilihannya sendiri**; akun dibuat tetapi tanpa keanggotaan sehingga belum dapat masuk ke workspace (login memberi `403 JOIN_PENDING`).
+OWNER/ADMIN menyetujui (`approve`, memilih peran dalam batas wewenangnya, kuota anggota diperiksa) atau menolak; sesudah disetujui pemohon login dengan kata sandi yang sama.\
+**Mengapa kata sandi dibuat di awal, bukan setelah disetujui:** backend tidak memverifikasi email (ADR-034). Bila kata sandi dibuat saat login pertama sesudah disetujui, siapa pun yang login lebih dulu dengan email itu menjadi pemilik akun
+(penyerang mengajukan atas nama email korban, admin menyetujui, penyerang membuat kata sandi). Dengan kata sandi di awal, persetujuan hanya mengaktifkan keanggotaan bagi pemilik kata sandi, yaitu pengaju.\
+**Email yang sudah terdaftar** harus membuktikan kata sandi akunnya (tanpa akun kedua; `401 INVALID_CREDENTIALS` bila salah). **Kode salah/diputar/dinonaktifkan** dijawab seragam `404 INVALID_JOIN_CODE` dan tidak membuat akun.
+RLS (0014): `tenant_join_codes` dibaca pemohon hanya lewat hash kode (`app.join_hash`); `tenant_join_requests` dibuat pemohon hanya dengan kode valid + email = email akunnya; memutuskan hanya lewat konteks tenant; tanpa akses platform.\
+**Risiko tersisa:** (1) tidak ada batas jumlah permintaan tertunda per tenant (pemohon tidak dapat menghitung baris tenant di bawah RLS tanpa melonggarkannya); mitigasi: 10 pengajuan/jam per IP, kode 100 bit, kill switch (putar/nonaktifkan kode).
+(2) pembuatan permintaan tidak diaudit (pemohon belum punya konteks tenant); persetujuan, penolakan, dan perputaran kode diaudit. (3) admin dapat menyetujui email yang salah; dampaknya hanya pada pemilik kata sandi (pengaju).
+(4) permintaan lama tidak dibersihkan retensi (baris kecil; kedaluwarsa `JOIN_REQUEST_TTL_DAYS`, default 14).

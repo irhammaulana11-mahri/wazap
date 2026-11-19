@@ -10,6 +10,8 @@ export interface DbContext {
   refreshHash?: string;
   /** Hash token undangan yang sedang diterima (lihat kebijakan tenant_invitations). */
   inviteHash?: string;
+  /** Hash kode workspace yang sedang dipakai pemohon (lihat kebijakan tenant_join_codes / tenant_join_requests). */
+  joinHash?: string;
   /** Layanan istimewa (control-plane/engine). Hanya boleh dipakai di src/modules/engine dan src/runtime. */
   platform?: boolean;
 }
@@ -21,6 +23,7 @@ const CTX_KEYS: Record<Exclude<keyof DbContext, 'platform'>, string> = {
   apiKeyHash: 'app.api_key_hash',
   refreshHash: 'app.refresh_hash',
   inviteHash: 'app.invite_hash',
+  joinHash: 'app.join_hash',
 };
 
 export interface GatewayDb {

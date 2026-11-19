@@ -456,3 +456,18 @@ Berlaku seketika; satu nilai tidak sah membatalkan seluruh permintaan; mengirim 
 -   `POST /team/invitations/:id/reissue` pada undangan KEDALUWARSA memeriksa kuota anggota seperti undangan baru (`409 QUOTA_EXCEEDED` bila penuh).
 -   `GET /usage/messages?tz=`: hanya nama IANA (atau `UTC`); bentuk offset (`+07:00`, `UTC+7`) => `400`.
 -   `PATCH /tenant/settings`: nilai yang sama dengan yang tersimpan diabaikan (tidak divalidasi terhadap ceiling) dan tidak tercatat di audit. Kunci `max_api_keys` kini tercatat di `details.changes` (sebelumnya terbuang oleh filter rahasia).
+
+## Permintaan bergabung dengan kode workspace (Fase H3, ADR-036)
+
+| Method | Path | Peran | Catatan |
+|---|---|---|---|
+| POST | `/auth/join-requests` | publik | body `{join_code, email, password}` strict -> 201 `{request_id, status:'PENDING', tenant_name, expires_at, existing_account}`; 10/jam per IP |
+| GET | `/team/join-code` | OWNER, ADMIN | `{enabled, created_at, created_by}` |
+| PUT | `/team/join-code` | OWNER, ADMIN | buat/putar; `join_code` (+`join_url`) SEKALI, `Cache-Control: no-store`; kode lama hangus |
+| DELETE | `/team/join-code` | OWNER, ADMIN | nonaktifkan |
+| GET | `/team/join-requests` | OWNER, ADMIN | paginated; `?status=PENDING\|APPROVED\|REJECTED\|EXPIRED` |
+| POST | `/team/join-requests/:id/approve` | OWNER, ADMIN | body `{role=MEMBER}`; ADMIN hanya MEMBER/VIEWER; cek kuota anggota; tulis audit |
+| POST | `/team/join-requests/:id/reject` | OWNER, ADMIN | tulis audit |
+
+Login pemohon yang belum disetujui: `403 JOIN_PENDING`; ditolak/kedaluwarsa: `403 JOIN_REJECTED` (hanya setelah kata sandi benar). Kode galat baru: `INVALID_JOIN_CODE` 404, `JOIN_REQUEST_EXISTS` 409, `REQUEST_EXPIRED` 409,
+`JOIN_PENDING` 403, `JOIN_REJECTED` 403 (selain yang sudah ada: `ALREADY_MEMBER`, `INVALID_STATE`, `QUOTA_EXCEEDED`, `INVALID_CREDENTIALS`).

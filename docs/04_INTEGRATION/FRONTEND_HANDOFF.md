@@ -398,6 +398,32 @@ Galat: `400 VALIDATION_ERROR` (di luar [minimum, ceiling] atau bukan bilangan bu
 `403` (bukan OWNER). Berlaku seketika; mengirim nilai yang sama dengan yang tersimpan = tidak ada perubahan (tetap sah walau operator menurunkan `ceilings` sesudahnya, sehingga formulir yang mengirim semua field tidak gagal). `ceilings` ditentukan operator server (tenant tidak dapat melampauinya); untuk batas lebih tinggi hubungi operator.
 `messages_per_minute` adalah perlindungan anti-ban: jelaskan di UI bahwa menaikkannya meningkatkan risiko nomor dibatasi WhatsApp. Perubahan tercatat di audit log (`settings.updated`).
 
+### 4.10 Permintaan bergabung dengan kode workspace (ADR-036)
+
+Alur tambahan di samping undangan: calon anggota mendaftar sendiri dengan **kode workspace** dan **kata sandi pilihannya**; akun baru aktif di workspace setelah OWNER/ADMIN menyetujui.
+
+**Halaman publik `/join`** (kode di fragmen `#code=WJ-XXXXX-XXXXX-XXXXX-XXXXX`; baca dari `location.hash`, hapus dengan `history.replaceState`, simpan di memori; kolom kode tetap dapat diketik manual):
+`POST /auth/join-requests` body `{join_code, email, password(>=10)}` (strict; tanpa cookie/token) -> `201`:
+```json
+{ "success": true, "data": { "request_id": "…", "status": "PENDING", "tenant_name": "Nama Workspace", "expires_at": "…", "existing_account": false } }
+```
+Galat: `404 INVALID_JOIN_CODE` (kode salah/diputar/dinonaktifkan: pesan seragam), `401 INVALID_CREDENTIALS` (email sudah terdaftar tetapi kata sandi salah; bila benar, permintaan dibuat untuk akun yang sama, `existing_account: true`),
+`409 JOIN_REQUEST_EXISTS`, `409 ALREADY_MEMBER`, `429` (10/jam per IP), `400` validasi. Tampilkan "Menunggu persetujuan admin"; pemohon belum memiliki sesi.
+
+**Login pemohon** sebelum disetujui: `403 JOIN_PENDING` (menunggu) atau `403 JOIN_REJECTED` (ditolak/kedaluwarsa; tawarkan ajukan ulang). Kata sandi salah tetap `401`. Setelah disetujui, login biasa dengan kata sandi yang sama.
+
+**Kelola (OWNER/ADMIN, dashboard):**
+| Method | Path | Catatan |
+|---|---|---|
+| GET | `/team/join-code` | `{enabled, created_at, created_by}`; kode TIDAK dikembalikan lagi |
+| PUT | `/team/join-code` | buat/putar: `{enabled, created_at, join_code, join_url}` SEKALI (`no-store`); kode lama hangus; `join_url` null bila `DASHBOARD_BASE_URL` kosong (bangun `/join#code=…` dari origin sendiri) |
+| DELETE | `/team/join-code` | nonaktifkan |
+| GET | `/team/join-requests?status=PENDING\|APPROVED\|REJECTED\|EXPIRED&page&page_size` | `{id, email, user_id, status, role, requested_at, expires_at, decided_at, decided_by}` |
+| POST | `/team/join-requests/:id/approve` | body `{role=MEMBER}` (ADMIN hanya MEMBER/VIEWER; selebihnya `403`); `409 QUOTA_EXCEEDED`, `409 REQUEST_EXPIRED`, `409 INVALID_STATE` |
+| POST | `/team/join-requests/:id/reject` | `409 INVALID_STATE` bila sudah diputuskan |
+
+UI: dialog kode sekali tampil (salin, QR, WhatsApp) seperti undangan; daftar permintaan dengan tombol setujui (pilih peran)/tolak; badge jumlah PENDING. Aksi audit baru: `join_code.rotated|disabled`, `join_request.approved|rejected` (target `join_request`/`join_code`).
+
 ## 5. Realtime (Socket.IO)
 
 ```ts

@@ -14,6 +14,8 @@ export interface RetentionPolicy {
   auditDays: number;
   /** Hari setelah diputuskan/kedaluwarsa: permintaan bergabung dihapus (memuat email pemohon). Opsional agar pemanggil lama tetap valid. */
   joinRequestDays?: number;
+  /** Hari setelah workspace dihapus (status DELETED): barisnya dan seluruh datanya dihapus permanen (cascade). Opsional agar pemanggil lama tetap valid. */
+  tenantDays?: number;
   batch: number;
 }
 export interface RetentionReport {
@@ -26,11 +28,12 @@ export interface RetentionReport {
   deliveriesDeleted: number;
   auditDeleted: number;
   joinRequestsDeleted: number;
+  tenantsPurged: number;
 }
 
 export const defaultPolicy = (): RetentionPolicy => ({
   contentDays: config.RETENTION_CONTENT_DAYS, rowDays: config.RETENTION_ROW_DAYS, outboxDays: config.RETENTION_OUTBOX_DAYS,
-  deliveryDays: config.RETENTION_WEBHOOK_DELIVERY_DAYS, auditDays: config.RETENTION_AUDIT_DAYS, joinRequestDays: config.RETENTION_JOIN_REQUEST_DAYS, batch: config.RETENTION_BATCH,
+  deliveryDays: config.RETENTION_WEBHOOK_DELIVERY_DAYS, auditDays: config.RETENTION_AUDIT_DAYS, joinRequestDays: config.RETENTION_JOIN_REQUEST_DAYS, tenantDays: config.RETENTION_TENANT_DAYS, batch: config.RETENTION_BATCH,
 });
 
 const TERMINAL = `('SENT','DELIVERED','READ','FAILED','CANCELLED','UNKNOWN','RECONCILIATION_REQUIRED')`;
@@ -109,7 +112,13 @@ export function createRetention(db: GatewayDb, policy: () => RetentionPolicy = d
               OR (status = 'PENDING' AND expires_at < now() - make_interval(days => $1))
            ORDER BY created_at LIMIT $2)`, [d(p.joinRequestDays ?? config.RETENTION_JOIN_REQUEST_DAYS)], p.batch);
 
-      return { contentPurged, rowsDeleted, historyPurged, historyDeleted, chatsDeleted, outboxDeleted, deliveriesDeleted, auditDeleted, joinRequestsDeleted };
+      // 7) Workspace yang dihapus: hapus baris tenant (FK cascade menghapus sesi, pesan, webhook, audit, dll.). Kebijakan platform hanya mengizinkan DELETE bila status DELETED.
+      //    Menunggu RETENTION_TENANT_DAYS cukup panjang agar control-plane sudah menuntaskan penghapusan sesi dan kredensialnya.
+      const tenantsPurged = await sweep(
+        `DELETE FROM tenants WHERE id IN (SELECT id FROM tenants WHERE status = 'DELETED' AND updated_at < now() - make_interval(days => $1) ORDER BY updated_at LIMIT $2)`,
+        [d(p.tenantDays ?? config.RETENTION_TENANT_DAYS)], Math.min(p.batch, 20));
+
+      return { contentPurged, rowsDeleted, historyPurged, historyDeleted, chatsDeleted, outboxDeleted, deliveriesDeleted, auditDeleted, joinRequestsDeleted, tenantsPurged };
     },
   };
 }

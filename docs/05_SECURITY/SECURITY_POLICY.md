@@ -144,3 +144,11 @@ diturunkan (#8), helper kunci tim terduplikasi (#7). **Diterima sebagai keterbat
 -   Antrean dibatasi `JOIN_MAX_PENDING` (default 50) per tenant, diserialkan dengan lock tim (batas eksak), `409 JOIN_QUEUE_FULL` bila penuh tanpa membuat akun. Kebijakan RLS `join_requests_queue_count` membuka baris PENDING yang berlaku milik tenant pemilik kode KHUSUS untuk dihitung (lihat ADR-036 untuk konsekuensinya).
 -   Retensi: permintaan diputuskan/kedaluwarsa dihapus setelah `RETENTION_JOIN_REQUEST_DAYS` (90); platform hanya SELECT/DELETE di tabel ini.
 -   **Risiko tersisa:** akun yang tidak pernah disetujui tetap ada di `users` (tanpa keanggotaan; tidak ada pembersihan karena `users` tanpa akses platform); pembuatan permintaan tidak diaudit.
+
+## Manajemen akun (Fase H4, ADR-037)
+
+-   Ganti kata sandi/email dan terbitkan kode pemulihan butuh kata sandi saat ini (403 `INVALID_PASSWORD`; dibatasi 5 per 15 menit per pengguna). Ganti kata sandi, reset, dan keluar dari semua perangkat menaikkan `token_version`: access token yang beredar langsung ditolak, refresh token dicabut (sesi yang menjalankan penggantian dilanjutkan dengan token baru).
+-   Reset tanpa email memakai kode pemulihan 100 bit (hash saja, sekali pakai, CAS), jawaban kegagalan seragam, hashing dilakukan sebelum pemeriksaan (waktu respons tidak membedakan email), 10/jam per IP dan 8/15 menit per email. Dirancang TANPA tautan reset dari admin: admin satu workspace tidak dapat mengetahui keanggotaan lintas tenant (RLS), sehingga tautan seperti itu berisiko mengambil alih akun multi-tenant.
+-   Ganti email menyinkronkan `member_email` lintas tenant lewat kebijakan sempit + trigger penjaga (peran/status tidak dapat diubah di luar tenant aktif; diuji dengan SQL langsung).
+-   Hapus workspace: OWNER + kata sandi + ketik nama; akses berhenti seketika (status DELETED ditolak di login, refresh, API key, dan socket), integrasi keluar (webhook) dimatikan, kredensial WhatsApp dihapus lewat jalur penghapusan sesi, data dihapus permanen setelah `RETENTION_TENANT_DAYS`.
+-   **Risiko tersisa:** email tidak terverifikasi; pemulihan kode yang hilang bergantung operator (`admin:recovery-code`); reset kata sandi tidak diaudit; workspace terhapus belum dapat dipulihkan OWNER sendiri.

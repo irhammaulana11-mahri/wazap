@@ -55,3 +55,8 @@ Normalisasi kode; kode tampil sekali dan hanya hash di DB; alur penuh (daftar ->
 matriks wewenang (ADMIN tidak dapat memberi ADMIN/OWNER, MEMBER ditolak); tolak dan kedaluwarsa; kuota anggota saat persetujuan; validasi; serangan RLS langsung (setuju sendiri, membuat membership, permintaan tanpa kode/email palsu/user_id orang lain).
 
 Tambahan (batas antrean dan retensi): antrean penuh 409 tanpa membuat akun, tempat bebas setelah ditolak, tenant lain terpisah, pengajuan ganda spesifik, kedaluwarsa tidak dihitung, 6 pengajuan serentak dengan batas 3 (tepat 3), cakupan kebijakan RLS antrean, dan retensi (hapus yang lama, simpan yang baru/menunggu, idempoten, keanggotaan tidak ikut terhapus). Total 252 tes.
+
+## Fase H4 --- akun, pemulihan, ganti nama, hapus workspace (`backend/test/account.test.ts`, 15 tes)
+
+Kode pemulihan sekali tampil; ganti kata sandi (sesi lain mati, sesi ini lanjut, 403 bukan 401); API key tidak dapat memakai endpoint akun; reset dengan kode (seragam, sekali pakai, serentak hanya satu menang, sesi dicabut); pemohon bergabung dan alat operator;
+ganti email lintas tenant dan penjaga RLS/trigger keanggotaan; keluar dari semua perangkat; edit API key (scope berlaku seketika); ganti nama sesi dan workspace; hapus workspace (konfirmasi, akses berhenti, integrasi mati, retensi menghapus permanen, tenant lain utuh); platform tidak dapat menghapus tenant ACTIVE. Total 267 tes.

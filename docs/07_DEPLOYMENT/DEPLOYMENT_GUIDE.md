@@ -82,6 +82,7 @@ bukan di berkas ecosystem PM2 yang di-commit:
 
 ## Alamat dashboard dan batas atas kuota (Fase H2)
 
+-   `RETENTION_TENANT_DAYS` (30): masa tunggu sebelum data workspace yang dihapus dihapus permanen. Pengguna yang kehilangan kode pemulihan: `npm run admin:recovery-code -- --email ...` (produksi: `node dist/runtime/recovery-code-cli.js --email ...`; cetak kode SEKALI; pastikan peminta pemilik akun).
 -   `JOIN_MAX_PENDING` (50) batas permintaan bergabung yang menunggu per tenant; `RETENTION_JOIN_REQUEST_DAYS` (90) retensi baris permintaan.
 -   `JOIN_REQUEST_TTL_DAYS` (default 14): masa berlaku permintaan bergabung (ADR-036). Tautan kode workspace: `<DASHBOARD_BASE_URL>/join#code=...` (fragmen, sama seperti undangan).
 -   `DASHBOARD_BASE_URL`: alamat dashboard yang dibuka pengguna di browser (domain yang dilayani Nginx untuk frontend), mis. `https://wa.contoh.co.id`. Bukan alamat API

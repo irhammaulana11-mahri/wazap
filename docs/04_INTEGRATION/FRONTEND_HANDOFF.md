@@ -424,6 +424,25 @@ Galat: `404 INVALID_JOIN_CODE` (kode salah/diputar/dinonaktifkan: pesan seragam)
 
 UI: dialog kode sekali tampil (salin, QR, WhatsApp) seperti undangan; daftar permintaan dengan tombol setujui (pilih peran)/tolak; badge jumlah PENDING. Aksi audit baru: `join_code.rotated|disabled`, `join_request.approved|rejected` (target `join_request`/`join_code`).
 
+### 4.11 Akun, kode pemulihan, ganti nama, dan hapus workspace (ADR-037)
+
+**Kode pemulihan (pengganti "lupa kata sandi" tanpa email).** `POST /auth/register` dan (akun baru) `POST /auth/join-requests` kini mengembalikan `recovery_code` (`RC-XXXXX-XXXXX-XXXXX-XXXXX`) SEKALI.
+Tampilkan di dialog "simpan sekarang" (salin/unduh/cetak, wajib dicentang "sudah saya simpan"), jangan simpan di storage/log. Pengguna lama membuat kode lewat Pengaturan Akun (`POST /auth/recovery-code` dengan kata sandi; kode lama hangus).
+**Halaman publik `/forgot-password`:** `POST /auth/reset-password` `{email, recovery_code, new_password}` -> `{recovery_code}` baru (tampilkan lagi sekali); semua sesi dicabut, arahkan ke login. Galat seragam `400 INVALID_RECOVERY` (jangan membedakan email/kode). Bila kode hilang: hubungi operator (`npm run admin:recovery-code`).
+
+**Pengaturan Akun (semua peran dashboard):**
+| Aksi | Endpoint | Catatan UI |
+|---|---|---|
+| Ganti kata sandi | `POST /auth/change-password` `{current_password,new_password}` | respons = authBody baru: ganti access token di memori (cookie refresh otomatis diganti); perangkat lain keluar |
+| Ganti email | `POST /auth/change-email` `{password,new_email}` | `409 EMAIL_TAKEN`; email tidak diverifikasi: beri peringatan |
+| Kode pemulihan baru | `POST /auth/recovery-code` `{password}` | tampil sekali |
+| Keluar dari semua perangkat | `POST /auth/logout-all` (204) | setelahnya SEMUA token (termasuk milik tab ini) mati: kembali ke login |
+
+**PENTING:** kata sandi salah pada endpoint-endpoint ini dijawab `403 INVALID_PASSWORD` (bukan 401). Jangan memicu refresh pada 403.
+**Workspace (OWNER):** `PATCH /tenant` `{name}`; `DELETE /tenant` `{password, confirm_name}` (ketik nama workspace persis; dialog bahaya, tidak dapat dibatalkan lewat API, data dihapus permanen setelah `purge_after_days`). Setelah berhasil: kosongkan cache, ke workspace lain atau login.
+**Sesi:** `PATCH /sessions/:id` `{session_name}`. **API key:** `PATCH /api-keys/:id` `{name?, scopes?}` (berlaku seketika; scope `*` tidak ada).
+Hapus akun sendiri sengaja tidak ada.
+
 ## 5. Realtime (Socket.IO)
 
 ```ts
@@ -454,7 +473,8 @@ kosong yang sukses. (Team dan Usage **sudah ada**: bagian 4.6 dan 4.7. Filter ta
 | Filter tanggal pada `/chats` dan `/chats/:id/messages` | tidak ada | paginasi saja |
 | Kirim email undangan otomatis | tidak ada (keputusan produk: tanpa email) | salin tautan / QR / kirim lewat WhatsApp (4.6); "Buat ulang tautan" bila hilang |
 | Audit log untuk aksi selain tim dan pengaturan (login, sesi, pesan, webhook, API key) | tidak ada | -- |
-| Ubah email/kata sandi akun, lupa kata sandi | tidak ada | -- |
+| Hapus akun sendiri | tidak ada (sengaja tidak disediakan) | -- |
+| Verifikasi kepemilikan email, tautan reset lewat email | tidak ada (keputusan produk: tanpa email) | kode pemulihan (4.11) |
 
 Bila produk membutuhkan salah satu di atas, ajukan lewat `INTEGRATION_CONTRACT.md` ("gap"), lalu tim backend menyusun kontraknya terlebih dahulu.
 

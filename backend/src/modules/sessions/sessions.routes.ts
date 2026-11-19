@@ -8,6 +8,7 @@ import type { SessionService } from './sessions.service.js';
 
 const Name = z.string().trim().min(2).max(50).regex(/^[\p{L}\p{N} _.\-]+$/u, 'hanya huruf, angka, spasi, titik, garis bawah, strip');
 const CreateSchema = z.strictObject({ session_name: Name, auto_connect: z.boolean().default(true) });
+const RenameSchema = z.strictObject({ session_name: Name });
 const PageSchema = z.object({ page: z.coerce.number().int().min(1).default(1), page_size: z.coerce.number().int().min(1).max(100).default(20) });
 const ListSchema = PageSchema.extend({ status: z.enum(SESSION_STATES).optional() });
 const IdParam = z.object({ sessionId: z.string().max(64) });
@@ -33,6 +34,8 @@ export async function sessionRoutes(app: FastifyInstance, { sessions, authentica
     const { rows, total } = await sessions.list(req.auth!.tenantId, { page: q.page, pageSize: q.page_size, status: q.status });
     return ok(rows, { page: q.page, page_size: q.page_size, total });
   });
+
+  app.patch('/sessions/:sessionId', { preHandler: write }, async (req) => ok(await sessions.rename(req.auth!, id(req), RenameSchema.parse(req.body).session_name)));
 
   app.get('/sessions/:sessionId', { preHandler: read }, async (req) => ok(await sessions.get(req.auth!.tenantId, id(req))));
 

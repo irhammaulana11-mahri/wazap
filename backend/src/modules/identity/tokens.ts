@@ -10,16 +10,18 @@ const key = () => crypto.createHmac('sha256', config.JWT_SECRET).update('wazap:a
 export interface AccessClaims {
   sub: string; // user id
   tid: string; // tenant aktif (diverifikasi ulang terhadap membership di DB setiap request)
+  tv: number; // users.token_version saat terbit; ditolak bila berbeda
   exp: number;
 }
 
 const sig = (body: string) => crypto.createHmac('sha256', key()).update(body).digest('base64url');
 
-export function signAccessToken(userId: string, tenantId: string, ttlSeconds = config.ACCESS_TOKEN_TTL_SECONDS) {
+export function signAccessToken(userId: string, tenantId: string, ttlSeconds = config.ACCESS_TOKEN_TTL_SECONDS, tokenVersion = 0) {
   const claims: AccessClaims & { typ: 'access' } = {
     typ: 'access',
     sub: userId,
     tid: tenantId,
+    tv: tokenVersion,
     exp: Math.floor(Date.now() / 1000) + ttlSeconds,
   };
   const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
@@ -36,7 +38,7 @@ export function verifyAccessToken(token: string): AccessClaims | null {
     const c = JSON.parse(Buffer.from(body, 'base64url').toString());
     if (c.typ !== 'access' || typeof c.sub !== 'string' || typeof c.tid !== 'string') return null;
     if (typeof c.exp !== 'number' || c.exp < Math.floor(Date.now() / 1000)) return null;
-    return { sub: c.sub, tid: c.tid, exp: c.exp };
+    return { sub: c.sub, tid: c.tid, tv: typeof c.tv === 'number' ? c.tv : 0, exp: c.exp };
   } catch {
     return null;
   }

@@ -531,3 +531,8 @@ Temuan: lihat `docs/07_DEPLOYMENT/DB_ROLES.md`. Sisa: staging nyata (server terp
 ### H3 lanjutan --- batas antrean dan retensi permintaan bergabung (2026-11-20) --- DONE
 Migrasi 0015; `JOIN_MAX_PENDING` (50), `409 JOIN_QUEUE_FULL`, pengajuan diserialkan dengan lock tim; retensi `RETENTION_JOIN_REQUEST_DAYS` (90) dengan laporan `joinRequestsDeleted`. Bukti: `npm test` 252 lulus (4 baru).
 Sisa risiko: akun pemohon yang tidak pernah disetujui tetap di `users` (tanpa akses platform); pembuatan permintaan tidak diaudit.
+
+## Fase H4 --- manajemen akun dan workspace (2026-11-20) --- DONE (belum diuji di staging)
+Migrasi 0016; `identity.service` (ganti kata sandi/email, kode pemulihan, reset, logout-all, edit API key), `tenant/tenant.service` (ganti nama, hapus), `PATCH /sessions/:id`, retensi workspace terhapus, CLI `admin:recovery-code`; ADR-037.
+Bukti: `npm test` 267 lulus (15 baru). Keputusan: reset lewat kode pemulihan (bukan tautan admin: risiko ambil alih lintas tenant). Hapus akun sendiri tidak disediakan sesuai arahan.
+Belum: uji manual di staging (migrasi 0016 dengan role terbatas); UI frontend; audit reset kata sandi; pemulihan workspace terhapus.

@@ -18,6 +18,14 @@ const RegisterSchema = z.strictObject({
   tenant_name: z.string().trim().min(2).max(100),
 });
 const LoginSchema = z.strictObject({ email: z.email().max(254), password: z.string().min(1).max(128), tenant_id: z.uuid().optional() });
+const ChangePasswordSchema = z.strictObject({ current_password: z.string().min(1).max(128), new_password: password });
+const RecoveryCodeSchema = z.strictObject({ password: z.string().min(1).max(128) });
+const ResetPasswordSchema = z.strictObject({ email: z.email().max(254), recovery_code: z.string().min(10).max(40), new_password: password });
+const ChangeEmailSchema = z.strictObject({ password: z.string().min(1).max(128), new_email: z.email().max(254) });
+const PatchKeySchema = z.strictObject({
+  name: z.string().trim().min(2).max(100).optional(),
+  scopes: z.array(z.enum(API_KEY_SCOPES)).min(1).max(API_KEY_SCOPES.length).optional(),
+}).refine((v) => v.name !== undefined || v.scopes !== undefined, 'minimal satu field (name atau scopes)');
 const SwitchSchema = z.strictObject({ tenant_id: z.uuid() });
 const CreateKeySchema = z.strictObject({
   name: z.string().trim().min(2).max(100),
@@ -68,6 +76,7 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
     user: r.user,
     tenant: r.tenant,
     role: r.role,
+    ...(r.recoveryCode ? { recovery_code: r.recoveryCode } : {}), // hanya saat mendaftar; sekali tampil
   });
 
   app.post('/auth/register', async (req, reply) => {
@@ -75,6 +84,7 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
     const b = RegisterSchema.parse(req.body);
     const r = await identity.register({ email: b.email, password: b.password, tenantName: b.tenant_name });
     setRefreshCookie(reply, r);
+    reply.header('Cache-Control', 'no-store'); // respons memuat kode pemulihan sekali tampil
     return reply.code(201).send(ok(authBody(r)));
   });
 
@@ -113,6 +123,51 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
     return ok(authBody(r));
   });
 
+  // ---- akun (hanya pengguna dashboard) ----
+  const account = [authenticate, requireRole('OWNER', 'ADMIN', 'MEMBER', 'VIEWER')];
+  const self = (req: FastifyRequest) => {
+    const a = req.auth!;
+    if (a.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');
+    return { userId: a.userId, tenantId: a.tenantId, ip: req.ip, requestId: req.id };
+  };
+  // Kata sandi salah dijawab 403 INVALID_PASSWORD (bukan 401) agar klien tidak mengira access token kedaluwarsa dan masuk lingkaran refresh.
+  app.post('/auth/change-password', { preHandler: account }, async (req, reply) => {
+    const a = self(req);
+    limit(`chpw:${a.userId}`, 5, 15 * 60_000);
+    const b = ChangePasswordSchema.parse(req.body);
+    const r = await identity.changePassword(a, { current: b.current_password, next: b.new_password });
+    setRefreshCookie(reply, r); // sesi ini dilanjutkan; semua sesi lain dicabut
+    return ok(authBody(r));
+  });
+  app.post('/auth/recovery-code', { preHandler: account }, async (req, reply) => {
+    const a = self(req);
+    limit(`rcode:${a.userId}`, 5, 15 * 60_000);
+    const b = RecoveryCodeSchema.parse(req.body);
+    reply.header('Cache-Control', 'no-store');
+    return ok({ recovery_code: (await identity.issueRecoveryCode(a, b.password)).recoveryCode });
+  });
+  // Publik. Semua kegagalan dijawab sama (400 INVALID_RECOVERY); berhasil => kode baru (sekali tampil) dan semua sesi dicabut.
+  app.post('/auth/reset-password', async (req, reply) => {
+    limit(`reset-ip:${req.ip}`, 10, 60 * 60_000);
+    const b = ResetPasswordSchema.parse(req.body);
+    limit(`reset-email:${createHash('sha256').update(b.email.trim().toLowerCase()).digest('hex')}`, 8, 15 * 60_000);
+    const r = await identity.resetPassword({ email: b.email, recoveryCode: b.recovery_code, next: b.new_password });
+    clearRefreshCookie(reply);
+    reply.header('Cache-Control', 'no-store');
+    return ok({ recovery_code: r.recoveryCode });
+  });
+  app.post('/auth/change-email', { preHandler: account }, async (req) => {
+    const a = self(req);
+    limit(`chemail:${a.userId}`, 5, 15 * 60_000);
+    const b = ChangeEmailSchema.parse(req.body);
+    return ok({ user: await identity.changeEmail(a, { password: b.password, newEmail: b.new_email }) });
+  });
+  app.post('/auth/logout-all', { preHandler: account }, async (req, reply) => {
+    await identity.logoutAll(self(req));
+    clearRefreshCookie(reply);
+    return reply.code(204).send();
+  });
+
   app.post('/auth/logout', async (req, reply) => {
     const token = req.cookies[REFRESH_COOKIE];
     if (token) await identity.logout(token);
@@ -146,6 +201,11 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
       expiresAt: exp,
     });
     return reply.code(201).send(ok(created));
+  });
+
+  app.patch('/api-keys/:keyId', { preHandler: [authenticate, requireRole('OWNER', 'ADMIN')] }, async (req) => {
+    const { keyId } = IdParam.parse(req.params);
+    return ok(await identity.updateApiKey(self(req), keyId, PatchKeySchema.parse(req.body)));
   });
 
   app.delete('/api-keys/:keyId', { preHandler: manage }, async (req) => {

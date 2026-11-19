@@ -6,6 +6,9 @@ import { config } from '../../config/env.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { randomToken, sha256hex, signAccessToken, verifyAccessToken } from './tokens.js';
 import type { Principal, Role } from './principal.js';
+import { formatCode, newCodeCore, normalizeCode } from './codes.js';
+import { recordAudit, type AuditAction } from '../audit/audit.js';
+import { readMembership } from '../team/team-lock.js';
 
 export interface SessionTokens {
   accessToken: string;
@@ -17,6 +20,8 @@ export interface AuthResult extends SessionTokens {
   user: { id: string; email: string };
   tenant: { id: string; name: string; slug: string };
   role: Role;
+  /** Hanya pada pendaftaran akun baru: kode pemulihan sekali tampil. */
+  recoveryCode?: string;
 }
 
 const API_KEY_RE = /^gwk_[A-Za-z0-9_-]{43}$/;
@@ -27,9 +32,13 @@ const slugify = (name: string) => {
   const base = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
   return `${base.length >= 2 ? base : 'workspace'}-${crypto.randomBytes(4).toString('hex')}`;
 };
+/** Hash kode pemulihan (kode 100 bit acak: SHA-256 cukup; dipisah dari domain hash lain dengan awalan). */
+const recoveryHash = (core: string) => sha256hex('rc:' + core);
 const isUnique = (e: unknown, constraintPart: string) =>
   (e as { code?: string; constraint?: string })?.code === '23505' &&
   ((e as { constraint?: string }).constraint ?? '').includes(constraintPart);
+
+export interface AccountActor { userId: string; tenantId: string; ip?: string; requestId?: string }
 
 export function createIdentityService(db: GatewayDb) {
   async function issueRefresh(c: pg.PoolClient, userId: string, tenantId: string, familyId = crypto.randomUUID()) {
@@ -43,8 +52,8 @@ export function createIdentityService(db: GatewayDb) {
     return { raw, id, familyId };
   }
 
-  const tokens = (userId: string, tenantId: string, refreshRaw: string): SessionTokens => ({
-    accessToken: signAccessToken(userId, tenantId),
+  const tokens = (userId: string, tenantId: string, refreshRaw: string, version = 0): SessionTokens => ({
+    accessToken: signAccessToken(userId, tenantId, undefined, version),
     expiresIn: config.ACCESS_TOKEN_TTL_SECONDS,
     refreshToken: refreshRaw,
     refreshExpiresIn: config.REFRESH_TOKEN_TTL_SECONDS,
@@ -54,12 +63,13 @@ export function createIdentityService(db: GatewayDb) {
     async register(input: { email: string; password: string; tenantName: string }): Promise<AuthResult> {
       const email = input.email.trim().toLowerCase();
       const passwordHash = await hashPassword(input.password); // CPU-bound, di luar transaksi
+      const recoveryCore = newCodeCore();
       const userId = crypto.randomUUID();
       const tenantId = crypto.randomUUID();
       const slug = slugify(input.tenantName);
       try {
         return await db.tx({ userId, tenantId }, async (c) => {
-          await c.query('INSERT INTO users (id, email, password_hash) VALUES ($1,$2,$3)', [userId, email, passwordHash]);
+          await c.query('INSERT INTO users (id, email, password_hash, recovery_hash) VALUES ($1,$2,$3,$4)', [userId, email, passwordHash, recoveryHash(recoveryCore)]);
           await c.query('INSERT INTO tenants (id, name, slug) VALUES ($1,$2,$3)', [tenantId, input.tenantName.trim(), slug]);
           await c.query(`INSERT INTO tenant_memberships (tenant_id, user_id, role, member_email) VALUES ($1,$2,'OWNER',$3)`, [tenantId, userId, email]);
           await c.query('INSERT INTO tenant_settings (tenant_id) VALUES ($1)', [tenantId]);
@@ -69,6 +79,7 @@ export function createIdentityService(db: GatewayDb) {
             user: { id: userId, email },
             tenant: { id: tenantId, name: input.tenantName.trim(), slug },
             role: 'OWNER' as const,
+            recoveryCode: formatCode('RC', recoveryCore),
           };
         });
       } catch (e) {
@@ -80,8 +91,8 @@ export function createIdentityService(db: GatewayDb) {
     async login(input: { email: string; password: string; tenantId?: string }): Promise<AuthResult> {
       const email = input.email.trim().toLowerCase();
       const user = await db.tx({ loginEmail: email }, async (c) =>
-        (await c.query('SELECT id, email, password_hash, status FROM users WHERE email = $1', [email])).rows[0] as
-          | { id: string; email: string; password_hash: string; status: string }
+        (await c.query('SELECT id, email, password_hash, status, token_version FROM users WHERE email = $1', [email])).rows[0] as
+          | { id: string; email: string; password_hash: string; status: string; token_version: number }
           | undefined
       );
       const passOk = await verifyPassword(input.password, user?.password_hash ?? null);
@@ -108,7 +119,7 @@ export function createIdentityService(db: GatewayDb) {
         await c.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
         const rt = await issueRefresh(c, user.id, m.id);
         return {
-          ...tokens(user.id, m.id, rt.raw),
+          ...tokens(user.id, m.id, rt.raw, user.token_version),
           user: { id: user.id, email: user.email },
           tenant: { id: m.id, name: m.name, slug: m.slug },
           role: m.role as Role,
@@ -125,7 +136,7 @@ export function createIdentityService(db: GatewayDb) {
       return db.tx({ userId }, async (c) => {
         const m = (
           await c.query(
-            `SELECT u.email, t.id, t.name, t.slug, m.role
+            `SELECT u.email, u.token_version, t.id, t.name, t.slug, m.role
              FROM users u JOIN tenant_memberships m ON m.user_id = u.id JOIN tenants t ON t.id = m.tenant_id
              WHERE u.id = $1 AND t.id = $2 AND u.status = 'ACTIVE' AND m.status = 'ACTIVE' AND t.status = 'ACTIVE'`,
             [userId, tenantId]
@@ -138,7 +149,7 @@ export function createIdentityService(db: GatewayDb) {
         }
         const rt = await issueRefresh(c, userId, m.id);
         return {
-          ...tokens(userId, m.id, rt.raw),
+          ...tokens(userId, m.id, rt.raw, m.token_version),
           user: { id: userId, email: m.email },
           tenant: { id: m.id, name: m.name, slug: m.slug },
           role: m.role as Role,
@@ -171,7 +182,7 @@ export function createIdentityService(db: GatewayDb) {
         if (row.expired) return { fail: true as const };
         const ctxRow = (
           await c.query(
-            `SELECT u.id AS uid, u.email, t.id AS tid, t.name, t.slug, m.role
+            `SELECT u.id AS uid, u.email, u.token_version, t.id AS tid, t.name, t.slug, m.role
              FROM users u JOIN tenant_memberships m ON m.user_id = u.id JOIN tenants t ON t.id = m.tenant_id
              WHERE u.id = $1 AND t.id = $2 AND u.status = 'ACTIVE' AND m.status = 'ACTIVE' AND t.status = 'ACTIVE'`,
             [row.user_id, row.tenant_id]
@@ -186,7 +197,7 @@ export function createIdentityService(db: GatewayDb) {
         return {
           fail: false as const,
           result: {
-            ...tokens(ctxRow.uid, ctxRow.tid, next.raw),
+            ...tokens(ctxRow.uid, ctxRow.tid, next.raw, ctxRow.token_version),
             user: { id: ctxRow.uid, email: ctxRow.email },
             tenant: { id: ctxRow.tid, name: ctxRow.name, slug: ctxRow.slug },
             role: ctxRow.role as Role,
@@ -214,7 +225,7 @@ export function createIdentityService(db: GatewayDb) {
       const row = await db.tx({ userId: claims.sub, tenantId: claims.tid }, async (c) =>
           (
             await c.query(
-              `SELECT m.role FROM users u
+              `SELECT m.role, u.token_version FROM users u
                JOIN tenant_memberships m ON m.user_id = u.id AND m.tenant_id = $2
                JOIN tenants t ON t.id = m.tenant_id
                WHERE u.id = $1 AND u.status = 'ACTIVE' AND m.status = 'ACTIVE' AND t.status = 'ACTIVE'`,
@@ -222,7 +233,10 @@ export function createIdentityService(db: GatewayDb) {
             )
           ).rows[0]
         );
-      return row ? { type: 'user', userId: claims.sub, tenantId: claims.tid, role: row.role } : null;
+      if (!row) return null;
+      // Ganti kata sandi / reset / keluar dari semua perangkat menaikkan token_version dan mematikan access token yang diterbitkan sebelumnya.
+      if (claims.tv !== row.token_version) return null;
+      return { type: 'user', userId: claims.sub, tenantId: claims.tid, role: row.role };
     },
 
     async authenticateApiKey(raw: string): Promise<Principal | null> {
@@ -251,11 +265,133 @@ export function createIdentityService(db: GatewayDb) {
         const memberships = (
           await c.query(
             `SELECT t.id AS tenant_id, t.name, t.slug, m.role, m.status FROM tenant_memberships m
-             JOIN tenants t ON t.id = m.tenant_id WHERE m.user_id = $1 ORDER BY m.created_at`,
+             JOIN tenants t ON t.id = m.tenant_id WHERE m.user_id = $1 AND t.status = 'ACTIVE' ORDER BY m.created_at`,
             [userId]
           )
         ).rows;
         return { user: u, active_tenant_id: tenantId, memberships };
+      });
+    },
+
+    // ================= manajemen akun (hanya pengguna dashboard; dipanggil route dengan principal terverifikasi) =================
+
+    /** Audit akun dicatat di workspace aktif pengguna (satu-satunya konteks tenant yang ada). */
+    async accountAudit(c: pg.PoolClient, a: AccountActor, action: AuditAction, details: Record<string, unknown> = {}) {
+      const m = await readMembership(c, a.tenantId, a.userId);
+      await recordAudit(c, { tenantId: a.tenantId, actor: { userId: a.userId, email: m?.email ?? null, role: m?.role ?? null }, action, targetType: 'account', targetId: a.userId, targetEmail: m?.email ?? null, details, ip: a.ip, requestId: a.requestId });
+    },
+
+    /** Ganti kata sandi: butuh kata sandi lama; semua sesi lain dicabut (refresh token + access token lama); sesi ini dilanjutkan dengan token baru. */
+    async changePassword(a: AccountActor, input: { current: string; next: string }): Promise<AuthResult> {
+      const u = await db.tx({ userId: a.userId }, async (c) => (await c.query('SELECT email, password_hash, status FROM users WHERE id = $1', [a.userId])).rows[0] as { email: string; password_hash: string; status: string } | undefined);
+      if (!u || u.status !== 'ACTIVE' || !(await verifyPassword(input.current, u.password_hash))) throw new AppError('INVALID_PASSWORD', 403, 'Kata sandi saat ini salah');
+      if (input.current === input.next) throw new AppError('PASSWORD_UNCHANGED', 400, 'Kata sandi baru harus berbeda dari yang lama');
+      const newHash = await hashPassword(input.next);
+      return db.tx({ userId: a.userId, tenantId: a.tenantId }, async (c) => {
+        // Compare-and-swap pada hash lama: dua penggantian serentak tidak saling menimpa tanpa sadar.
+        const r = await c.query('UPDATE users SET password_hash = $2, password_changed_at = now(), token_version = token_version + 1 WHERE id = $1 AND password_hash = $3 RETURNING token_version', [a.userId, newHash, u.password_hash]);
+        if (r.rowCount !== 1) throw new AppError('CONFLICT', 409, 'Kata sandi baru saja diubah dari perangkat lain; coba lagi');
+        await c.query('UPDATE refresh_tokens SET revoked_at = COALESCE(revoked_at, now()) WHERE user_id = $1', [a.userId]);
+        const m = (await c.query(
+          `SELECT t.id, t.name, t.slug, m.role FROM tenant_memberships m JOIN tenants t ON t.id = m.tenant_id
+           WHERE m.user_id = $1 AND t.id = $2 AND m.status = 'ACTIVE' AND t.status = 'ACTIVE'`, [a.userId, a.tenantId])).rows[0];
+        if (!m) throw new AppError('FORBIDDEN', 403, 'Workspace tidak aktif');
+        const rt = await issueRefresh(c, a.userId, a.tenantId);
+        await this.accountAudit(c, a, 'account.password_changed', { revoked_other_sessions: true });
+        return { ...tokens(a.userId, a.tenantId, rt.raw, r.rows[0].token_version), user: { id: a.userId, email: u.email }, tenant: { id: m.id, name: m.name, slug: m.slug }, role: m.role as Role };
+      });
+    },
+
+    /** Terbitkan kode pemulihan baru (tampil sekali; kode lama hangus). Butuh kata sandi saat ini. */
+    async issueRecoveryCode(a: AccountActor, password: string): Promise<{ recoveryCode: string }> {
+      const u = await db.tx({ userId: a.userId }, async (c) => (await c.query('SELECT password_hash, status FROM users WHERE id = $1', [a.userId])).rows[0] as { password_hash: string; status: string } | undefined);
+      if (!u || u.status !== 'ACTIVE' || !(await verifyPassword(password, u.password_hash))) throw new AppError('INVALID_PASSWORD', 403, 'Kata sandi saat ini salah');
+      const core = newCodeCore();
+      await db.tx({ userId: a.userId, tenantId: a.tenantId }, async (c) => {
+        await c.query('UPDATE users SET recovery_hash = $2 WHERE id = $1', [a.userId, recoveryHash(core)]);
+        await this.accountAudit(c, a, 'account.recovery_code_created');
+      });
+      return { recoveryCode: formatCode('RC', core) };
+    },
+
+    /**
+     * Atur ulang kata sandi dengan kode pemulihan (tanpa email). Semua kegagalan dijawab sama. Kode sekali pakai: berhasil => kode baru diterbitkan
+     * (tampil sekali), seluruh sesi dicabut. Tidak ada audit (pemohon belum punya konteks tenant). Pekerjaan hashing dilakukan sebelum pemeriksaan
+     * agar waktu respons tidak membedakan email yang ada dari yang tidak.
+     */
+    async resetPassword(input: { email: string; recoveryCode: string; next: string }): Promise<{ recoveryCode: string }> {
+      const invalid = () => new AppError('INVALID_RECOVERY', 400, 'Email atau kode pemulihan tidak valid');
+      const email = input.email.trim().toLowerCase();
+      const newHash = await hashPassword(input.next);
+      const core = normalizeCode('RC', input.recoveryCode);
+      const user = await db.tx({ loginEmail: email }, async (c) => (await c.query('SELECT id, status, recovery_hash FROM users WHERE email = $1', [email])).rows[0] as { id: string; status: string; recovery_hash: string | null } | undefined);
+      const given = Buffer.from(core ? recoveryHash(core) : '0'.repeat(64));
+      const stored = Buffer.from(user?.recovery_hash ?? '1'.repeat(64));
+      const match = given.length === stored.length && crypto.timingSafeEqual(given, stored);
+      if (!core || !user || user.status !== 'ACTIVE' || !user.recovery_hash || !match) throw invalid();
+      const nextCore = newCodeCore();
+      await db.tx({ userId: user.id, loginEmail: email }, async (c) => {
+        // CAS pada hash kode: dua permintaan serentak dengan kode yang sama, hanya satu yang menang.
+        const r = await c.query('UPDATE users SET password_hash = $2, recovery_hash = $3, password_changed_at = now(), token_version = token_version + 1 WHERE id = $1 AND recovery_hash = $4',
+          [user.id, newHash, recoveryHash(nextCore), user.recovery_hash]);
+        if (r.rowCount !== 1) throw invalid();
+        await c.query('UPDATE refresh_tokens SET revoked_at = COALESCE(revoked_at, now()) WHERE user_id = $1', [user.id]);
+      });
+      return { recoveryCode: formatCode('RC', nextCore) };
+    },
+
+    /** Alat operator: terbitkan kode pemulihan untuk email (pengguna lupa kata sandi dan tidak punya kode). null bila akun tidak ada. */
+    async adminIssueRecoveryCode(emailRaw: string): Promise<string | null> {
+      const email = emailRaw.trim().toLowerCase();
+      const u = await db.tx({ loginEmail: email }, async (c) => (await c.query('SELECT id FROM users WHERE email = $1', [email])).rows[0] as { id: string } | undefined);
+      if (!u) return null;
+      const core = newCodeCore();
+      await db.tx({ userId: u.id }, (c) => c.query('UPDATE users SET recovery_hash = $2 WHERE id = $1', [u.id, recoveryHash(core)]));
+      return formatCode('RC', core);
+    },
+
+    /** Ganti email akun (butuh kata sandi). Email tidak diverifikasi (keputusan tanpa email); salinan member_email di semua keanggotaan ikut diperbarui. */
+    async changeEmail(a: AccountActor, input: { password: string; newEmail: string }) {
+      const email = input.newEmail.trim().toLowerCase();
+      const u = await db.tx({ userId: a.userId }, async (c) => (await c.query('SELECT email, password_hash, status FROM users WHERE id = $1', [a.userId])).rows[0] as { email: string; password_hash: string; status: string } | undefined);
+      if (!u || u.status !== 'ACTIVE' || !(await verifyPassword(input.password, u.password_hash))) throw new AppError('INVALID_PASSWORD', 403, 'Kata sandi saat ini salah');
+      if (email === u.email) throw new AppError('EMAIL_UNCHANGED', 400, 'Email baru sama dengan email saat ini');
+      try {
+        await db.tx({ userId: a.userId, tenantId: a.tenantId }, async (c) => {
+          await c.query('UPDATE users SET email = $2 WHERE id = $1', [a.userId, email]);
+          await c.query('UPDATE tenant_memberships SET member_email = $2 WHERE user_id = $1', [a.userId, email]);
+          await this.accountAudit(c, a, 'account.email_changed', { from: u.email, to: email });
+        });
+      } catch (e) {
+        if (isUnique(e, 'users_email')) throw new AppError('EMAIL_TAKEN', 409, 'Email sudah terdaftar');
+        throw e;
+      }
+      return { id: a.userId, email };
+    },
+
+    /** Keluar dari semua perangkat: seluruh refresh token dicabut dan access token yang beredar ditolak (termasuk perangkat ini). */
+    async logoutAll(a: AccountActor): Promise<void> {
+      await db.tx({ userId: a.userId, tenantId: a.tenantId }, async (c) => {
+        await c.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [a.userId]);
+        await c.query('UPDATE refresh_tokens SET revoked_at = COALESCE(revoked_at, now()) WHERE user_id = $1', [a.userId]);
+        await this.accountAudit(c, a, 'account.sessions_revoked');
+      });
+    },
+
+    async updateApiKey(a: AccountActor, keyId: string, patch: { name?: string; scopes?: string[] }) {
+      if (!UUID_RE.test(keyId)) throw new AppError('NOT_FOUND', 404, 'API key tidak ditemukan');
+      return db.tx({ tenantId: a.tenantId }, async (c) => {
+        const k = (await c.query('SELECT id, name, scopes, revoked_at FROM api_keys WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [keyId, a.tenantId])).rows[0];
+        if (!k) throw new AppError('NOT_FOUND', 404, 'API key tidak ditemukan');
+        if (k.revoked_at) throw new AppError('INVALID_STATE', 409, 'API key yang sudah dicabut tidak dapat diubah');
+        const row = (await c.query(
+          `UPDATE api_keys SET name = COALESCE($3, name), scopes = COALESCE($4::jsonb, scopes) WHERE id = $1 AND tenant_id = $2
+           RETURNING id, name, key_prefix, scopes, last_used_at, expires_at, revoked_at, created_at`,
+          [keyId, a.tenantId, patch.name?.trim() ?? null, patch.scopes ? JSON.stringify(patch.scopes) : null])).rows[0];
+        const m = await readMembership(c, a.tenantId, a.userId);
+        await recordAudit(c, { tenantId: a.tenantId, actor: { userId: a.userId, email: m?.email ?? null, role: m?.role ?? null }, action: 'api_key.updated', targetType: 'api_key', targetId: keyId,
+          details: { name: patch.name !== undefined ? { from: k.name, to: row.name } : undefined, scopes: patch.scopes ? { from: k.scopes, to: row.scopes } : undefined }, ip: a.ip, requestId: a.requestId });
+        return row;
       });
     },
 

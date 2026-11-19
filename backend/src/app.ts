@@ -18,6 +18,8 @@ import { createUsageService, type UsageService } from './modules/usage/usage.ser
 import { auditRoutes } from './modules/audit/audit.routes.js';
 import { createAuditService, type AuditService } from './modules/audit/audit.service.js';
 import { settingsRoutes } from './modules/tenant/settings.routes.js';
+import { tenantRoutes } from './modules/tenant/tenant.routes.js';
+import { createTenantService, type TenantService } from './modules/tenant/tenant.service.js';
 import { createSettingsService, type SettingsService } from './modules/tenant/settings.service.js';
 import cookie from '@fastify/cookie';
 import { randomUUID } from 'crypto';
@@ -50,6 +52,7 @@ export interface AppDeps {
   chats?: ChatService;
   team?: TeamService;
   join?: JoinService;
+  tenant?: TenantService;
   usage?: UsageService;
   audit?: AuditService;
   settings?: SettingsService;
@@ -121,6 +124,7 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
   const chats = deps.chats ?? createChatService(getGatewayDb());
   const team = deps.team ?? createTeamService(getGatewayDb());
   const join = deps.join ?? createJoinService(getGatewayDb());
+  const tenant = deps.tenant ?? createTenantService(getGatewayDb());
   const usage = deps.usage ?? createUsageService(getGatewayDb());
   const audit = deps.audit ?? createAuditService(getGatewayDb());
   const settings = deps.settings ?? createSettingsService(getGatewayDb());
@@ -149,6 +153,7 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
       await scope.register(usageRoutes, { usage, authenticate });
       await scope.register(auditRoutes, { audit, authenticate });
       await scope.register(settingsRoutes, { settings, authenticate });
+      await scope.register(tenantRoutes, { tenant, authenticate, limiter: deps.limiter });
     },
     { prefix: '/api/v1' }
   );

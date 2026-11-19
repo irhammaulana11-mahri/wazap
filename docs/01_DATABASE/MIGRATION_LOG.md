@@ -149,3 +149,9 @@ manual deployment action.
 ### 0015 --- `backend/src/database/migrations/0015_join_queue_retention.sql`
 
 -   Kebijakan `join_requests_queue_count` (SELECT: PENDING yang berlaku milik tenant pemilik kode di `app.join_hash`, hanya untuk menghitung antrean), kebijakan platform SELECT/DELETE untuk retensi, dan indeks `idx_join_requests_created`. ADR-036. Tes: `test/join.test.ts`.
+
+### 0016 --- `backend/src/database/migrations/0016_account_management.sql`
+
+-   `users`: `recovery_hash`, `token_version`, `password_changed_at`. `audit_logs.target_type` diperluas (`account`, `api_key`, `session`, `tenant`).
+-   Kebijakan `memberships_sync_email` + trigger `tenant_memberships_guard` (sinkronisasi `member_email` lintas tenant saat ganti email; peran/status tidak dapat diubah di luar tenant aktif).
+-   Kebijakan platform `tenants_platform_select` dan `tenants_platform_delete` (hanya status DELETED) untuk retensi workspace terhapus. ADR-037. Tes: `test/account.test.ts`.

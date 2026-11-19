@@ -62,6 +62,27 @@ export function createSessionService(db: GatewayDb, opts: { crypto?: CredentialC
       }
     },
 
+    /** Ganti nama sesi (nama unik per tenant selama sesi belum dihapus). Tidak memengaruhi koneksi WhatsApp. */
+    async rename(p: Principal, id: string, name: string) {
+      try {
+        return await db.tx({ tenantId: p.tenantId }, async (c) => {
+          const s = await load(c, p.tenantId, id);
+          if (s.status === 'DELETING') throw invalidState(s.status, 'mengganti nama');
+          const newName = name.trim();
+          if (newName !== s.session_name) {
+            await c.query('UPDATE wa_sessions SET session_name = $3 WHERE id = $1 AND tenant_id = $2', [id, p.tenantId, newName]);
+            await c.query(
+              `INSERT INTO wa_session_events (tenant_id, session_id, event_type, actor, payload) VALUES ($1,$2,'session.renamed',$3,$4::jsonb)`,
+              [p.tenantId, id, actorOf(p), JSON.stringify({ from: s.session_name, to: newName })]);
+          }
+          return view((await c.query(`SELECT ${PUBLIC_COLS} FROM wa_sessions WHERE id = $1`, [id])).rows[0]);
+        });
+      } catch (e) {
+        if ((e as { code?: string }).code === '23505') throw new AppError('SESSION_NAME_TAKEN', 409, `Nama session "${name}" sudah dipakai`);
+        throw e;
+      }
+    },
+
     async list(tenantId: string, q: { page: number; pageSize: number; status?: SessionState }) {
       return db.tx({ tenantId }, async (c) => {
         const where = `tenant_id = $1 AND status <> 'DELETED' AND ($2::text IS NULL OR status = $2)`;

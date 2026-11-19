@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- Backend Fase H4: manajemen akun, kode pemulihan, ganti nama, hapus workspace (2026-11-20)
+
+-   Baru: `POST /auth/change-password|change-email|recovery-code|reset-password|logout-all`, `PATCH /api-keys/:id`, `PATCH /sessions/:id`, `PATCH /tenant`, `DELETE /tenant`. Lupa kata sandi tanpa email lewat kode pemulihan (`recovery_code` pada register/join-request; alat operator `npm run admin:recovery-code`).
+-   Keamanan: `token_version` mencabut access token seketika; kata sandi salah dijawab 403 (bukan 401); hapus workspace lunak lalu dihapus permanen setelah `RETENTION_TENANT_DAYS`. Hapus akun sendiri sengaja tidak ada. Migrasi 0016, ADR-037.
+-   Tes: 267 lulus (15 baru di `test/account.test.ts`).
+
 ## Unreleased --- Backend H3 lanjutan: batas antrean dan retensi permintaan bergabung (2026-11-20)
 
 -   Baru: batas antrean `JOIN_MAX_PENDING` (default 50 per tenant; `409 JOIN_QUEUE_FULL`, akun tidak dibuat; batas eksak walau pengajuan serentak) dan retensi `RETENTION_JOIN_REQUEST_DAYS` (default 90). Migrasi 0015 (kebijakan RLS khusus hitung antrean, platform SELECT/DELETE, indeks).

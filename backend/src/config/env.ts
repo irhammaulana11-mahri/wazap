@@ -107,6 +107,8 @@ const baseSchema = z.object({
   // Batas permintaan bergabung yang masih menunggu (belum kedaluwarsa) per tenant; di atasnya pemohon baru ditolak (409 JOIN_QUEUE_FULL).
   JOIN_MAX_PENDING: z.coerce.number().int().min(1).max(1000).default(50),
   // Hari setelah diputuskan (atau setelah kedaluwarsa bila tidak pernah diputuskan): baris permintaan bergabung dihapus (memuat email pemohon).
+  // Hari setelah workspace dihapus (status DELETED): barisnya dan seluruh datanya dihapus permanen (cascade).
+  RETENTION_TENANT_DAYS: z.coerce.number().int().min(7).default(30),
   RETENTION_JOIN_REQUEST_DAYS: z.coerce.number().int().min(7).default(90),
   // Fase H2: undangan tanpa email (tautan), audit, dan batas atas kuota yang boleh diatur OWNER (operator mengubah lewat env).
   // Alamat dashboard (frontend) yang dibuka pengguna di browser: skema + host (+ port bila bukan standar, + subpath bila di-host di subpath).

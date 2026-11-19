@@ -35,6 +35,7 @@ export async function joinRoutes(app: FastifyInstance, { join, authenticate, lim
     const r = lim.check(`join:${req.ip}`, 10, 60 * 60_000);
     if (!r.allowed) throw new AppError('RATE_LIMITED', 429, 'Terlalu banyak percobaan. Coba lagi nanti.', [], { 'Retry-After': String(r.retryAfterSec) });
     const b = RequestSchema.parse(req.body);
+    reply.header('Cache-Control', 'no-store'); // respons dapat memuat kode pemulihan sekali tampil (akun baru)
     return reply.code(201).send(ok(await join.request({ joinCode: b.join_code, email: b.email, password: b.password })));
   });
 

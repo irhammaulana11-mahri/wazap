@@ -37,7 +37,7 @@ Auth (`register`, `login`, `refresh`, `logout`, `me`, `switch-tenant`), API key,
 chat dan kontak, webhook (CRUD, rotate secret, test, deliveries, replay), **tim** (anggota, undangan, terima undangan, terbit ulang tautan, **permintaan bergabung dengan kode workspace**: `/auth/join-requests`, `/team/join-code`, `/team/join-requests`),
 **usage** (`summary`, `messages` deret waktu, `sessions`), **audit log** (`GET /audit-logs`), **pengaturan/kuota tenant** (`GET|PATCH /tenant/settings`), dan Socket.IO realtime.
 Yang BELUM ada: pencarian teks pesan, ekspor, audit untuk aksi selain tim/pengaturan, email undangan otomatis
-(keputusan produk: TANPA email), ganti email/kata sandi, endpoint `/messages/history` gabungan (lihat `FRONTEND_HANDOFF.md` bagian 6).
+(keputusan produk: TANPA email, jadi lupa kata sandi lewat kode pemulihan), hapus akun sendiri (sengaja tidak ada), endpoint `/messages/history` gabungan (lihat `FRONTEND_HANDOFF.md` bagian 6).
 
 ## Scope
 
@@ -52,6 +52,7 @@ Yang BELUM ada: pencarian teks pesan, ekspor, audit untuk aksi selain tim/pengat
 9.  **Tim:** daftar anggota, undang, ubah peran/status, hapus/keluar, halaman terima undangan, pindah workspace. **Undangan tanpa email:**
     dialog sekali tampil dengan `invite_url` + opsi salin tautan, QR (klien), kirim lewat WhatsApp (`wa.me` atau `POST /messages/send` dari sesi tenant), dan "Buat ulang tautan" (`reissue`).
     **Permintaan bergabung (`FRONTEND_HANDOFF.md` 4.10):** halaman publik `/join` (kode di fragmen, kata sandi dibuat pemohon saat mendaftar), pesan login `JOIN_PENDING`/`JOIN_REJECTED`, kelola kode dan setujui/tolak oleh OWNER/ADMIN.
+    **Akun (`FRONTEND_HANDOFF.md` 4.11):** dialog kode pemulihan sekali tampil (register/join), `/forgot-password`, Pengaturan Akun (ganti kata sandi/email, kode pemulihan, keluar dari semua perangkat), ganti nama sesi/workspace, edit API key, hapus workspace (OWNER). Kata sandi salah = `403 INVALID_PASSWORD` (bukan 401). TIDAK ada hapus akun sendiri.
     **Audit log:** halaman untuk OWNER/ADMIN (filter aksi dan tanggal). **Pengaturan kuota:** form untuk OWNER (batas dari `minimums`/`ceilings` pada respons, tampilkan `used`).
 10. Realtime updates dan reconnection.
 

@@ -474,3 +474,20 @@ Login pemohon yang belum disetujui: `403 JOIN_PENDING`; ditolak/kedaluwarsa: `40
 
 Antrean permintaan bergabung dibatasi `JOIN_MAX_PENDING` (default 50 yang masih berlaku) per tenant: pengajuan di atas batas dijawab `409 JOIN_QUEUE_FULL` (akun tidak dibuat). Pengajuan ganda oleh pemohon yang sama tetap `409 JOIN_REQUEST_EXISTS`.
 Permintaan yang sudah diputuskan atau kedaluwarsa dihapus retensi setelah `RETENTION_JOIN_REQUEST_DAYS` (90 hari).
+
+## Manajemen akun, ganti nama, dan hapus workspace (Fase H4, ADR-037)
+
+| Method | Path | Peran | Catatan |
+|---|---|---|---|
+| POST | `/auth/change-password` | pengguna dashboard | `{current_password, new_password(>=10)}` -> authBody baru + cookie; semua sesi lain dicabut; `403 INVALID_PASSWORD`, `400 PASSWORD_UNCHANGED`; 5/15 menit |
+| POST | `/auth/recovery-code` | pengguna dashboard | `{password}` -> `{recovery_code}` SEKALI (`no-store`); kode lama hangus |
+| POST | `/auth/reset-password` | publik | `{email, recovery_code, new_password}` -> `{recovery_code}` baru SEKALI; semua sesi dicabut; kegagalan seragam `400 INVALID_RECOVERY`; 10/jam per IP, 8/15 menit per email |
+| POST | `/auth/change-email` | pengguna dashboard | `{password, new_email}` -> `{user:{id,email}}`; `409 EMAIL_TAKEN`, `400 EMAIL_UNCHANGED`; email tidak diverifikasi |
+| POST | `/auth/logout-all` | pengguna dashboard | 204; semua refresh dan access token mati (termasuk perangkat ini) |
+| PATCH | `/api-keys/:id` | OWNER, ADMIN | `{name?, scopes?}` (minimal satu; `*` ditolak); `409 INVALID_STATE` bila dicabut; berlaku seketika; diaudit |
+| PATCH | `/sessions/:id` | OWNER, ADMIN, MEMBER (atau scope `sessions:write`) | `{session_name}`; `409 SESSION_NAME_TAKEN`, `409 INVALID_STATE` (DELETING) |
+| PATCH | `/tenant` | OWNER | `{name}` -> `{id,name,slug}`; diaudit |
+| DELETE | `/tenant` | OWNER | `{password, confirm_name}` -> `{deleted:true, sessions_scheduled, purge_after_days}`; `403 INVALID_PASSWORD`, `400 CONFIRMATION_MISMATCH`; 3/jam |
+
+Respons `POST /auth/register` kini memuat `recovery_code` (sekali tampil, `Cache-Control: no-store`); respons `POST /auth/join-requests` memuatnya hanya untuk akun BARU. Hapus akun sendiri sengaja tidak disediakan.
+Aksi audit baru: `account.password_changed|email_changed|recovery_code_created|sessions_revoked`, `api_key.updated`, `session.renamed` (juga event sesi), `tenant.renamed|deleted`. Kode galat baru: `INVALID_PASSWORD` 403, `PASSWORD_UNCHANGED` 400, `INVALID_RECOVERY` 400, `EMAIL_UNCHANGED` 400, `CONFIRMATION_MISMATCH` 400.

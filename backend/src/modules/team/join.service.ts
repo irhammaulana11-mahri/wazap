@@ -11,7 +11,7 @@ import { readMembership, teamLock } from './team-lock.js';
 import { canAssignRole, canManageRole, type TeamActor } from './team.service.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-import { formatCode, newCodeCore, normalizeCode } from '../identity/codes.js';
+import { formatCode, newCodeCore, newRecoverySet, normalizeCode, storeRecoverySet } from '../identity/codes.js';
 
 /** Kode tampil `WJ-XXXXX-XXXXX-XXXXX-XXXXX`; pada input, huruf kecil/tanda hubung/spasi diabaikan. Mengembalikan 20 karakter inti atau null. */
 export const normalizeJoinCode = (input: string): string | null => normalizeCode('WJ', input);
@@ -47,7 +47,7 @@ export function createJoinService(db: GatewayDb) {
      * keanggotaan, sehingga akun tidak dapat dibajak oleh orang lain yang kebetulan login lebih dulu. Email yang sudah terdaftar
      * harus membuktikan kepemilikan dengan kata sandi akunnya (tanpa membuat akun kedua). Kegagalan kode dijawab seragam.
      */
-    async request(input: { joinCode: string; email: string; password: string }) {
+    async request(input: { joinCode: string; email: string; password: string }, meta: { ip?: string; requestId?: string } = {}) {
       const core = normalizeJoinCode(input.joinCode);
       if (!core) throw invalidCode();
       const hash = codeHash(core);
@@ -62,7 +62,7 @@ export function createJoinService(db: GatewayDb) {
         userId = crypto.randomUUID();
         passwordHash = await hashPassword(input.password); // CPU-bound, di luar transaksi
       }
-      const recoveryCore = existing ? null : newCodeCore();
+      const recovery = existing ? null : newRecoverySet();
       try {
         return await db.tx({ userId, joinHash: hash }, async (c) => {
           const code = (await c.query('SELECT tenant_id, tenant_name FROM tenant_join_codes WHERE code_hash = $1', [hash])).rows[0];
@@ -76,7 +76,10 @@ export function createJoinService(db: GatewayDb) {
           // Hitung antrean (kebijakan join_requests_queue_count membuka hanya baris PENDING yang berlaku milik tenant ini).
           const queued = (await c.query(`SELECT count(*)::int n FROM tenant_join_requests WHERE tenant_id = $1 AND status = 'PENDING' AND expires_at > now()`, [code.tenant_id])).rows[0].n;
           if (queued >= config.JOIN_MAX_PENDING) throw new AppError('JOIN_QUEUE_FULL', 409, 'Antrean permintaan workspace ini sedang penuh; hubungi admin workspace');
-          if (passwordHash) await c.query('INSERT INTO users (id, email, password_hash, recovery_hash) VALUES ($1,$2,$3,$4)', [userId, email, passwordHash, sha256hex('rc:' + recoveryCore)]);
+          if (passwordHash) {
+            await c.query('INSERT INTO users (id, email, password_hash) VALUES ($1,$2,$3)', [userId, email, passwordHash]);
+            await storeRecoverySet(c, userId, recovery!.hashes, false);
+          }
           const member = (await c.query('SELECT 1 FROM tenant_memberships WHERE tenant_id = $1 AND user_id = $2', [code.tenant_id, userId])).rows[0];
           if (member) throw new AppError('ALREADY_MEMBER', 409, 'Anda sudah menjadi anggota workspace ini');
           // Permintaan lama yang kedaluwarsa dibersihkan agar tidak menghalangi pengajuan baru (indeks unik hanya untuk PENDING).
@@ -84,7 +87,8 @@ export function createJoinService(db: GatewayDb) {
           const r = (await c.query(
             `INSERT INTO tenant_join_requests (tenant_id, user_id, email, expires_at) VALUES ($1,$2,$3, now() + make_interval(days => $4))
              RETURNING id, expires_at`, [code.tenant_id, userId, email, config.JOIN_REQUEST_TTL_DAYS])).rows[0];
-          return { request_id: r.id as string, status: 'PENDING' as const, tenant_name: code.tenant_name as string, expires_at: r.expires_at as Date, existing_account: !!existing, ...(recoveryCore ? { recovery_code: formatCode('RC', recoveryCore) } : {}) };
+          await recordAudit(c, { tenantId: code.tenant_id, actor: { userId, email }, action: 'join_request.created', targetType: 'join_request', targetId: r.id, targetEmail: email, details: { existing_account: !!existing }, ip: meta.ip, requestId: meta.requestId });
+          return { request_id: r.id as string, status: 'PENDING' as const, tenant_name: code.tenant_name as string, expires_at: r.expires_at as Date, existing_account: !!existing, ...(recovery ? { recovery_codes: recovery.codes } : {}) };
         });
       } catch (e) {
         const err = e as { code?: string; constraint?: string };

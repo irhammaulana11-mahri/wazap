@@ -426,22 +426,27 @@ UI: dialog kode sekali tampil (salin, QR, WhatsApp) seperti undangan; daftar per
 
 ### 4.11 Akun, kode pemulihan, ganti nama, dan hapus workspace (ADR-037)
 
-**Kode pemulihan (pengganti "lupa kata sandi" tanpa email).** `POST /auth/register` dan (akun baru) `POST /auth/join-requests` kini mengembalikan `recovery_code` (`RC-XXXXX-XXXXX-XXXXX-XXXXX`) SEKALI.
-Tampilkan di dialog "simpan sekarang" (salin/unduh/cetak, wajib dicentang "sudah saya simpan"), jangan simpan di storage/log. Pengguna lama membuat kode lewat Pengaturan Akun (`POST /auth/recovery-code` dengan kata sandi; kode lama hangus).
-**Halaman publik `/forgot-password`:** `POST /auth/reset-password` `{email, recovery_code, new_password}` -> `{recovery_code}` baru (tampilkan lagi sekali); semua sesi dicabut, arahkan ke login. Galat seragam `400 INVALID_RECOVERY` (jangan membedakan email/kode). Bila kode hilang: hubungi operator (`npm run admin:recovery-code`).
+**Kode pemulihan (pengganti "lupa kata sandi" tanpa email).** `POST /auth/register` dan (akun baru) `POST /auth/join-requests` mengembalikan `recovery_codes` (8 kode `RC-XXXXX-XXXXX-XXXXX-XXXXX`) SEKALI.
+Tampilkan di dialog "simpan sekarang" (salin/unduh/cetak; tombol tutup baru aktif setelah "sudah saya simpan" dicentang, lalu panggil `POST /auth/recovery-codes/confirm`), jangan simpan di storage/log. Tiap kode sekali pakai; simpan di beberapa tempat.
+`GET /auth/me` memuat `recovery: {codes_remaining, confirmed}`: tampilkan **banner** bila `confirmed=false` atau `codes_remaining <= 2` ("buat kode baru"). Pengguna lama membuat himpunan baru lewat Pengaturan Akun (`POST /auth/recovery-codes` dengan kata sandi; semua kode lama hangus; `confirmed` kembali false).
+**Halaman publik `/forgot-password`:** `POST /auth/reset-password` `{email, recovery_code, new_password}` -> `{remaining_recovery_codes}`; semua sesi dicabut, arahkan ke login. Bila sisa kode <= 2, sarankan membuat himpunan baru setelah login. Galat seragam `400 INVALID_RECOVERY` (jangan membedakan email/kode). Bila semua kode hilang: hubungi operator (`npm run admin:recovery-code`).
+**Anjurkan minimal 2 OWNER:** tampilkan banner bila workspace hanya punya satu OWNER (satu OWNER yang terkunci tidak membuat workspace kehilangan pengelola).
 
 **Pengaturan Akun (semua peran dashboard):**
 | Aksi | Endpoint | Catatan UI |
 |---|---|---|
 | Ganti kata sandi | `POST /auth/change-password` `{current_password,new_password}` | respons = authBody baru: ganti access token di memori (cookie refresh otomatis diganti); perangkat lain keluar |
 | Ganti email | `POST /auth/change-email` `{password,new_email}` | `409 EMAIL_TAKEN`; email tidak diverifikasi: beri peringatan |
-| Kode pemulihan baru | `POST /auth/recovery-code` `{password}` | tampil sekali |
+| Kode pemulihan baru (8) | `POST /auth/recovery-codes` `{password}` | tampil sekali; menghanguskan kode lama |
 | Keluar dari semua perangkat | `POST /auth/logout-all` (204) | setelahnya SEMUA token (termasuk milik tab ini) mati: kembali ke login |
 
 **PENTING:** kata sandi salah pada endpoint-endpoint ini dijawab `403 INVALID_PASSWORD` (bukan 401). Jangan memicu refresh pada 403.
 **Workspace (OWNER):** `PATCH /tenant` `{name}`; `DELETE /tenant` `{password, confirm_name}` (ketik nama workspace persis; dialog bahaya, tidak dapat dibatalkan lewat API, data dihapus permanen setelah `purge_after_days`). Setelah berhasil: kosongkan cache, ke workspace lain atau login.
 **Sesi:** `PATCH /sessions/:id` `{session_name}`. **API key:** `PATCH /api-keys/:id` `{name?, scopes?}` (berlaku seketika; scope `*` tidak ada).
 Hapus akun sendiri sengaja tidak ada.
+
+**Pemulihan workspace terhapus (publik, 30 hari):** setelah menghapus, login gagal `403 NO_ACTIVE_TENANT` bila tidak punya workspace lain. Pada galat itu (atau lewat tautan "pulihkan workspace" di layar login) panggil `POST /auth/deleted-workspaces` `{email,password}` untuk daftar, lalu
+`POST /auth/restore-workspace` `{email,password,tenant_id}`. Tampilkan peringatan sebelum memulihkan: koneksi WhatsApp harus dipasangkan ulang, webhook, API key, dan undangan dibuat ulang (`must_recreate`). Hanya OWNER; setelah masa tunggu data hilang permanen.
 
 ## 5. Realtime (Socket.IO)
 

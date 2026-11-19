@@ -6,7 +6,7 @@ import { config } from '../../config/env.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { randomToken, sha256hex, signAccessToken, verifyAccessToken } from './tokens.js';
 import type { Principal, Role } from './principal.js';
-import { formatCode, newCodeCore, normalizeCode } from './codes.js';
+import { newRecoverySet, normalizeCode, recoveryHash, storeRecoverySet } from './codes.js';
 import { recordAudit, type AuditAction } from '../audit/audit.js';
 import { readMembership } from '../team/team-lock.js';
 
@@ -20,8 +20,8 @@ export interface AuthResult extends SessionTokens {
   user: { id: string; email: string };
   tenant: { id: string; name: string; slug: string };
   role: Role;
-  /** Hanya pada pendaftaran akun baru: kode pemulihan sekali tampil. */
-  recoveryCode?: string;
+  /** Hanya pada pendaftaran akun baru: himpunan kode pemulihan sekali tampil. */
+  recoveryCodes?: string[];
 }
 
 const API_KEY_RE = /^gwk_[A-Za-z0-9_-]{43}$/;
@@ -32,8 +32,6 @@ const slugify = (name: string) => {
   const base = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
   return `${base.length >= 2 ? base : 'workspace'}-${crypto.randomBytes(4).toString('hex')}`;
 };
-/** Hash kode pemulihan (kode 100 bit acak: SHA-256 cukup; dipisah dari domain hash lain dengan awalan). */
-const recoveryHash = (core: string) => sha256hex('rc:' + core);
 const isUnique = (e: unknown, constraintPart: string) =>
   (e as { code?: string; constraint?: string })?.code === '23505' &&
   ((e as { constraint?: string }).constraint ?? '').includes(constraintPart);
@@ -63,13 +61,14 @@ export function createIdentityService(db: GatewayDb) {
     async register(input: { email: string; password: string; tenantName: string }): Promise<AuthResult> {
       const email = input.email.trim().toLowerCase();
       const passwordHash = await hashPassword(input.password); // CPU-bound, di luar transaksi
-      const recoveryCore = newCodeCore();
+      const recovery = newRecoverySet();
       const userId = crypto.randomUUID();
       const tenantId = crypto.randomUUID();
       const slug = slugify(input.tenantName);
       try {
         return await db.tx({ userId, tenantId }, async (c) => {
-          await c.query('INSERT INTO users (id, email, password_hash, recovery_hash) VALUES ($1,$2,$3,$4)', [userId, email, passwordHash, recoveryHash(recoveryCore)]);
+          await c.query('INSERT INTO users (id, email, password_hash) VALUES ($1,$2,$3)', [userId, email, passwordHash]);
+          await storeRecoverySet(c, userId, recovery.hashes, false);
           await c.query('INSERT INTO tenants (id, name, slug) VALUES ($1,$2,$3)', [tenantId, input.tenantName.trim(), slug]);
           await c.query(`INSERT INTO tenant_memberships (tenant_id, user_id, role, member_email) VALUES ($1,$2,'OWNER',$3)`, [tenantId, userId, email]);
           await c.query('INSERT INTO tenant_settings (tenant_id) VALUES ($1)', [tenantId]);
@@ -79,7 +78,7 @@ export function createIdentityService(db: GatewayDb) {
             user: { id: userId, email },
             tenant: { id: tenantId, name: input.tenantName.trim(), slug },
             role: 'OWNER' as const,
-            recoveryCode: formatCode('RC', recoveryCore),
+            recoveryCodes: recovery.codes,
           };
         });
       } catch (e) {
@@ -269,7 +268,10 @@ export function createIdentityService(db: GatewayDb) {
             [userId]
           )
         ).rows;
-        return { user: u, active_tenant_id: tenantId, memberships };
+        const rec = (await c.query('SELECT count(*)::int AS n FROM user_recovery_codes WHERE user_id = $1 AND used_at IS NULL', [userId])).rows[0].n;
+        const conf = (await c.query('SELECT recovery_confirmed_at FROM users WHERE id = $1', [userId])).rows[0]?.recovery_confirmed_at;
+        // Status kode pemulihan untuk banner (tanpa nilai kode): sisa kode, dan apakah pengguna sudah mengonfirmasi menyimpannya.
+        return { user: u, active_tenant_id: tenantId, memberships, recovery: { codes_remaining: rec, confirmed: !!conf } };
       });
     },
 
@@ -302,52 +304,56 @@ export function createIdentityService(db: GatewayDb) {
       });
     },
 
-    /** Terbitkan kode pemulihan baru (tampil sekali; kode lama hangus). Butuh kata sandi saat ini. */
-    async issueRecoveryCode(a: AccountActor, password: string): Promise<{ recoveryCode: string }> {
+    /** Terbitkan himpunan 8 kode pemulihan baru (tampil sekali; seluruh kode lama hangus). Butuh kata sandi saat ini. */
+    async issueRecoveryCodes(a: AccountActor, password: string): Promise<{ recoveryCodes: string[] }> {
       const u = await db.tx({ userId: a.userId }, async (c) => (await c.query('SELECT password_hash, status FROM users WHERE id = $1', [a.userId])).rows[0] as { password_hash: string; status: string } | undefined);
       if (!u || u.status !== 'ACTIVE' || !(await verifyPassword(password, u.password_hash))) throw new AppError('INVALID_PASSWORD', 403, 'Kata sandi saat ini salah');
-      const core = newCodeCore();
+      const set = newRecoverySet();
       await db.tx({ userId: a.userId, tenantId: a.tenantId }, async (c) => {
-        await c.query('UPDATE users SET recovery_hash = $2 WHERE id = $1', [a.userId, recoveryHash(core)]);
+        await storeRecoverySet(c, a.userId, set.hashes, true);
         await this.accountAudit(c, a, 'account.recovery_code_created');
       });
-      return { recoveryCode: formatCode('RC', core) };
+      return { recoveryCodes: set.codes };
+    },
+
+    /** Pengguna menyatakan sudah menyimpan kode (menghilangkan banner). */
+    async confirmRecoveryCodes(a: AccountActor): Promise<void> {
+      await db.tx({ userId: a.userId }, async (c) => { await c.query('UPDATE users SET recovery_confirmed_at = now() WHERE id = $1', [a.userId]); });
     },
 
     /**
-     * Atur ulang kata sandi dengan kode pemulihan (tanpa email). Semua kegagalan dijawab sama. Kode sekali pakai: berhasil => kode baru diterbitkan
-     * (tampil sekali), seluruh sesi dicabut. Tidak ada audit (pemohon belum punya konteks tenant). Pekerjaan hashing dilakukan sebelum pemeriksaan
-     * agar waktu respons tidak membedakan email yang ada dari yang tidak.
+     * Atur ulang kata sandi dengan salah satu kode pemulihan (tanpa email). Semua kegagalan dijawab sama. Tiap kode sekali pakai (CAS pada used_at); sisa kode
+     * tetap berlaku. Berhasil => seluruh sesi dicabut dan peristiwa dicatat di audit SETIAP workspace tempat pengguna menjadi anggota (admin dapat melihat
+     * pengambilalihan akun). Hashing dan satu transaksi dijalankan juga untuk email yang tidak dikenal agar waktu respons tidak membedakannya.
      */
-    async resetPassword(input: { email: string; recoveryCode: string; next: string }): Promise<{ recoveryCode: string }> {
+    async resetPassword(input: { email: string; recoveryCode: string; next: string }, meta: { ip?: string; requestId?: string } = {}): Promise<{ remainingRecoveryCodes: number }> {
       const invalid = () => new AppError('INVALID_RECOVERY', 400, 'Email atau kode pemulihan tidak valid');
       const email = input.email.trim().toLowerCase();
       const newHash = await hashPassword(input.next);
       const core = normalizeCode('RC', input.recoveryCode);
-      const user = await db.tx({ loginEmail: email }, async (c) => (await c.query('SELECT id, status, recovery_hash FROM users WHERE email = $1', [email])).rows[0] as { id: string; status: string; recovery_hash: string | null } | undefined);
-      const given = Buffer.from(core ? recoveryHash(core) : '0'.repeat(64));
-      const stored = Buffer.from(user?.recovery_hash ?? '1'.repeat(64));
-      const match = given.length === stored.length && crypto.timingSafeEqual(given, stored);
-      if (!core || !user || user.status !== 'ACTIVE' || !user.recovery_hash || !match) throw invalid();
-      const nextCore = newCodeCore();
-      await db.tx({ userId: user.id, loginEmail: email }, async (c) => {
-        // CAS pada hash kode: dua permintaan serentak dengan kode yang sama, hanya satu yang menang.
-        const r = await c.query('UPDATE users SET password_hash = $2, recovery_hash = $3, password_changed_at = now(), token_version = token_version + 1 WHERE id = $1 AND recovery_hash = $4',
-          [user.id, newHash, recoveryHash(nextCore), user.recovery_hash]);
-        if (r.rowCount !== 1) throw invalid();
-        await c.query('UPDATE refresh_tokens SET revoked_at = COALESCE(revoked_at, now()) WHERE user_id = $1', [user.id]);
+      const user = await db.tx({ loginEmail: email }, async (c) => (await c.query('SELECT id, status FROM users WHERE email = $1', [email])).rows[0] as { id: string; status: string } | undefined);
+      const uid = user?.id ?? crypto.randomUUID();
+      return db.tx({ userId: uid, loginEmail: email }, async (c) => {
+        const used = await c.query('UPDATE user_recovery_codes SET used_at = now() WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL', [uid, recoveryHash(core ?? '0'.repeat(20))]);
+        if (!core || !user || user.status !== 'ACTIVE' || used.rowCount !== 1) throw invalid(); // melempar membatalkan transaksi: kode tidak terpakai
+        await c.query('UPDATE users SET password_hash = $2, password_changed_at = now(), token_version = token_version + 1 WHERE id = $1', [uid, newHash]);
+        await c.query('UPDATE refresh_tokens SET revoked_at = COALESCE(revoked_at, now()) WHERE user_id = $1', [uid]);
+        for (const m of (await c.query('SELECT tenant_id, member_email, role FROM tenant_memberships WHERE user_id = $1', [uid])).rows) {
+          await recordAudit(c, { tenantId: m.tenant_id, actor: { userId: uid, email: m.member_email, role: m.role }, action: 'account.password_reset', targetType: 'account', targetId: uid, targetEmail: m.member_email, details: { method: 'recovery_code' }, ip: meta.ip, requestId: meta.requestId });
+        }
+        const left = (await c.query('SELECT count(*)::int AS n FROM user_recovery_codes WHERE user_id = $1 AND used_at IS NULL', [uid])).rows[0].n;
+        return { remainingRecoveryCodes: left as number };
       });
-      return { recoveryCode: formatCode('RC', nextCore) };
     },
 
-    /** Alat operator: terbitkan kode pemulihan untuk email (pengguna lupa kata sandi dan tidak punya kode). null bila akun tidak ada. */
-    async adminIssueRecoveryCode(emailRaw: string): Promise<string | null> {
+    /** Alat operator: terbitkan himpunan kode pemulihan baru untuk email (kode lama hangus). null bila akun tidak ada. */
+    async adminIssueRecoveryCodes(emailRaw: string): Promise<string[] | null> {
       const email = emailRaw.trim().toLowerCase();
       const u = await db.tx({ loginEmail: email }, async (c) => (await c.query('SELECT id FROM users WHERE email = $1', [email])).rows[0] as { id: string } | undefined);
       if (!u) return null;
-      const core = newCodeCore();
-      await db.tx({ userId: u.id }, (c) => c.query('UPDATE users SET recovery_hash = $2 WHERE id = $1', [u.id, recoveryHash(core)]));
-      return formatCode('RC', core);
+      const set = newRecoverySet();
+      await db.tx({ userId: u.id }, (c) => storeRecoverySet(c, u.id, set.hashes, true));
+      return set.codes;
     },
 
     /** Ganti email akun (butuh kata sandi). Email tidak diverifikasi (keputusan tanpa email); salinan member_email di semua keanggotaan ikut diperbarui. */

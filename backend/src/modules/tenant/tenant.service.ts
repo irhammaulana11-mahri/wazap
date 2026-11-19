@@ -25,6 +25,15 @@ export function createTenantService(db: GatewayDb) {
   const audit = (c: pg.PoolClient, a: TenantActor, email: string | null, action: AuditAction, details: Record<string, unknown>) =>
     recordAudit(c, { tenantId: a.tenantId, actor: { userId: a.userId, email, role: 'OWNER' }, action, targetType: 'tenant', targetId: a.tenantId, details, ip: a.ip, requestId: a.requestId });
 
+  /** Verifikasi email + kata sandi tanpa token (seperti login). Semua kegagalan: 401 INVALID_CREDENTIALS. */
+  async function authenticateUser(cred: { email: string; password: string }): Promise<string> {
+    const email = cred.email.trim().toLowerCase();
+    const u = await db.tx({ loginEmail: email }, async (c) => (await c.query('SELECT id, password_hash, status FROM users WHERE email = $1', [email])).rows[0] as { id: string; password_hash: string; status: string } | undefined);
+    const okPw = await verifyPassword(cred.password, u?.password_hash ?? null);
+    if (!u || !okPw || u.status !== 'ACTIVE') throw new AppError('INVALID_CREDENTIALS', 401, 'Email atau password salah');
+    return u.id;
+  }
+
   return {
     async rename(a: TenantActor, name: string) {
       return db.tx({ tenantId: a.tenantId }, async (c) => {
@@ -58,8 +67,40 @@ export function createTenantService(db: GatewayDb) {
         await c.query('DELETE FROM tenant_join_codes WHERE tenant_id = $1', [a.tenantId]);
         await c.query(`UPDATE tenant_join_requests SET status = 'REJECTED', decided_at = now(), decided_by = $2 WHERE tenant_id = $1 AND status = 'PENDING'`, [a.tenantId, a.userId]);
         await audit(c, a, m.email, 'tenant.deleted', { sessions: sessions.length, webhooks: hooks, api_keys_revoked: keys });
-        await c.query(`UPDATE tenants SET status = 'DELETED' WHERE id = $1`, [a.tenantId]);
+        await c.query(`UPDATE tenants SET status = 'DELETED', deleted_at = now() WHERE id = $1`, [a.tenantId]);
         return { deleted: true as const, sessions_scheduled: sessions.length, purge_after_days: config.RETENTION_TENANT_DAYS };
+      });
+    },
+
+    /**
+     * Pemulihan workspace terhapus (dalam masa tunggu RETENTION_TENANT_DAYS), tanpa token: OWNER membuktikan diri dengan email + kata sandi (setelah
+     * dihapus tidak ada workspace aktif untuk login). Yang kembali: workspace, anggota, riwayat pesan/chat, pengaturan, audit. Yang TIDAK kembali:
+     * koneksi WhatsApp (kredensial sudah dihapus), webhook, API key, dan undangan; semuanya harus dibuat ulang.
+     */
+    async listDeleted(cred: { email: string; password: string }) {
+      const userId = await authenticateUser(cred);
+      return db.tx({ userId }, async (c) =>
+        (await c.query(
+          `SELECT t.id AS tenant_id, t.name, t.slug, t.deleted_at, t.deleted_at + make_interval(days => $2) AS restorable_until
+           FROM tenant_memberships m JOIN tenants t ON t.id = m.tenant_id
+           WHERE m.user_id = $1 AND m.role = 'OWNER' AND m.status = 'ACTIVE' AND t.status = 'DELETED' AND t.deleted_at > now() - make_interval(days => $2)
+           ORDER BY t.deleted_at DESC`, [userId, config.RETENTION_TENANT_DAYS])).rows);
+    },
+
+    async restore(cred: { email: string; password: string }, tenantId: string, meta: { ip?: string; requestId?: string } = {}) {
+      const notFound = () => new AppError('NOT_FOUND', 404, 'Workspace tidak ditemukan atau sudah tidak dapat dipulihkan');
+      const userId = await authenticateUser(cred);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) throw notFound();
+      return db.tx({ userId, tenantId }, async (c) => {
+        await teamLock(c, tenantId);
+        const m = await readMembership(c, tenantId, userId);
+        if (!m || m.status !== 'ACTIVE' || m.role !== 'OWNER') throw notFound(); // bukan OWNER = sama dengan tidak ada
+        const row = (await c.query(
+          `UPDATE tenants SET status = 'ACTIVE', deleted_at = NULL WHERE id = $1 AND status = 'DELETED' AND deleted_at > now() - make_interval(days => $2) RETURNING id, name, slug`,
+          [tenantId, config.RETENTION_TENANT_DAYS])).rows[0];
+        if (!row) throw notFound();
+        await recordAudit(c, { tenantId, actor: { userId, email: m.email, role: 'OWNER' }, action: 'tenant.restored', targetType: 'tenant', targetId: tenantId, details: {}, ip: meta.ip, requestId: meta.requestId });
+        return { restored: true as const, tenant: row as { id: string; name: string; slug: string }, must_recreate: ['whatsapp_sessions', 'webhooks', 'api_keys', 'invitations'] };
       });
     },
   };

@@ -60,3 +60,6 @@ Tambahan (batas antrean dan retensi): antrean penuh 409 tanpa membuat akun, temp
 
 Kode pemulihan sekali tampil; ganti kata sandi (sesi lain mati, sesi ini lanjut, 403 bukan 401); API key tidak dapat memakai endpoint akun; reset dengan kode (seragam, sekali pakai, serentak hanya satu menang, sesi dicabut); pemohon bergabung dan alat operator;
 ganti email lintas tenant dan penjaga RLS/trigger keanggotaan; keluar dari semua perangkat; edit API key (scope berlaku seketika); ganti nama sesi dan workspace; hapus workspace (konfirmasi, akses berhenti, integrasi mati, retensi menghapus permanen, tenant lain utuh); platform tidak dapat menghapus tenant ACTIVE. Total 267 tes.
+
+Tambahan H4 lanjutan (`account.test.ts` kini 18 tes): 8 kode pemulihan (tiap kode sekali pakai, sisa tetap berlaku, himpunan baru menghanguskan yang lama, status `me.recovery`, konfirmasi), audit reset ke semua workspace anggota dan audit `join_request.created` dengan pemalsuan SQL ditolak,
+RLS `user_recovery_codes`, dan pemulihan workspace terhapus (hanya OWNER, masa tunggu, yang kembali dan tidak kembali). Total 270 tes.

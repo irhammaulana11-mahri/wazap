@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased --- Backend H4 lanjutan: 8 kode pemulihan, audit reset, pemulihan workspace (2026-11-20)
+
+-   Berubah (kontrak): `recovery_code` menjadi `recovery_codes` (8 kode sekali pakai) pada register/join-request; `POST /auth/recovery-code` menjadi `POST /auth/recovery-codes` (+ `/confirm`); `reset-password` mengembalikan `remaining_recovery_codes`; `GET /auth/me` memuat `recovery`.
+-   Baru: audit `account.password_reset` ke semua workspace anggota dan `join_request.created`; `POST /auth/deleted-workspaces` dan `POST /auth/restore-workspace` (OWNER, 30 hari). Migrasi 0017. Tes: 270 lulus.
+
 ## Unreleased --- Backend Fase H4: manajemen akun, kode pemulihan, ganti nama, hapus workspace (2026-11-20)
 
 -   Baru: `POST /auth/change-password|change-email|recovery-code|reset-password|logout-all`, `PATCH /api-keys/:id`, `PATCH /sessions/:id`, `PATCH /tenant`, `DELETE /tenant`. Lupa kata sandi tanpa email lewat kode pemulihan (`recovery_code` pada register/join-request; alat operator `npm run admin:recovery-code`).

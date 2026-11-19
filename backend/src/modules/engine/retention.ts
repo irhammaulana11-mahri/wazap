@@ -115,7 +115,7 @@ export function createRetention(db: GatewayDb, policy: () => RetentionPolicy = d
       // 7) Workspace yang dihapus: hapus baris tenant (FK cascade menghapus sesi, pesan, webhook, audit, dll.). Kebijakan platform hanya mengizinkan DELETE bila status DELETED.
       //    Menunggu RETENTION_TENANT_DAYS cukup panjang agar control-plane sudah menuntaskan penghapusan sesi dan kredensialnya.
       const tenantsPurged = await sweep(
-        `DELETE FROM tenants WHERE id IN (SELECT id FROM tenants WHERE status = 'DELETED' AND updated_at < now() - make_interval(days => $1) ORDER BY updated_at LIMIT $2)`,
+        `DELETE FROM tenants WHERE id IN (SELECT id FROM tenants WHERE status = 'DELETED' AND deleted_at < now() - make_interval(days => $1) ORDER BY deleted_at LIMIT $2)`,
         [d(p.tenantDays ?? config.RETENTION_TENANT_DAYS)], Math.min(p.batch, 20));
 
       return { contentPurged, rowsDeleted, historyPurged, historyDeleted, chatsDeleted, outboxDeleted, deliveriesDeleted, auditDeleted, joinRequestsDeleted, tenantsPurged };

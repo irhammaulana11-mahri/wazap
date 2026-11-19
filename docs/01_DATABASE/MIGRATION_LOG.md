@@ -155,3 +155,8 @@ manual deployment action.
 -   `users`: `recovery_hash`, `token_version`, `password_changed_at`. `audit_logs.target_type` diperluas (`account`, `api_key`, `session`, `tenant`).
 -   Kebijakan `memberships_sync_email` + trigger `tenant_memberships_guard` (sinkronisasi `member_email` lintas tenant saat ganti email; peran/status tidak dapat diubah di luar tenant aktif).
 -   Kebijakan platform `tenants_platform_select` dan `tenants_platform_delete` (hanya status DELETED) untuk retensi workspace terhapus. ADR-037. Tes: `test/account.test.ts`.
+
+### 0017 --- `backend/src/database/migrations/0017_recovery_codes_restore_audit.sql`
+
+-   Kebijakan audit `audit_insert_reset` (reset kata sandi ke setiap workspace anggota) dan `audit_insert_join_request` (kode workspace valid). `tenants.deleted_at` (+ CHECK status DELETED) untuk masa tunggu pemulihan dan retensi.
+-   Tabel `user_recovery_codes` (8 kode sekali pakai per pengguna; RLS pemilik, tanpa platform); `users.recovery_hash` dipindahkan ke tabel itu lalu dihapus; `users.recovery_confirmed_at`. ADR-037 (addendum). Teruji di staging dengan data dari 0016. Tes: `test/account.test.ts`.

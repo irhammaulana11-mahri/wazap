@@ -536,3 +536,7 @@ Sisa risiko: akun pemohon yang tidak pernah disetujui tetap di `users` (tanpa ak
 Migrasi 0016; `identity.service` (ganti kata sandi/email, kode pemulihan, reset, logout-all, edit API key), `tenant/tenant.service` (ganti nama, hapus), `PATCH /sessions/:id`, retensi workspace terhapus, CLI `admin:recovery-code`; ADR-037.
 Bukti: `npm test` 267 lulus (15 baru). Keputusan: reset lewat kode pemulihan (bukan tautan admin: risiko ambil alih lintas tenant). Hapus akun sendiri tidak disediakan sesuai arahan.
 Belum: uji manual di staging (migrasi 0016 dengan role terbatas); UI frontend; audit reset kata sandi; pemulihan workspace terhapus.
+
+### H4 lanjutan --- kode cadangan, audit reset, pemulihan workspace (2026-11-20) --- DONE (teruji di staging, role wazap_app)
+Migrasi 0017; 8 kode pemulihan + `me.recovery` + konfirmasi; audit `account.password_reset` (semua workspace anggota) dan `join_request.created`; `POST /auth/deleted-workspaces` dan `/auth/restore-workspace`; `tenants.deleted_at`.
+Bukti: `npm test` 270 lulus; staging: migrasi 0017 dari data 0016, `verify-db-roles.sh` lulus, alur register, reset, audit, hapus, pulihkan, login berhasil, log bersih. Sisa risiko: semua kode hilang bergantung operator; email tidak terverifikasi.

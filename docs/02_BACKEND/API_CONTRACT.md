@@ -480,8 +480,9 @@ Permintaan yang sudah diputuskan atau kedaluwarsa dihapus retensi setelah `RETEN
 | Method | Path | Peran | Catatan |
 |---|---|---|---|
 | POST | `/auth/change-password` | pengguna dashboard | `{current_password, new_password(>=10)}` -> authBody baru + cookie; semua sesi lain dicabut; `403 INVALID_PASSWORD`, `400 PASSWORD_UNCHANGED`; 5/15 menit |
-| POST | `/auth/recovery-code` | pengguna dashboard | `{password}` -> `{recovery_code}` SEKALI (`no-store`); kode lama hangus |
-| POST | `/auth/reset-password` | publik | `{email, recovery_code, new_password}` -> `{recovery_code}` baru SEKALI; semua sesi dicabut; kegagalan seragam `400 INVALID_RECOVERY`; 10/jam per IP, 8/15 menit per email |
+| POST | `/auth/recovery-codes` | pengguna dashboard | `{password}` -> `{recovery_codes:[8]}` SEKALI (`no-store`); seluruh kode lama hangus; penanda konfirmasi dikosongkan |
+| POST | `/auth/recovery-codes/confirm` | pengguna dashboard | -> `{confirmed:true}` (pengguna menyatakan sudah menyimpan; menghilangkan banner) |
+| POST | `/auth/reset-password` | publik | `{email, recovery_code, new_password}` (satu dari 8 kode) -> `{remaining_recovery_codes}`; kode itu terpakai, sisanya tetap berlaku; semua sesi dicabut; dicatat di audit semua workspace pengguna; kegagalan seragam `400 INVALID_RECOVERY`; 10/jam per IP, 8/15 menit per email |
 | POST | `/auth/change-email` | pengguna dashboard | `{password, new_email}` -> `{user:{id,email}}`; `409 EMAIL_TAKEN`, `400 EMAIL_UNCHANGED`; email tidak diverifikasi |
 | POST | `/auth/logout-all` | pengguna dashboard | 204; semua refresh dan access token mati (termasuk perangkat ini) |
 | PATCH | `/api-keys/:id` | OWNER, ADMIN | `{name?, scopes?}` (minimal satu; `*` ditolak); `409 INVALID_STATE` bila dicabut; berlaku seketika; diaudit |
@@ -489,5 +490,9 @@ Permintaan yang sudah diputuskan atau kedaluwarsa dihapus retensi setelah `RETEN
 | PATCH | `/tenant` | OWNER | `{name}` -> `{id,name,slug}`; diaudit |
 | DELETE | `/tenant` | OWNER | `{password, confirm_name}` -> `{deleted:true, sessions_scheduled, purge_after_days}`; `403 INVALID_PASSWORD`, `400 CONFIRMATION_MISMATCH`; 3/jam |
 
-Respons `POST /auth/register` kini memuat `recovery_code` (sekali tampil, `Cache-Control: no-store`); respons `POST /auth/join-requests` memuatnya hanya untuk akun BARU. Hapus akun sendiri sengaja tidak disediakan.
+Respons `POST /auth/register` memuat `recovery_codes` (8 kode, sekali tampil, `Cache-Control: no-store`); respons `POST /auth/join-requests` memuatnya hanya untuk akun BARU. `GET /auth/me` memuat `recovery: {codes_remaining, confirmed}` (tanpa nilai kode) untuk banner. Hapus akun sendiri sengaja tidak disediakan.
 Aksi audit baru: `account.password_changed|email_changed|recovery_code_created|sessions_revoked`, `api_key.updated`, `session.renamed` (juga event sesi), `tenant.renamed|deleted`. Kode galat baru: `INVALID_PASSWORD` 403, `PASSWORD_UNCHANGED` 400, `INVALID_RECOVERY` 400, `EMAIL_UNCHANGED` 400, `CONFIRMATION_MISMATCH` 400.
+
+**Pemulihan workspace terhapus (publik, dalam masa tunggu `RETENTION_TENANT_DAYS`=30 hari):** `POST /auth/deleted-workspaces` `{email,password}` -> daftar `{tenant_id,name,slug,deleted_at,restorable_until}` (hanya yang pengguna itu OWNER-nya);
+`POST /auth/restore-workspace` `{email,password,tenant_id}` -> `{restored:true, tenant, must_recreate:['whatsapp_sessions','webhooks','api_keys','invitations']}` (diaudit `tenant.restored`). Kembali: workspace, anggota, riwayat, pengaturan, audit. Tidak kembali: koneksi WhatsApp, webhook, API key, undangan.
+`401 INVALID_CREDENTIALS` (kredensial salah), `404 NOT_FOUND` (bukan OWNER/di luar masa tunggu/sudah aktif); dibatasi seperti login. Audit baru: `join_request.created` (tercatat ke workspace tujuan), `account.password_reset` (ke SETIAP workspace tempat pengguna menjadi anggota), `tenant.restored`.

@@ -76,7 +76,7 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
     user: r.user,
     tenant: r.tenant,
     role: r.role,
-    ...(r.recoveryCode ? { recovery_code: r.recoveryCode } : {}), // hanya saat mendaftar; sekali tampil
+    ...(r.recoveryCodes ? { recovery_codes: r.recoveryCodes } : {}), // hanya saat mendaftar; sekali tampil
   });
 
   app.post('/auth/register', async (req, reply) => {
@@ -139,22 +139,25 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
     setRefreshCookie(reply, r); // sesi ini dilanjutkan; semua sesi lain dicabut
     return ok(authBody(r));
   });
-  app.post('/auth/recovery-code', { preHandler: account }, async (req, reply) => {
+  app.post('/auth/recovery-codes', { preHandler: account }, async (req, reply) => {
     const a = self(req);
     limit(`rcode:${a.userId}`, 5, 15 * 60_000);
     const b = RecoveryCodeSchema.parse(req.body);
     reply.header('Cache-Control', 'no-store');
-    return ok({ recovery_code: (await identity.issueRecoveryCode(a, b.password)).recoveryCode });
+    return ok({ recovery_codes: (await identity.issueRecoveryCodes(a, b.password)).recoveryCodes });
   });
-  // Publik. Semua kegagalan dijawab sama (400 INVALID_RECOVERY); berhasil => kode baru (sekali tampil) dan semua sesi dicabut.
+  app.post('/auth/recovery-codes/confirm', { preHandler: account }, async (req) => {
+    await identity.confirmRecoveryCodes(self(req));
+    return ok({ confirmed: true });
+  });
+  // Publik. Semua kegagalan dijawab sama (400 INVALID_RECOVERY); berhasil => semua sesi dicabut, sisa kode tetap berlaku.
   app.post('/auth/reset-password', async (req, reply) => {
     limit(`reset-ip:${req.ip}`, 10, 60 * 60_000);
     const b = ResetPasswordSchema.parse(req.body);
     limit(`reset-email:${createHash('sha256').update(b.email.trim().toLowerCase()).digest('hex')}`, 8, 15 * 60_000);
-    const r = await identity.resetPassword({ email: b.email, recoveryCode: b.recovery_code, next: b.new_password });
+    const r = await identity.resetPassword({ email: b.email, recoveryCode: b.recovery_code, next: b.new_password }, { ip: req.ip, requestId: req.id });
     clearRefreshCookie(reply);
-    reply.header('Cache-Control', 'no-store');
-    return ok({ recovery_code: r.recoveryCode });
+    return ok({ remaining_recovery_codes: r.remainingRecoveryCodes });
   });
   app.post('/auth/change-email', { preHandler: account }, async (req) => {
     const a = self(req);

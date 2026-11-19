@@ -52,7 +52,7 @@ Yang BELUM ada: pencarian teks pesan, ekspor, audit untuk aksi selain tim/pengat
 9.  **Tim:** daftar anggota, undang, ubah peran/status, hapus/keluar, halaman terima undangan, pindah workspace. **Undangan tanpa email:**
     dialog sekali tampil dengan `invite_url` + opsi salin tautan, QR (klien), kirim lewat WhatsApp (`wa.me` atau `POST /messages/send` dari sesi tenant), dan "Buat ulang tautan" (`reissue`).
     **Permintaan bergabung (`FRONTEND_HANDOFF.md` 4.10):** halaman publik `/join` (kode di fragmen, kata sandi dibuat pemohon saat mendaftar), pesan login `JOIN_PENDING`/`JOIN_REJECTED`, kelola kode dan setujui/tolak oleh OWNER/ADMIN.
-    **Akun (`FRONTEND_HANDOFF.md` 4.11):** dialog kode pemulihan sekali tampil (register/join), `/forgot-password`, Pengaturan Akun (ganti kata sandi/email, kode pemulihan, keluar dari semua perangkat), ganti nama sesi/workspace, edit API key, hapus workspace (OWNER). Kata sandi salah = `403 INVALID_PASSWORD` (bukan 401). TIDAK ada hapus akun sendiri.
+    **Akun (`FRONTEND_HANDOFF.md` 4.11):** dialog 8 kode pemulihan sekali tampil (register/join; wajib centang "sudah saya simpan" lalu `/auth/recovery-codes/confirm`; banner dari `me.recovery`), `/forgot-password`, pemulihan workspace terhapus (`/auth/deleted-workspaces`, `/auth/restore-workspace`), Pengaturan Akun (ganti kata sandi/email, kode pemulihan, keluar dari semua perangkat), ganti nama sesi/workspace, edit API key, hapus workspace (OWNER). Kata sandi salah = `403 INVALID_PASSWORD` (bukan 401). TIDAK ada hapus akun sendiri.
     **Audit log:** halaman untuk OWNER/ADMIN (filter aksi dan tanggal). **Pengaturan kuota:** form untuk OWNER (batas dari `minimums`/`ceilings` pada respons, tampilkan `used`).
 10. Realtime updates dan reconnection.
 

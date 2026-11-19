@@ -4,9 +4,9 @@ import type { Role } from '../identity/principal.js';
 export type AuditAction =
   | 'member.role_changed' | 'member.status_changed' | 'member.removed' | 'member.left'
   | 'invitation.created' | 'invitation.revoked' | 'invitation.reissued' | 'invitation.accepted'
-  | 'join_code.rotated' | 'join_code.disabled' | 'join_request.approved' | 'join_request.rejected'
+  | 'join_code.rotated' | 'join_code.disabled' | 'join_request.approved' | 'join_request.rejected' | 'join_request.created'
   | 'account.password_changed' | 'account.password_reset' | 'account.email_changed' | 'account.recovery_code_created' | 'account.sessions_revoked'
-  | 'api_key.updated' | 'session.renamed' | 'tenant.renamed' | 'tenant.deleted'
+  | 'api_key.updated' | 'session.renamed' | 'tenant.renamed' | 'tenant.deleted' | 'tenant.restored'
   | 'settings.updated';
 
 export interface AuditEntry {

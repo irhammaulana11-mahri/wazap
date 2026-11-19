@@ -12,6 +12,8 @@ export interface RetentionPolicy {
   deliveryDays: number;
   /** Hari setelah dibuat: jejak audit dihapus (lebih panjang daripada data pesan). */
   auditDays: number;
+  /** Hari setelah diputuskan/kedaluwarsa: permintaan bergabung dihapus (memuat email pemohon). Opsional agar pemanggil lama tetap valid. */
+  joinRequestDays?: number;
   batch: number;
 }
 export interface RetentionReport {
@@ -23,11 +25,12 @@ export interface RetentionReport {
   outboxDeleted: number;
   deliveriesDeleted: number;
   auditDeleted: number;
+  joinRequestsDeleted: number;
 }
 
 export const defaultPolicy = (): RetentionPolicy => ({
   contentDays: config.RETENTION_CONTENT_DAYS, rowDays: config.RETENTION_ROW_DAYS, outboxDays: config.RETENTION_OUTBOX_DAYS,
-  deliveryDays: config.RETENTION_WEBHOOK_DELIVERY_DAYS, auditDays: config.RETENTION_AUDIT_DAYS, batch: config.RETENTION_BATCH,
+  deliveryDays: config.RETENTION_WEBHOOK_DELIVERY_DAYS, auditDays: config.RETENTION_AUDIT_DAYS, joinRequestDays: config.RETENTION_JOIN_REQUEST_DAYS, batch: config.RETENTION_BATCH,
 });
 
 const TERMINAL = `('SENT','DELIVERED','READ','FAILED','CANCELLED','UNKNOWN','RECONCILIATION_REQUIRED')`;
@@ -98,7 +101,15 @@ export function createRetention(db: GatewayDb, policy: () => RetentionPolicy = d
         `DELETE FROM audit_logs WHERE id IN (SELECT id FROM audit_logs WHERE created_at < now() - make_interval(days => $1) ORDER BY created_at LIMIT $2)`,
         [d(p.auditDays)], p.batch);
 
-      return { contentPurged, rowsDeleted, historyPurged, historyDeleted, chatsDeleted, outboxDeleted, deliveriesDeleted, auditDeleted };
+      // 6) Permintaan bergabung: yang sudah diputuskan, atau tertunda tetapi kedaluwarsa, lebih lama dari batas. Platform hanya punya SELECT/DELETE di tabel ini.
+      const joinRequestsDeleted = await sweep(
+        `DELETE FROM tenant_join_requests WHERE id IN (
+           SELECT id FROM tenant_join_requests
+           WHERE (status <> 'PENDING' AND decided_at < now() - make_interval(days => $1))
+              OR (status = 'PENDING' AND expires_at < now() - make_interval(days => $1))
+           ORDER BY created_at LIMIT $2)`, [d(p.joinRequestDays ?? config.RETENTION_JOIN_REQUEST_DAYS)], p.batch);
+
+      return { contentPurged, rowsDeleted, historyPurged, historyDeleted, chatsDeleted, outboxDeleted, deliveriesDeleted, auditDeleted, joinRequestsDeleted };
     },
   };
 }

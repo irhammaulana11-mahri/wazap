@@ -145,3 +145,7 @@ manual deployment action.
 
 -   Tabel `tenant_join_codes` (satu kode aktif per tenant; hanya `code_hash`; `tenant_name` disalin untuk pemohon) dan `tenant_join_requests` (PENDING/APPROVED/REJECTED, `expires_at`, unik PENDING per tenant+pengguna). RLS ENABLE+FORCE, tanpa akses platform.
 -   Kebijakan: pemohon membaca kode hanya lewat `app.join_hash`; membuat permintaan hanya dengan kode valid + email akunnya; menutup permintaan kedaluwarsa miliknya; memutuskan hanya lewat konteks tenant. `audit_logs.target_type` diperluas (`join_request`, `join_code`). ADR-036. Tes: `test/join.test.ts`.
+
+### 0015 --- `backend/src/database/migrations/0015_join_queue_retention.sql`
+
+-   Kebijakan `join_requests_queue_count` (SELECT: PENDING yang berlaku milik tenant pemilik kode di `app.join_hash`, hanya untuk menghitung antrean), kebijakan platform SELECT/DELETE untuk retensi, dan indeks `idx_join_requests_created`. ADR-036. Tes: `test/join.test.ts`.

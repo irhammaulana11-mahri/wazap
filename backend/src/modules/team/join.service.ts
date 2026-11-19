@@ -77,6 +77,15 @@ export function createJoinService(db: GatewayDb) {
         return await db.tx({ userId, joinHash: hash }, async (c) => {
           const code = (await c.query('SELECT tenant_id, tenant_name FROM tenant_join_codes WHERE code_hash = $1', [hash])).rows[0];
           if (!code) throw invalidCode();
+          // Serialkan pengajuan per tenant agar batas antrean eksak (kunci yang sama dengan mutasi tim; tidak butuh akses tabel).
+          await teamLock(c, code.tenant_id);
+          if (!passwordHash) { // akun sudah ada: pengajuan ganda dijawab spesifik sebelum antrean penuh
+            const mine = (await c.query(`SELECT 1 FROM tenant_join_requests WHERE tenant_id = $1 AND user_id = $2 AND status = 'PENDING' AND expires_at > now()`, [code.tenant_id, userId])).rows[0];
+            if (mine) throw new AppError('JOIN_REQUEST_EXISTS', 409, 'Permintaan Anda untuk workspace ini masih menunggu persetujuan');
+          }
+          // Hitung antrean (kebijakan join_requests_queue_count membuka hanya baris PENDING yang berlaku milik tenant ini).
+          const queued = (await c.query(`SELECT count(*)::int n FROM tenant_join_requests WHERE tenant_id = $1 AND status = 'PENDING' AND expires_at > now()`, [code.tenant_id])).rows[0].n;
+          if (queued >= config.JOIN_MAX_PENDING) throw new AppError('JOIN_QUEUE_FULL', 409, 'Antrean permintaan workspace ini sedang penuh; hubungi admin workspace');
           if (passwordHash) await c.query('INSERT INTO users (id, email, password_hash) VALUES ($1,$2,$3)', [userId, email, passwordHash]);
           const member = (await c.query('SELECT 1 FROM tenant_memberships WHERE tenant_id = $1 AND user_id = $2', [code.tenant_id, userId])).rows[0];
           if (member) throw new AppError('ALREADY_MEMBER', 409, 'Anda sudah menjadi anggota workspace ini');

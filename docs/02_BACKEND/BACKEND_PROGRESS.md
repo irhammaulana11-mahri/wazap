@@ -527,3 +527,7 @@ Database `wazap_staging` dengan role `wazap_migrator` (pemilik schema) dan `waza
 Bukti: `npm run migrate:prod` menerapkan 0001-0014 (`as: "migrator"`); `verify-db-roles.sh` 15/15 lulus (bukan superuser/BYPASSRLS, bukan pemilik schema, DDL/DISABLE RLS/DROP POLICY/TRUNCATE ditolak, `schema_migrations` tertutup, RLS menyembunyikan baris tanpa konteks, DML platform berfungsi);
 server start bersih; `/health/ready` READY; smoke test register, undangan, permintaan bergabung (setujui, login), audit, usage lulus di role terbatas.
 Temuan: lihat `docs/07_DEPLOYMENT/DB_ROLES.md`. Sisa: staging nyata (server terpisah, Nginx/TLS), pemantauan, entrypoint engine terpisah.
+
+### H3 lanjutan --- batas antrean dan retensi permintaan bergabung (2026-11-20) --- DONE
+Migrasi 0015; `JOIN_MAX_PENDING` (50), `409 JOIN_QUEUE_FULL`, pengajuan diserialkan dengan lock tim; retensi `RETENTION_JOIN_REQUEST_DAYS` (90) dengan laporan `joinRequestsDeleted`. Bukti: `npm test` 252 lulus (4 baru).
+Sisa risiko: akun pemohon yang tidak pernah disetujui tetap di `users` (tanpa akses platform); pembuatan permintaan tidak diaudit.

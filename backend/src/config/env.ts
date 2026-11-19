@@ -104,6 +104,10 @@ const baseSchema = z.object({
   TEAM_INVITATION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
   // Fase H3: permintaan bergabung dengan kode workspace; permintaan tertunda yang lewat masa ini tidak dapat disetujui.
   JOIN_REQUEST_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(14),
+  // Batas permintaan bergabung yang masih menunggu (belum kedaluwarsa) per tenant; di atasnya pemohon baru ditolak (409 JOIN_QUEUE_FULL).
+  JOIN_MAX_PENDING: z.coerce.number().int().min(1).max(1000).default(50),
+  // Hari setelah diputuskan (atau setelah kedaluwarsa bila tidak pernah diputuskan): baris permintaan bergabung dihapus (memuat email pemohon).
+  RETENTION_JOIN_REQUEST_DAYS: z.coerce.number().int().min(7).default(90),
   // Fase H2: undangan tanpa email (tautan), audit, dan batas atas kuota yang boleh diatur OWNER (operator mengubah lewat env).
   // Alamat dashboard (frontend) yang dibuka pengguna di browser: skema + host (+ port bila bukan standar, + subpath bila di-host di subpath).
   // Bukan alamat API/backend. Tanpa kredensial, query, atau fragment; di production wajib https (token ada di tautan).

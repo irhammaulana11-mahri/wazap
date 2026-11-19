@@ -408,7 +408,7 @@ Alur tambahan di samping undangan: calon anggota mendaftar sendiri dengan **kode
 { "success": true, "data": { "request_id": "…", "status": "PENDING", "tenant_name": "Nama Workspace", "expires_at": "…", "existing_account": false } }
 ```
 Galat: `404 INVALID_JOIN_CODE` (kode salah/diputar/dinonaktifkan: pesan seragam), `401 INVALID_CREDENTIALS` (email sudah terdaftar tetapi kata sandi salah; bila benar, permintaan dibuat untuk akun yang sama, `existing_account: true`),
-`409 JOIN_REQUEST_EXISTS`, `409 ALREADY_MEMBER`, `429` (10/jam per IP), `400` validasi. Tampilkan "Menunggu persetujuan admin"; pemohon belum memiliki sesi.
+`409 JOIN_REQUEST_EXISTS`, `409 JOIN_QUEUE_FULL` (antrean workspace penuh; minta pemohon menghubungi admin), `409 ALREADY_MEMBER`, `429` (10/jam per IP), `400` validasi. Tampilkan "Menunggu persetujuan admin"; pemohon belum memiliki sesi.
 
 **Login pemohon** sebelum disetujui: `403 JOIN_PENDING` (menunggu) atau `403 JOIN_REJECTED` (ditolak/kedaluwarsa; tawarkan ajukan ulang). Kata sandi salah tetap `401`. Setelah disetujui, login biasa dengan kata sandi yang sama.
 

@@ -471,3 +471,6 @@ Berlaku seketika; satu nilai tidak sah membatalkan seluruh permintaan; mengirim 
 
 Login pemohon yang belum disetujui: `403 JOIN_PENDING`; ditolak/kedaluwarsa: `403 JOIN_REJECTED` (hanya setelah kata sandi benar). Kode galat baru: `INVALID_JOIN_CODE` 404, `JOIN_REQUEST_EXISTS` 409, `REQUEST_EXPIRED` 409,
 `JOIN_PENDING` 403, `JOIN_REJECTED` 403 (selain yang sudah ada: `ALREADY_MEMBER`, `INVALID_STATE`, `QUOTA_EXCEEDED`, `INVALID_CREDENTIALS`).
+
+Antrean permintaan bergabung dibatasi `JOIN_MAX_PENDING` (default 50 yang masih berlaku) per tenant: pengajuan di atas batas dijawab `409 JOIN_QUEUE_FULL` (akun tidak dibuat). Pengajuan ganda oleh pemohon yang sama tetap `409 JOIN_REQUEST_EXISTS`.
+Permintaan yang sudah diputuskan atau kedaluwarsa dihapus retensi setelah `RETENTION_JOIN_REQUEST_DAYS` (90 hari).

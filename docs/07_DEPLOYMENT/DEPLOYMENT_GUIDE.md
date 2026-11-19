@@ -82,6 +82,7 @@ bukan di berkas ecosystem PM2 yang di-commit:
 
 ## Alamat dashboard dan batas atas kuota (Fase H2)
 
+-   `JOIN_MAX_PENDING` (50) batas permintaan bergabung yang menunggu per tenant; `RETENTION_JOIN_REQUEST_DAYS` (90) retensi baris permintaan.
 -   `JOIN_REQUEST_TTL_DAYS` (default 14): masa berlaku permintaan bergabung (ADR-036). Tautan kode workspace: `<DASHBOARD_BASE_URL>/join#code=...` (fragmen, sama seperti undangan).
 -   `DASHBOARD_BASE_URL`: alamat dashboard yang dibuka pengguna di browser (domain yang dilayani Nginx untuk frontend), mis. `https://wa.contoh.co.id`. Bukan alamat API
     (`127.0.0.1:3000`) dan bukan server dev Vite. Wajib `https` di production (server menolak start bila tidak). Bila dashboard di subpath, sertakan subpathnya dan pastikan rute `/invite`

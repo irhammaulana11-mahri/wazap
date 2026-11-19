@@ -53,3 +53,5 @@ undangan lain tidak tersentuh), pencabutan API key saat dihapus (ditangguhkan ti
 
 Normalisasi kode; kode tampil sekali dan hanya hash di DB; alur penuh (daftar -> `JOIN_PENDING` -> setujui -> login); kode salah/diputar/dinonaktifkan seragam 404 tanpa membuat akun; email terdaftar wajib kata sandi;
 matriks wewenang (ADMIN tidak dapat memberi ADMIN/OWNER, MEMBER ditolak); tolak dan kedaluwarsa; kuota anggota saat persetujuan; validasi; serangan RLS langsung (setuju sendiri, membuat membership, permintaan tanpa kode/email palsu/user_id orang lain).
+
+Tambahan (batas antrean dan retensi): antrean penuh 409 tanpa membuat akun, tempat bebas setelah ditolak, tenant lain terpisah, pengajuan ganda spesifik, kedaluwarsa tidak dihitung, 6 pengajuan serentak dengan batas 3 (tepat 3), cakupan kebijakan RLS antrean, dan retensi (hapus yang lama, simpan yang baru/menunggu, idempoten, keanggotaan tidak ikut terhapus). Total 252 tes.

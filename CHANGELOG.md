@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased --- Backend H3 lanjutan: batas antrean dan retensi permintaan bergabung (2026-11-20)
+
+-   Baru: batas antrean `JOIN_MAX_PENDING` (default 50 per tenant; `409 JOIN_QUEUE_FULL`, akun tidak dibuat; batas eksak walau pengajuan serentak) dan retensi `RETENTION_JOIN_REQUEST_DAYS` (default 90). Migrasi 0015 (kebijakan RLS khusus hitung antrean, platform SELECT/DELETE, indeks).
+-   Tes: 252 lulus (4 baru).
+
 ## Unreleased --- Backend Fase H3: permintaan bergabung dengan kode workspace (2026-11-20)
 
 -   Baru: kode workspace (`GET|PUT|DELETE /team/join-code`), `POST /auth/join-requests` (publik; kata sandi dibuat pemohon saat mendaftar), `GET /team/join-requests`, `POST /team/join-requests/:id/approve|reject`.

@@ -188,3 +188,77 @@ test('RLS: pemohon tidak dapat menyetujui diri sendiri, membuat keanggotaan, ata
   // pemohon boleh menutup permintaan kedaluwarsa miliknya, tetapi tidak yang masih hidup
   assert.equal((await q(asReq, `UPDATE tenant_join_requests SET status = 'REJECTED', decided_at = now() WHERE id = $1 RETURNING id`, [reqRow.id])).length, 0);
 });
+
+// ---------- batas antrean dan retensi ----------
+const { config } = await import('../src/config/env.js');
+const { createRetention } = await import('../src/modules/engine/retention.js');
+async function withCap<T>(cap: number, fn: () => Promise<T>): Promise<T> {
+  const prev = (config as any).JOIN_MAX_PENDING; (config as any).JOIN_MAX_PENDING = cap;
+  try { return await fn(); } finally { (config as any).JOIN_MAX_PENDING = prev; }
+}
+const usersWith = async (email: string) => (await q({ loginEmail: email }, 'SELECT 1 FROM users WHERE email = $1', [email])).length;
+
+test('batas antrean: pengajuan di atas batas ditolak 409 tanpa membuat akun; menolak/menyetujui membebaskan tempat; tenant lain tidak terpengaruh', { skip }, async () => {
+  const o = await reg(); const other = await reg(); const c = await code(o); const oc = await code(other);
+  await withCap(2, async () => {
+    const e1 = `q${++n}@x.test`, e2 = `q${++n}@x.test`, e3 = `q${++n}@x.test`;
+    assert.equal((await apply(c, e1)).status, 201); assert.equal((await apply(c, e2)).status, 201);
+    const full = await apply(c, e3);
+    assert.equal(full.status, 409); assert.equal(full.body.error.code, 'JOIN_QUEUE_FULL');
+    assert.equal(await usersWith(e3), 0, 'penolakan antrean penuh tidak meninggalkan akun');
+    assert.equal((await apply(oc, e3)).status, 201, 'antrean tenant lain terpisah');
+    assert.equal((await apply(c, e1)).body.error.code, 'JOIN_REQUEST_EXISTS', 'pengajuan ganda dijawab spesifik walau antrean penuh');
+    const first = (await pending(o))[0];
+    assert.equal((await call('POST', `/team/join-requests/${first.id}/reject`, o.tok)).status, 200);
+    assert.equal((await apply(c, `q${++n}@x.test`)).status, 201, 'tempat bebas setelah ditolak');
+  });
+});
+
+test('batas antrean: permintaan kedaluwarsa tidak dihitung; pengajuan serentak tidak melampaui batas', { skip }, async () => {
+  const o = await reg(); const c = await code(o);
+  await withCap(3, async () => {
+    for (let i = 0; i < 3; i++) await apply(c, `x${++n}@x.test`);
+    assert.equal((await apply(c, `x${++n}@x.test`)).status, 409);
+    await q({ tenantId: o.tenantId }, `UPDATE tenant_join_requests SET expires_at = now() - interval '1 minute' WHERE tenant_id = $1`, [o.tenantId]);
+    const res = await Promise.all(Array.from({ length: 6 }, () => apply(c, `par${++n}@x.test`)));
+    const created = res.filter((r) => r.status === 201).length;
+    assert.equal(created, 3, 'tepat 3 berhasil walau 6 serentak: ' + res.map((r) => r.status).join(','));
+    assert.ok(res.filter((r) => r.status !== 201).every((r) => r.body.error.code === 'JOIN_QUEUE_FULL'));
+    assert.equal((await pending(o)).length, 3);
+  });
+});
+
+test('RLS antrean: dengan hash kode, pemohon hanya dapat melihat baris PENDING yang berlaku milik tenant itu (bukan yang diputuskan/kedaluwarsa/tenant lain)', { skip }, async () => {
+  const o = await reg(); const other = await reg(); const c = await code(o); const oc = await code(other);
+  const hash = (cd: string) => sha256hex('wj:' + cd.replace(/-/g, '').replace(/^WJ/, ''));
+  const a = `qa${++n}@x.test`, b = `qb${++n}@x.test`, d = `qd${++n}@x.test`, z = `qz${++n}@x.test`;
+  await apply(c, a); await apply(c, b); await apply(c, d); await apply(oc, z);
+  const ids = await pending(o);
+  await call('POST', `/team/join-requests/${ids.find((x: any) => x.email === b).id}/reject`, o.tok);
+  await q({ tenantId: o.tenantId }, `UPDATE tenant_join_requests SET expires_at = now() - interval '1 minute' WHERE email = $1`, [d]);
+  const stranger = (await reg()).userId; // pengguna lain yang kebetulan memegang kode
+  const seen = await q({ userId: stranger, joinHash: hash(c) }, 'SELECT email FROM tenant_join_requests ORDER BY email');
+  assert.deepEqual(seen.map((r: any) => r.email), [a], 'hanya PENDING yang berlaku milik tenant pemilik kode');
+  assert.equal((await q({ userId: stranger }, 'SELECT 1 FROM tenant_join_requests')).length, 0, 'tanpa hash kode tidak ada yang terlihat');
+  assert.equal((await q({ userId: stranger, joinHash: hash(oc) }, 'SELECT 1 FROM tenant_join_requests')).length, 1, 'kode tenant lain hanya membuka tenant itu');
+  assert.equal((await q({ userId: stranger, joinHash: hash(c) }, `UPDATE tenant_join_requests SET status = 'REJECTED', decided_at = now() RETURNING id`)).length, 0, 'tidak dapat mengubah');
+});
+
+test('retensi: permintaan yang sudah diputuskan/kedaluwarsa lama dihapus; yang baru dan yang masih menunggu tetap; idempoten', { skip }, async () => {
+  const o = await reg(); const c = await code(o);
+  const emails = Array.from({ length: 5 }, () => `ret${++n}@x.test`);
+  for (const e of emails) await apply(c, e);
+  const rows = await pending(o);
+  const id = (e: string) => rows.find((r: any) => r.email === e).id;
+  await call('POST', `/team/join-requests/${id(emails[0])}/approve`, o.tok, { role: 'MEMBER' });  // diputuskan, akan dituakan
+  await call('POST', `/team/join-requests/${id(emails[1])}/reject`, o.tok);                       // ditolak, akan dituakan
+  await call('POST', `/team/join-requests/${id(emails[2])}/reject`, o.tok);                       // ditolak, tetap baru
+  await q({ tenantId: o.tenantId }, `UPDATE tenant_join_requests SET decided_at = now() - interval '100 days' WHERE email = ANY($1)`, [[emails[0], emails[1]]]);
+  await q({ tenantId: o.tenantId }, `UPDATE tenant_join_requests SET expires_at = now() - interval '100 days' WHERE email = $1`, [emails[3]]); // tertunda tetapi sudah lama kedaluwarsa
+  const ret = createRetention(db, () => ({ contentDays: 30, rowDays: 180, outboxDays: 7, deliveryDays: 30, auditDays: 365, joinRequestDays: 90, batch: 10 }));
+  assert.equal((await ret.runOnce()).joinRequestsDeleted, 3);
+  const left = (await q({ tenantId: o.tenantId }, 'SELECT email FROM tenant_join_requests ORDER BY email')).map((r: any) => r.email);
+  assert.deepEqual(left, [emails[2], emails[4]].sort(), 'tersisa: ditolak baru dan tertunda yang masih berlaku');
+  assert.equal((await ret.runOnce()).joinRequestsDeleted, 0, 'idempoten');
+  assert.equal((await q({ tenantId: o.tenantId }, 'SELECT 1 FROM tenant_memberships WHERE tenant_id = $1 AND member_email = $2', [o.tenantId, emails[0]])).length, 1, 'keanggotaan hasil persetujuan tidak ikut terhapus');
+});

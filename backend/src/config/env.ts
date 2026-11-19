@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
-const schema = z.object({
+const baseSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(8000),
   HOST: z.string().min(1).default('0.0.0.0'),
@@ -100,8 +100,30 @@ const schema = z.object({
   REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
   // Batas hitungan `meta.total` pada daftar besar (pesan, chat): count eksak O(n) per halaman tidak skalabel. Di atas batas: total = batas + total_capped=true.
   LIST_COUNT_CAP: z.coerce.number().int().min(100).default(10000),
+  // Fase H: tim
+  TEAM_INVITATION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
+  // Fase H2: undangan tanpa email (tautan), audit, dan batas atas kuota yang boleh diatur OWNER (operator mengubah lewat env).
+  // Alamat dashboard (frontend) yang dibuka pengguna di browser: skema + host (+ port bila bukan standar, + subpath bila di-host di subpath).
+  // Bukan alamat API/backend. Tanpa kredensial, query, atau fragment; di production wajib https (token ada di tautan).
+  DASHBOARD_BASE_URL: z.string().url().refine((v) => {
+    try { // refine tetap berjalan walau .url() gagal: jangan biarkan TypeError mentah lolos (pesan galat harus menyebut variabelnya)
+      const u = new URL(v);
+      return (u.protocol === 'https:' || u.protocol === 'http:') && !u.username && !u.password && !u.search && !u.hash;
+    } catch { return false; }
+  }, 'DASHBOARD_BASE_URL harus http(s)://host[:port][/subpath] tanpa kredensial/query/fragment').optional(),
+  RETENTION_AUDIT_DAYS: z.coerce.number().int().min(30).default(365),
+  LIMIT_CEIL_SESSIONS: z.coerce.number().int().min(1).default(10),
+  LIMIT_CEIL_API_KEYS: z.coerce.number().int().min(1).default(50),
+  LIMIT_CEIL_MEMBERS: z.coerce.number().int().min(1).default(50),
+  LIMIT_CEIL_MESSAGES_PER_MINUTE: z.coerce.number().int().min(1).default(120),
   CORS_ORIGINS: z.string().default(''),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+});
+
+const schema = baseSchema.superRefine((c, ctx) => {
+  if (c.NODE_ENV === 'production' && c.DASHBOARD_BASE_URL && !c.DASHBOARD_BASE_URL.startsWith('https://')) {
+    ctx.addIssue({ code: 'custom', path: ['DASHBOARD_BASE_URL'], message: 'wajib https di production (tautan undangan memuat token)' });
+  }
 });
 
 export type AppConfig = z.infer<typeof schema>;

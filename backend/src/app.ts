@@ -9,6 +9,14 @@ import { webhookRoutes } from './modules/webhooks/webhooks.routes.js';
 import { createWebhookService, type WebhookService } from './modules/webhooks/webhooks.service.js';
 import { chatRoutes } from './modules/chats/chats.routes.js';
 import { createChatService, type ChatService } from './modules/chats/chats.service.js';
+import { teamRoutes } from './modules/team/team.routes.js';
+import { createTeamService, type TeamService } from './modules/team/team.service.js';
+import { usageRoutes } from './modules/usage/usage.routes.js';
+import { createUsageService, type UsageService } from './modules/usage/usage.service.js';
+import { auditRoutes } from './modules/audit/audit.routes.js';
+import { createAuditService, type AuditService } from './modules/audit/audit.service.js';
+import { settingsRoutes } from './modules/tenant/settings.routes.js';
+import { createSettingsService, type SettingsService } from './modules/tenant/settings.service.js';
 import cookie from '@fastify/cookie';
 import { randomUUID } from 'crypto';
 import { createAuthenticate } from './modules/identity/guard.js';
@@ -38,6 +46,10 @@ export interface AppDeps {
   messages?: MessageService;
   webhooks?: WebhookService;
   chats?: ChatService;
+  team?: TeamService;
+  usage?: UsageService;
+  audit?: AuditService;
+  settings?: SettingsService;
   limiter?: RateLimiter;
   /** Pembatas laju API umum (IP + tenant). Default: instans baru dengan batas dari env. */
   apiLimiter?: RateLimiter;
@@ -104,6 +116,10 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
   const messages = deps.messages ?? createMessageService(getGatewayDb());
   const webhooks = deps.webhooks ?? createWebhookService(getGatewayDb(), { crypto: tryGetCredentialCrypto(config) });
   const chats = deps.chats ?? createChatService(getGatewayDb());
+  const team = deps.team ?? createTeamService(getGatewayDb());
+  const usage = deps.usage ?? createUsageService(getGatewayDb());
+  const audit = deps.audit ?? createAuditService(getGatewayDb());
+  const settings = deps.settings ?? createSettingsService(getGatewayDb());
   const sessions = deps.sessions ?? createSessionService(getGatewayDb(), { crypto: tryGetCredentialCrypto(config) });
 
   // Health (publik, tanpa detail internal)
@@ -124,6 +140,10 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
       await scope.register(messageRoutes, { messages, authenticate });
       await scope.register(webhookRoutes, { webhooks, authenticate });
       await scope.register(chatRoutes, { chats, authenticate });
+      await scope.register(teamRoutes, { team, authenticate });
+      await scope.register(usageRoutes, { usage, authenticate });
+      await scope.register(auditRoutes, { audit, authenticate });
+      await scope.register(settingsRoutes, { settings, authenticate });
     },
     { prefix: '/api/v1' }
   );

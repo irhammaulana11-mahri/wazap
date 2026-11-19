@@ -18,6 +18,7 @@ const RegisterSchema = z.strictObject({
   tenant_name: z.string().trim().min(2).max(100),
 });
 const LoginSchema = z.strictObject({ email: z.email().max(254), password: z.string().min(1).max(128), tenant_id: z.uuid().optional() });
+const SwitchSchema = z.strictObject({ tenant_id: z.uuid() });
 const CreateKeySchema = z.strictObject({
   name: z.string().trim().min(2).max(100),
   scopes: z.array(z.enum(API_KEY_SCOPES)).min(1).max(API_KEY_SCOPES.length),
@@ -99,6 +100,17 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
       if (e instanceof AppError) clearRefreshCookie(reply);
       throw e;
     }
+  });
+
+  // Pindah workspace (hanya pengguna dashboard; API key terikat satu tenant). Rotasi cookie refresh ke tenant tujuan.
+  app.post('/auth/switch-tenant', { preHandler: [authenticate, requireRole('OWNER', 'ADMIN', 'MEMBER', 'VIEWER')] }, async (req, reply) => {
+    limit(`switch:${req.ip}`, 30, 5 * 60_000);
+    const b = SwitchSchema.parse(req.body);
+    const a = req.auth!;
+    if (a.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');
+    const r = await identity.switchTenant(a.userId, b.tenant_id, req.cookies[REFRESH_COOKIE]);
+    setRefreshCookie(reply, r);
+    return ok(authBody(r));
   });
 
   app.post('/auth/logout', async (req, reply) => {

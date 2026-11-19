@@ -61,7 +61,7 @@ export function createIdentityService(db: GatewayDb) {
         return await db.tx({ userId, tenantId }, async (c) => {
           await c.query('INSERT INTO users (id, email, password_hash) VALUES ($1,$2,$3)', [userId, email, passwordHash]);
           await c.query('INSERT INTO tenants (id, name, slug) VALUES ($1,$2,$3)', [tenantId, input.tenantName.trim(), slug]);
-          await c.query(`INSERT INTO tenant_memberships (tenant_id, user_id, role) VALUES ($1,$2,'OWNER')`, [tenantId, userId]);
+          await c.query(`INSERT INTO tenant_memberships (tenant_id, user_id, role, member_email) VALUES ($1,$2,'OWNER',$3)`, [tenantId, userId, email]);
           await c.query('INSERT INTO tenant_settings (tenant_id) VALUES ($1)', [tenantId]);
           const rt = await issueRefresh(c, userId, tenantId);
           return {
@@ -104,6 +104,36 @@ export function createIdentityService(db: GatewayDb) {
         return {
           ...tokens(user.id, m.id, rt.raw),
           user: { id: user.id, email: user.email },
+          tenant: { id: m.id, name: m.name, slug: m.slug },
+          role: m.role as Role,
+        };
+      });
+    },
+
+    /**
+     * Pindah workspace tanpa mengetik ulang kata sandi: pengguna terautentikasi memilih tenant dari MEMBERSHIP-nya sendiri.
+     * Menerbitkan access token + refresh token (family baru) untuk tenant tujuan; family refresh lama dicabut bila diberikan.
+     */
+    async switchTenant(userId: string, tenantId: string, oldRefreshRaw?: string): Promise<AuthResult> {
+      if (!UUID_RE.test(tenantId)) throw new AppError('NOT_FOUND', 404, 'Workspace tidak ditemukan');
+      return db.tx({ userId }, async (c) => {
+        const m = (
+          await c.query(
+            `SELECT u.email, t.id, t.name, t.slug, m.role
+             FROM users u JOIN tenant_memberships m ON m.user_id = u.id JOIN tenants t ON t.id = m.tenant_id
+             WHERE u.id = $1 AND t.id = $2 AND u.status = 'ACTIVE' AND m.status = 'ACTIVE' AND t.status = 'ACTIVE'`,
+            [userId, tenantId]
+          )
+        ).rows[0];
+        if (!m) throw new AppError('NOT_FOUND', 404, 'Workspace tidak ditemukan'); // bukan anggota = sama dengan tidak ada
+        if (oldRefreshRaw) {
+          const old = (await c.query('SELECT family_id FROM refresh_tokens WHERE token_hash = $1 AND user_id = $2', [sha256hex(oldRefreshRaw), userId])).rows[0];
+          if (old) await c.query('UPDATE refresh_tokens SET revoked_at = COALESCE(revoked_at, now()) WHERE family_id = $1', [old.family_id]);
+        }
+        const rt = await issueRefresh(c, userId, m.id);
+        return {
+          ...tokens(userId, m.id, rt.raw),
+          user: { id: userId, email: m.email },
           tenant: { id: m.id, name: m.name, slug: m.slug },
           role: m.role as Role,
         };

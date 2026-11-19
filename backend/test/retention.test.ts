@@ -22,7 +22,7 @@ const app = skip ? (null as any) : buildApp({
   identity: createIdentityService(db), sessions: svc, messages: msgs, chats: createChatService(db), checkDb: async () => true,
   limiter: new (class extends RateLimiter { check() { return { allowed: true, retryAfterSec: 0 }; } })(),
 });
-const POLICY = { contentDays: 30, rowDays: 180, outboxDays: 7, deliveryDays: 30, batch: 10 };
+const POLICY = { contentDays: 30, rowDays: 180, outboxDays: 7, deliveryDays: 30, auditDays: 365, batch: 10 };
 const ret = skip ? (null as any) : createRetention(db, () => POLICY);
 after(async () => { await app?.close(); await t?.drop(); });
 

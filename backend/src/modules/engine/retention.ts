@@ -10,6 +10,8 @@ export interface RetentionPolicy {
   outboxDays: number;
   /** Hari setelah dibuat: delivery webhook selesai (DELIVERED/DEAD) dihapus (payload memuat nomor/teks). */
   deliveryDays: number;
+  /** Hari setelah dibuat: jejak audit dihapus (lebih panjang daripada data pesan). */
+  auditDays: number;
   batch: number;
 }
 export interface RetentionReport {
@@ -20,11 +22,12 @@ export interface RetentionReport {
   chatsDeleted: number;
   outboxDeleted: number;
   deliveriesDeleted: number;
+  auditDeleted: number;
 }
 
 export const defaultPolicy = (): RetentionPolicy => ({
   contentDays: config.RETENTION_CONTENT_DAYS, rowDays: config.RETENTION_ROW_DAYS, outboxDays: config.RETENTION_OUTBOX_DAYS,
-  deliveryDays: config.RETENTION_WEBHOOK_DELIVERY_DAYS, batch: config.RETENTION_BATCH,
+  deliveryDays: config.RETENTION_WEBHOOK_DELIVERY_DAYS, auditDays: config.RETENTION_AUDIT_DAYS, batch: config.RETENTION_BATCH,
 });
 
 const TERMINAL = `('SENT','DELIVERED','READ','FAILED','CANCELLED','UNKNOWN','RECONCILIATION_REQUIRED')`;
@@ -89,7 +92,13 @@ export function createRetention(db: GatewayDb, policy: () => RetentionPolicy = d
                       ORDER BY created_at LIMIT $2 FOR UPDATE SKIP LOCKED)
          DELETE FROM webhook_deliveries w USING c WHERE w.id = c.id`, [d(p.deliveryDays)], p.batch);
 
-      return { contentPurged, rowsDeleted, historyPurged, historyDeleted, chatsDeleted, outboxDeleted, deliveriesDeleted };
+      // 5) Audit log: satu-satunya penghapusan yang diizinkan trigger append-only (hanya konteks platform). Tanpa FOR UPDATE:
+      //    tabel ini sengaja tidak punya kebijakan UPDATE sehingga baris tidak dapat dikunci; dua penyapu bersamaan aman (DELETE idempoten).
+      const auditDeleted = await sweep(
+        `DELETE FROM audit_logs WHERE id IN (SELECT id FROM audit_logs WHERE created_at < now() - make_interval(days => $1) ORDER BY created_at LIMIT $2)`,
+        [d(p.auditDays)], p.batch);
+
+      return { contentPurged, rowsDeleted, historyPurged, historyDeleted, chatsDeleted, outboxDeleted, deliveriesDeleted, auditDeleted };
     },
   };
 }

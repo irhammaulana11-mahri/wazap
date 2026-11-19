@@ -17,7 +17,7 @@ const t = skip ? null : await createTestDb(10);
 const db = t?.db as any;
 after(async () => { await t?.drop(); });
 
-const BIG = new Set(['message_queue', 'message_attempts', 'outbox_events', 'webhook_deliveries', 'wa_messages', 'wa_chats']);
+const BIG = new Set(['message_queue', 'message_attempts', 'outbox_events', 'webhook_deliveries', 'wa_messages', 'wa_chats', 'audit_logs']);
 const q = (sql: string, args: any[] = []) => db.tx({ platform: true }, async (c: any) => (await c.query(sql, args)).rows);
 let tenants: { id: string }[] = []; let sessions: { id: string; tenant_id: string }[] = []; let chat: { id: string; tenant_id: string }; let heavy: string;
 const timings: { name: string; ms: number; plan: string }[] = [];
@@ -64,7 +64,17 @@ test('seed data besar + ANALYZE', { skip }, async () => {
            SELECT c.tenant_id, c.session_id, c.id, 'OUT', 'W' || g || md5(random()::text), 'text', 'isi', 'SENT', now() - ((g % 400) || ' days')::interval, now() - ((g % 400) || ' days')::interval
            FROM generate_series(1,300000) g
            JOIN (SELECT id, tenant_id, session_id, row_number() OVER (ORDER BY id) AS rn FROM wa_chats) c ON c.rn = 1 + (g % 30000)`);
-  for (const tb of ['message_queue', 'message_attempts', 'outbox_events', 'webhook_deliveries', 'wa_messages', 'wa_chats', 'webhook_endpoints', 'wa_sessions']) await db.pool.query(`ANALYZE ${tb}`);
+  // pesan MASUK 100k (trigger outbox ikut berjalan, seperti produksi)
+  await q(`INSERT INTO wa_messages (tenant_id, session_id, chat_id, direction, provider_message_id, message_type, body, status, occurred_at, created_at)
+           SELECT c.tenant_id, c.session_id, c.id, 'IN', 'I' || g || md5(random()::text), 'text', 'masuk', 'RECEIVED', now() - ((g % 120) || ' days')::interval, now() - ((g % 120) || ' days')::interval
+           FROM generate_series(1,100000) g
+           JOIN (SELECT id, tenant_id, session_id, row_number() OVER (ORDER BY id) AS rn FROM wa_chats) c ON c.rn = 1 + (g % 30000)`);
+  // audit log 100k untuk tenant berat (insert hanya lewat konteks tenant: tabel ini sengaja tanpa jalur platform)
+  await db.tx({ tenantId: heavy }, (c: any) => c.query(
+    `INSERT INTO audit_logs (tenant_id, actor_user_id, action, target_type, target_id, created_at)
+     SELECT $1, gen_random_uuid(), (ARRAY['member.role_changed','member.removed','invitation.created','settings.updated'])[1 + g % 4], 'member', g::text, now() - ((g % 400) || ' days')::interval
+     FROM generate_series(1,100000) g`, [heavy]));
+  for (const tb of ['message_queue', 'message_attempts', 'outbox_events', 'webhook_deliveries', 'wa_messages', 'wa_chats', 'webhook_endpoints', 'wa_sessions', 'audit_logs']) await db.pool.query(`ANALYZE ${tb}`);
   chat = (await q(`SELECT id, tenant_id FROM wa_chats WHERE tenant_id = $1 LIMIT 1`, [heavy]))[0];
   const counts = (await q(`SELECT (SELECT count(*) FROM message_queue)::int mq, (SELECT count(*) FROM wa_messages)::int wm, (SELECT count(*) FROM outbox_events)::int ox, (SELECT count(*) FROM webhook_deliveries)::int wd`))[0];
   console.log(`seed selesai ${((Date.now() - t0) / 1000).toFixed(1)}s`, JSON.stringify(counts));
@@ -126,6 +136,34 @@ test('penyapu retensi memakai indeks (tidak memindai seluruh tabel)', { skip }, 
   await explain('retensi: hapus delivery selesai', { platform: true }, `WITH c AS (SELECT id FROM webhook_deliveries WHERE status <> 'PENDING' AND created_at < now() - make_interval(days => 30) ORDER BY created_at LIMIT 500 FOR UPDATE SKIP LOCKED) DELETE FROM webhook_deliveries w USING c WHERE w.id = c.id`, [], false);
 });
 
+test('metrik penggunaan & filter tanggal memakai indeks (tidak memindai seluruh tabel)', { skip }, async () => {
+  const R = `created_at >= now() - interval '30 days' AND created_at < now()`;
+  await explain('usage: pesan keluar per status (30 hari)', { tenantId: heavy }, `SELECT status, count(*)::int n FROM message_queue WHERE tenant_id = $1 AND ${R} GROUP BY status`, [heavy]);
+  await explain('usage: pesan masuk (30 hari)', { tenantId: heavy }, `SELECT count(*)::int n FROM wa_messages WHERE tenant_id = $1 AND direction = 'IN' AND ${R}`, [heavy]);
+  await explain('usage: per sesi (keluar, 30 hari)', { tenantId: heavy }, `SELECT session_id, count(*)::int, count(*) FILTER (WHERE status = 'FAILED')::int FROM message_queue WHERE tenant_id = $1 AND ${R} GROUP BY session_id`, [heavy]);
+  await explain('usage: deret harian (keluar, 30 hari)', { tenantId: heavy }, `SELECT date_trunc('day', created_at AT TIME ZONE 'Asia/Jakarta') b, count(*) FROM message_queue WHERE tenant_id = $1 AND ${R} GROUP BY 1`, [heavy]);
+  await explain('daftar pesan + filter tanggal', { tenantId: heavy }, `SELECT id FROM message_queue WHERE tenant_id = $1 AND ${R} ORDER BY created_at DESC, id LIMIT 20`, [heavy]);
+  await explain('tim: daftar anggota', { tenantId: heavy }, `SELECT user_id, member_email, role FROM tenant_memberships WHERE tenant_id = $1 ORDER BY created_at LIMIT 20`, [heavy]);
+});
+
+test('audit log memakai indeks: daftar terbaru, filter aksi, penyapu retensi', { skip }, async () => {
+  await explain('audit: daftar terbaru', { tenantId: heavy }, `SELECT * FROM audit_logs WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT 20`, [heavy]);
+  await explain('audit: filter aksi', { tenantId: heavy }, `SELECT * FROM audit_logs WHERE tenant_id = $1 AND action = 'member.removed' ORDER BY created_at DESC, id DESC LIMIT 20`, [heavy]);
+  await explain('audit: rentang waktu', { tenantId: heavy }, `SELECT * FROM audit_logs WHERE tenant_id = $1 AND created_at >= now() - interval '30 days' AND created_at < now() ORDER BY created_at DESC, id DESC LIMIT 20`, [heavy]);
+  await explain('retensi: hapus audit lama', { platform: true }, `DELETE FROM audit_logs WHERE id IN (SELECT id FROM audit_logs WHERE created_at < now() - make_interval(days => 365) ORDER BY created_at LIMIT 500)`, [], false);
+});
+
+test('latensi layanan usage (30 hari, tenant dengan ~50 ribu pesan)', { skip }, async () => {
+  const { createUsageService } = await import('../../src/modules/usage/usage.service.js');
+  const u = createUsageService(db);
+  const r = { from: new Date(Date.now() - 30 * 86_400_000), to: new Date() };
+  const time = async (name: string, fn: () => Promise<unknown>) => { const t0 = Date.now(); await fn(); const ms = Date.now() - t0; console.log(`${name}: ${ms} ms`); return ms; };
+  await time('usage.summary(30d)', () => u.summary(heavy, r));
+  await time('usage.series(day,30d,Asia/Jakarta)', () => u.series(heavy, r, { unit: 'day', tz: 'Asia/Jakarta' }));
+  await time('usage.series(hour,7d)', () => u.series(heavy, { from: new Date(Date.now() - 7 * 86_400_000), to: new Date() }, { unit: 'hour', tz: 'UTC' }));
+  await time('usage.sessions(30d)', () => u.sessions(heavy, r));
+});
+
 test('throughput dasar (satu proses, satu koneksi): enqueue API dan relay outbox', { skip }, async () => {
   const msgs = createMessageService(db);
   const principal = { type: 'user', tenantId: heavy, userId: crypto.randomUUID(), role: 'OWNER' } as any;
@@ -144,5 +182,5 @@ test('throughput dasar (satu proses, satu koneksi): enqueue API dan relay outbox
 test('ringkasan rencana & waktu eksekusi', { skip }, () => {
   const w = Math.max(...timings.map((x) => x.name.length));
   console.log('\n' + timings.map((x) => `${x.name.padEnd(w)}  ${x.ms >= 0 ? String(x.ms).padStart(8) + ' ms' : '   (plan)  '}  ${x.plan}`).join('\n'));
-  assert.ok(timings.length >= 20);
+  assert.ok(timings.length >= 30);
 });

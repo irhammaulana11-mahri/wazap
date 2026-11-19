@@ -40,7 +40,10 @@ const PageSchema = z.object({ page: z.coerce.number().int().min(1).default(1), p
 const ListSchema = PageSchema.extend({
   status: z.enum(['PENDING', 'PROCESSING', 'SENT', 'DELIVERED', 'READ', 'FAILED', 'CANCELLED', 'UNKNOWN', 'RECONCILIATION_REQUIRED']).optional(),
   session_id: z.uuid().optional(),
-});
+  // Rentang waktu pembuatan (diantrekan): from inklusif, to eksklusif. ISO-8601 dengan offset, mis. 2026-11-19T00:00:00+07:00.
+  from: Sched.optional(),
+  to: Sched.optional(),
+}).refine((v) => !v.from || !v.to || new Date(v.from).getTime() < new Date(v.to).getTime(), { message: '`from` harus lebih awal dari `to`', path: ['from'] });
 const IdParam = z.object({ messageId: z.string().max(64) });
 const RetrySchema = z.strictObject({ confirm_duplicate_risk: z.boolean().default(false) });
 
@@ -96,7 +99,7 @@ export async function messageRoutes(app: FastifyInstance, { messages, authentica
 
   app.get('/messages', { preHandler: read }, async (req) => {
     const q = ListSchema.parse(req.query);
-    const { rows, total, capped } = await messages.list(req.auth!.tenantId, { page: q.page, pageSize: q.page_size, status: q.status, sessionId: q.session_id });
+    const { rows, total, capped } = await messages.list(req.auth!.tenantId, { page: q.page, pageSize: q.page_size, status: q.status, sessionId: q.session_id, from: q.from ? new Date(q.from) : undefined, to: q.to ? new Date(q.to) : undefined });
     return ok(rows, { page: q.page, page_size: q.page_size, total, ...(capped ? { total_capped: true } : {}) });
   });
   app.get('/messages/:messageId', { preHandler: read }, async (req) => ok(await messages.get(req.auth!.tenantId, id(req))));

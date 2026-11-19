@@ -8,6 +8,8 @@ export interface DbContext {
   loginEmail?: string;
   apiKeyHash?: string;
   refreshHash?: string;
+  /** Hash token undangan yang sedang diterima (lihat kebijakan tenant_invitations). */
+  inviteHash?: string;
   /** Layanan istimewa (control-plane/engine). Hanya boleh dipakai di src/modules/engine dan src/runtime. */
   platform?: boolean;
 }
@@ -18,6 +20,7 @@ const CTX_KEYS: Record<Exclude<keyof DbContext, 'platform'>, string> = {
   loginEmail: 'app.login_email',
   apiKeyHash: 'app.api_key_hash',
   refreshHash: 'app.refresh_hash',
+  inviteHash: 'app.invite_hash',
 };
 
 export interface GatewayDb {

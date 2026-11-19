@@ -190,14 +190,15 @@ export function createMessageService(db: GatewayDb, svcOpts: MessageServiceOpts 
       });
     },
 
-    async list(tenantId: string, q: { page: number; pageSize: number; status?: string; sessionId?: string }) {
+    async list(tenantId: string, q: { page: number; pageSize: number; status?: string; sessionId?: string; from?: Date; to?: Date }) {
       return db.tx({ tenantId }, async (c) => {
-        const where = `tenant_id = $1 AND ($2::text IS NULL OR status = $2) AND ($3::uuid IS NULL OR session_id = $3)`;
-        const args = [tenantId, q.status ?? null, q.sessionId ?? null];
+        const where = `tenant_id = $1 AND ($2::text IS NULL OR status = $2) AND ($3::uuid IS NULL OR session_id = $3)
+          AND ($4::timestamptz IS NULL OR created_at >= $4) AND ($5::timestamptz IS NULL OR created_at < $5)`;
+        const args = [tenantId, q.status ?? null, q.sessionId ?? null, q.from ?? null, q.to ?? null];
         // Hitungan berbatas: count eksak membaca semua baris tenant (O(n)); cukup tahu "ada lebih dari batas".
         const cap = svcOpts.countCap ?? config.LIST_COUNT_CAP;
-        const n = (await c.query(`SELECT count(*)::int n FROM (SELECT 1 FROM message_queue WHERE ${where} LIMIT $4) x`, [...args, cap + 1])).rows[0].n;
-        const rows = (await c.query(`SELECT ${COLS} FROM message_queue WHERE ${where} ORDER BY created_at DESC, id LIMIT $4 OFFSET $5`, [...args, q.pageSize, (q.page - 1) * q.pageSize])).rows;
+        const n = (await c.query(`SELECT count(*)::int n FROM (SELECT 1 FROM message_queue WHERE ${where} LIMIT $6) x`, [...args, cap + 1])).rows[0].n;
+        const rows = (await c.query(`SELECT ${COLS} FROM message_queue WHERE ${where} ORDER BY created_at DESC, id LIMIT $6 OFFSET $7`, [...args, q.pageSize, (q.page - 1) * q.pageSize])).rows;
         return { rows: rows.map(view), total: Math.min(n, cap), capped: n > cap };
       });
     },

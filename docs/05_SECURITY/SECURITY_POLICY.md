@@ -126,3 +126,11 @@
 -   **Kuota:** OWNER dapat mengubah kuota hanya dalam [minimum, ceiling env]; peran dibaca ulang di dalam lock; ADMIN/MEMBER/VIEWER dan API key ditolak. **Risiko tersisa:** OWNER yang kredensialnya dibobol dapat menaikkan
     kuota sampai ceiling (terbatas dan tercatat di audit); ceiling bawaan (sesi 10, pesan/menit 120) adalah nilai awal, bukan hasil pengukuran risiko ban --- tinjau sebelum produksi.
 -   **Undangan tanpa email:** `invite_url` dibangun dari konfigurasi server (bukan header klien); terbit ulang menghanguskan token lama.
+
+## Hasil code-review (2026-11-20, tingkat `high`, target `backend/src`)
+
+8 temuan, tidak ada yang kritis (tidak ada celah autentikasi atau kebocoran lintas tenant). Diperbaiki dan diberi tes regresi: zona waktu offset yang bergeser 14 jam diam-diam (#5), `reissue` melewati kuota anggota (#2),
+undangan hidup lebih lama daripada wewenang pembuatnya (#3), API key anggota yang dihapus tetap berfungsi (#4), audit membuang kunci `max_api_keys` (#1), PATCH kuota menolak nilai lama yang tidak berubah setelah ceiling
+diturunkan (#8), helper kunci tim terduplikasi (#7). **Diterima sebagai keterbatasan (#6):** `switch-tenant` tanpa cookie refresh tidak mencabut keluarga refresh lama (kasus sempit: refresh token hanya ada di cookie HttpOnly browser).
+**Risiko tersisa baru dari review:** (a) menurunkan `LIMIT_CEIL_*` tidak menurunkan kuota efektif yang sudah tersimpan (hanya membatasi perubahan berikutnya); (b) API key buatan anggota yang ditangguhkan tetap hidup;
+(c) code-review hanya mencari bug kebenaran: `/security-review` dan uji penetrasi masih perlu.

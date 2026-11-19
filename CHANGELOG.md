@@ -1,5 +1,74 @@
 # Changelog
 
+## Unreleased --- Backend: perbaikan hasil code-review (2026-11-20)
+
+-   Perbaikan: `tz` offset di `/usage/messages` ditolak 400 (sebelumnya bergeser 14 jam); `reissue` undangan kedaluwarsa memeriksa kuota anggota; audit tidak lagi membuang `max_api_keys`;
+    PATCH `/tenant/settings` mengabaikan nilai yang tidak berubah.
+-   Perilaku baru (offboarding, ADR-035): hapus/keluar anggota mencabut API key buatannya; hapus/tangguhkan/turunkan peran mencabut undangan tertunda buatannya. `GET /api-keys` memuat `created_by`.
+-   Kode: helper bersama `team/team-lock.ts`. Tes: 238 lulus (8 baru).
+
+## Unreleased --- Frontend Penyatuan Menu Koneksi & Layout Ergonomis (2026-11-20)
+
+- **Menu Terpadu "Koneksi & API" (`/connections`):**
+  - Menggabungkan pengelolaan Sesi WhatsApp, Kunci Akses REST API, dan Webhooks ke dalam satu halaman terpadu dengan navigasi Tab elegan.
+  - Sidebar dirapikan menjadi 3 kategori logis (*Aktivitas Utama*, *Integrasi & Gateway*, *Konfigurasi & Kepatuhan*).
+  - Tautan lama (`/sessions`, `/api-keys`, `/webhooks`) tetap diarahkan otomatis (*auto-redirect*) ke tab yang sesuai untuk menjamin kompatibilitas tautan.
+- **Layout Ergonomis & Responsif Proporsional:**
+  - Menghilangkan jarak kosong canggung di monitor desktop/laptop lebar dengan kontainer dinamis `max-w-[1440px]` dan padding berjenjang (`px-4 sm:px-6 lg:px-8 py-6`).
+  - Menyelaraskan batas kiri dan kanan antara Header dan Main Content secara presisi sehingga nyaman dipandang di semua resolusi layar (ponsel, tablet, laptop, dan monitor lebar).
+
+## Unreleased --- Frontend Peningkatan UI/UX Interaktif 6 Tahap (2026-11-20)
+
+- **Tahap 1 (Setup Wizard Dashboard):** Widget interaktif "Panduan Memulai Gateway" 4-langkah dengan progress bar persentase selesai, kalkulasi otomatis status kesiapan, tombol CTA langsung, dan opsi tampil/sembunyi.
+- **Tahap 2 (Live WhatsApp Phone Preview):** Simulator layar ponsel WhatsApp interaktif di samping composer pesan (`/messages`), formatting toolbar interaktif (`*bold*`, `_italic_`, `~strike~`, ````code````, emoji picker), dan auto-formatting kode negara internasional (+62).
+- **Tahap 3 (Visual Pairing Guide Modal):** Panduan visual 3 langkah terstruktur pada modal QR WhatsApp (`/sessions`) dengan tombol penyegaran manual dan indikator auto-refresh.
+- **Tahap 4 (Pengalaman Obrolan WhatsApp Web):** Desain obrolan 2 kolom dengan wallpaper doodle WhatsApp klasik (`/chats`), bubble chat hijau muda/putih, status centang ganda biru/abu (`READ`/`DELIVERED`), pencarian chat instan, dan bar emoji quick-insert.
+- **Tahap 5 (Developer Code Playground):** Tab cuplikan kode integrasi siap salin (`/api-keys`) yang mendukung bahasa cURL, Node.js (Fetch), PHP (cURL), dan Python (requests) dengan tombol 1-klik salin snippet.
+- **Tahap 6 (Notifikasi Toast & Audio Feedback):** Sistem notifikasi mengambang (`ToastContext`) terintegrasi dengan event Socket.IO (`message.incoming`, `session.connected`), audio feedback nada lembut berbasis Web Audio API murni (tanpa aset eksternal), serta tombol toggle mute/suara di Header.
+
+## Unreleased --- Frontend Integrasi Penuh Kontrak Backend Fase H2 (2026-11-20)
+
+- **Penyelarasan Kontrak Backend Nyata (Zero Mock):**
+  - Menghapus seluruh asumsi prototipe lama (kontrak login `{username, password}`, route `/messages/history` gabungan, mock palsu).
+  - Mengintegrasikan seluruh halaman frontend React ke endpoint resmi backend Fase A–H2.
+- **Autentikasi & Keamanan Ketat:**
+  - Login dan Registrasi menggunakan format standar `{ email, password }` (dan `tenant_name` untuk pendaftaran).
+  - Access token JWT disimpan **hanya di memori** (`tokenStore` di `services/api.ts`). Tidak ada token yang bocor ke `localStorage` maupun `sessionStorage`.
+  - Refresh token dikelola via cookie browser `HttpOnly` (`credentials: 'include'`).
+  - Mekanisme *single-flight refresh handler* dengan promise lock untuk mencegah race condition pencabutan refresh token pada request paralel yang mengembalikan HTTP 401.
+  - Multi-tenant workspace switcher di header dengan auto-clear cache TanStack Query dan reconnect Socket.IO.
+- **Sesi WhatsApp & Ephemeral QR:**
+  - Dukungan lengkap untuk 13 status siklus hidup sesi WhatsApp: `CREATED`, `PENDING_ASSIGNMENT`, `INITIALIZING`, `QR_REQUIRED`, `CONNECTING`, `RECONNECTING`, `CONNECTED`, `DISCONNECTING`, `DISCONNECTED`, `LOGGED_OUT`, `ERROR`, `DELETING`, `DELETED`.
+  - Aksi sesi: `createSession`, `connectSession`, `disconnectSession`, `reconnectSession`, `deleteSession`.
+  - Modal pairing QR ephemeral via `GET /sessions/:id/qr` (`qr_data_url`) yang dibersihkan dari memori secara instan saat modal ditutup, komponen unmount, atau status sesi berubah menjadi `CONNECTED`.
+- **Pengiriman & Riwayat Pesan:**
+  - Header `Idempotency-Key` unik di-generate di sisi klien pada setiap pengiriman pesan untuk mencegah duplikasi.
+  - Normalisasi visual nomor tujuan WhatsApp (deteksi awalan `08...` dengan opsi 1-klik `628...`).
+  - Riwayat pesan terpaginasi dengan filter sesi, status (termasuk `UNKNOWN` dan `RECONCILIATION_REQUIRED`), rentang tanggal ISO, serta aksi `cancel` dan `retry` dengan konfirmasi risiko.
+- **Chats & Kontak WhatsApp:**
+  - Integrasi langsung ke endpoint `/api/v1/chats`, `/api/v1/chats/:id/messages`, dan `/api/v1/contacts`.
+  - Antarmuka obrolan 2 kolom dengan timeline percakapan interaktif dan form balasan cepat.
+  - Penanganan flag paginasi `meta.total_capped` ("10.000+").
+- **Webhook & API Key:**
+  - Webhook: CRUD endpoint, reveal-once dialog signing secret HMAC-SHA256, rotasi secret, toggle active, dan test ping per endpoint.
+  - API Key: Pemilihan scope granular valid dari `VALID_API_KEY_SCOPES` (tanpa wildcard `*`), reveal-once plain-text key dialog, dan pencabutan kunci.
+- **Kolaborasi Tim & Zero-Email Invites:**
+  - Manajemen anggota tim: pembaruan peran (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`), mutasi status, dan penghapusan anggota.
+  - Dialog berbagi undangan tanpa email: (1) Salin tautan undangan langsung, (2) Render QR Code di sisi klien menggunakan pustaka `qrcode`, (3) Kirim pesan undangan via tautan WhatsApp `wa.me` atau langsung melalui nomor WhatsApp Gateway yang aktif.
+  - Tombol terbit ulang tautan (`reissue`) dan pembatalan undangan (`revoke`).
+  - Halaman penerima undangan `/invite` (`InviteAcceptPage.tsx`) dengan registrasi anggota baru dan perpindahan workspace otomatis.
+- **Analitik Penggunaan & Konfigurasi Kuota:**
+  - Visualisasi ringkasan kuota dan throughput rate dari `/api/v1/usage/summary`.
+  - Grafik batang deret waktu volume pesan per hari/jam dari `/api/v1/usage/messages` dengan parameter zona waktu `tz=Asia/Jakarta`.
+  - Rincian performa sesi dari `/api/v1/usage/sessions`.
+  - Formulir alokasi batas kuota tenant (`/settings`) khusus `OWNER`, dibatasi nilai `minimums` dan `ceilings` serta menangani kode galat `LIMIT_BELOW_USAGE`.
+- **Log Audit Workspace:**
+  - Halaman `/audit-logs` khusus `OWNER` dan `ADMIN` untuk memantau jejak audit aktivitas administratif, filter aksi, dan paginasi.
+- **Sinkronisasi Realtime:**
+  - Socket.IO terhubung ke path `/api/v1/realtime` dengan handshake token auth, auto-reconnect cache invalidation, dan penanganan event `auth.expired` serta `realtime.resync`.
+- **Verifikasi Build:**
+  - `npm --prefix frontend run build` sukses 100% dengan 0 kesalahan TypeScript.
+
 ## Unreleased --- Backend Fase H2 (2026-11-19)
 
 -   Migrasi 0012--0013: `audit_logs` (append-only) dan pengetatan kebijakan pencatatan penerimaan undangan.

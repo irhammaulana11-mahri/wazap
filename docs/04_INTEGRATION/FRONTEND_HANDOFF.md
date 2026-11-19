@@ -259,7 +259,8 @@ aktifkan (`PATCH {"active": true}`). Lainnya: `POST /webhooks/:id/rotate-secret`
 ```
 
 Scope valid (tidak ada `*`): `sessions:read`, `sessions:write`, `messages:send`, `messages:read`, `contacts:read`, `webhooks:manage`, `usage:read`.
-`GET /api-keys` -> `{id, name, key_prefix, scopes, last_used_at, expires_at, revoked_at, created_at}` (tanpa `key`). Maks 20 key (`409 QUOTA_EXCEEDED`).
+`GET /api-keys` -> `{id, name, key_prefix, scopes, last_used_at, expires_at, revoked_at, created_at, created_by}` (tanpa `key`); `created_by` = `{user_id, email}` pembuat (untuk offboarding manual),
+`null` bila dibuat lewat API key atau pembuatnya sudah dihapus (basis data mengosongkannya; key yang dibuatnya sudah dicabut). Maks 20 key (`409 QUOTA_EXCEEDED`).
 Tampilkan `key` di dialog "salin sekarang", jangan simpan.
 
 ### 4.6 Tim (anggota dan undangan) --- hanya pengguna dashboard, OWNER/ADMIN kecuali disebut lain
@@ -289,6 +290,10 @@ Aturan izin (server menegakkan; UI menyembunyikan kontrol yang pasti ditolak):
 Galat: `403 CANNOT_MODIFY_SELF` (ubah peran/status akun sendiri; untuk keluar pakai `DELETE`), `403 FORBIDDEN` (di luar wewenang), `409 LAST_OWNER`
 ("Tenant harus memiliki minimal satu OWNER aktif": tidak bisa menurunkan/menangguhkan/menghapus/keluar sebagai OWNER terakhir; promosikan OWNER lain dulu),
 `404 NOT_FOUND`. Anggota `SUSPENDED` atau yang dihapus **kehilangan akses seketika** (token yang sama menjadi `401`); sampaikan ini di dialog konfirmasi.
+**Efek samping yang harus diberitahukan di dialog konfirmasi:** (1) **dihapus/keluar** => API key yang dibuat anggota itu ikut DICABUT seketika; ditangguhkan TIDAK mencabut key (cabut manual
+lewat daftar API key, yang menampilkan pembuatnya); (2) **dihapus, ditangguhkan, atau diturunkan perannya** => undangan tertunda yang ia buat otomatis DICABUT (status `REVOKED`; mengaktifkan ulang/menaikkan peran
+tidak menghidupkannya kembali, OWNER membuat undangan baru bila perlu). Keduanya tercatat di audit log (`invitation.revoked` dengan `details.reason` = `inviter_suspended|inviter_demoted|inviter_removed|inviter_left`;
+`member.removed|left` dengan `details.revoked_api_keys` berisi id key dan `details.revoked_invitations` berisi jumlah).
 
 **Undangan** (tanpa email otomatis: server hanya membuat token, **pengundang menyampaikannya sendiri**, mis. menyalin tautan):
 
@@ -342,7 +347,7 @@ Maksimal 92 hari (`400 INVALID_RANGE`). Data lebih tua dari masa retensi (180 ha
 `sessions` dan `queue` adalah **snapshot saat ini** (bukan untuk rentang). `sent` = SENT+DELIVERED+READ, `delivered` = DELIVERED+READ, `unknown` = UNKNOWN+RECONCILIATION_REQUIRED.
 `by_status` hanya memuat status yang punya data (bisa `{}`). `quotas.members.used` menghitung anggota + undangan tertunda.
 
-`GET /usage/messages?from&to&group_by=hour|day&tz=Asia/Jakarta&session_id=` (deret waktu untuk grafik; `tz` = nama IANA, default `UTC`; `group_by=hour` maks 7 hari):
+`GET /usage/messages?from&to&group_by=hour|day&tz=Asia/Jakarta&session_id=` (deret waktu untuk grafik; `tz` = **nama IANA** seperti `Asia/Jakarta` (ambil dari `Intl.DateTimeFormat().resolvedOptions().timeZone`), default `UTC`; **bentuk offset seperti `+07:00`/`UTC+7` ditolak `400`** karena tanda offset ditafsirkan terbalik oleh basis data; `group_by=hour` maks 7 hari):
 
 ```json
 { "success": true,
@@ -390,7 +395,7 @@ ekspor/penghapusan; jejak disimpan 365 hari. API key tidak dapat membaca audit (
 `PATCH /tenant/settings` (hanya **OWNER** dashboard) body strict, minimal satu kunci, bilangan bulat: `{max_sessions?, max_api_keys?, max_members?, messages_per_minute?}` -> objek seperti GET.
 UI: form dengan input angka yang dibatasi `minimums` dan `ceilings` dari respons GET (jangan hardcode), tampilkan `used` di samping batas, dan nonaktifkan form untuk peran selain OWNER (ADMIN/MEMBER/VIEWER hanya baca).
 Galat: `400 VALIDATION_ERROR` (di luar [minimum, ceiling] atau bukan bilangan bulat; `details[].path` = nama kunci), `409 LIMIT_BELOW_USAGE` (batas tidak boleh di bawah pemakaian saat ini: kurangi pemakaian dulu),
-`403` (bukan OWNER). Berlaku seketika; mengirim nilai yang sama = tidak ada perubahan. `ceilings` ditentukan operator server (tenant tidak dapat melampauinya); untuk batas lebih tinggi hubungi operator.
+`403` (bukan OWNER). Berlaku seketika; mengirim nilai yang sama dengan yang tersimpan = tidak ada perubahan (tetap sah walau operator menurunkan `ceilings` sesudahnya, sehingga formulir yang mengirim semua field tidak gagal). `ceilings` ditentukan operator server (tenant tidak dapat melampauinya); untuk batas lebih tinggi hubungi operator.
 `messages_per_minute` adalah perlindungan anti-ban: jelaskan di UI bahwa menaikkannya meningkatkan risiko nomor dibatasi WhatsApp. Perubahan tercatat di audit log (`settings.updated`).
 
 ## 5. Realtime (Socket.IO)

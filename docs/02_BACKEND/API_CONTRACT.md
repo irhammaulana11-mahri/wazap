@@ -446,3 +446,13 @@ oleh retensi (`RETENTION_AUDIT_DAYS`, default 365 hari).
 `minimums` = `{max_sessions:1, max_api_keys:0, max_members:1, messages_per_minute:1}`; `used` = `{sessions, api_keys, members}` (anggota + undangan tertunda; definisi sama dengan penolakan `QUOTA_EXCEEDED`).
 Nilai di luar [minimum, ceiling] => `400 VALIDATION_ERROR` (`details[].path` = nama kunci); di bawah pemakaian saat ini untuk sesi/API key/anggota => `409 LIMIT_BELOW_USAGE`.
 Berlaku seketika; satu nilai tidak sah membatalkan seluruh permintaan; mengirim nilai yang sama = tidak ada perubahan dan tidak dicatat audit. Kode galat baru: `LIMIT_BELOW_USAGE` 409.
+
+## Pembaruan hasil code-review (2026-11-20)
+
+-   `GET /api-keys`: item kini memuat `created_by: {user_id, email} | null`.
+-   **Hapus/keluar anggota** mencabut API key yang dibuat anggota itu (dicabut SEBELUM keanggotaan dihapus: FK `created_by_user_id` berstatus `ON DELETE SET NULL`); ditangguhkan tidak mencabut key.
+    Audit `member.removed|left` memuat `details.revoked_api_keys` (id) dan `details.revoked_invitations` (jumlah).
+-   Undangan tertunda milik anggota yang dihapus, ditangguhkan, atau diturunkan perannya otomatis dicabut (`invitation.revoked`, `details.reason` = `inviter_suspended|inviter_demoted|inviter_removed|inviter_left`).
+-   `POST /team/invitations/:id/reissue` pada undangan KEDALUWARSA memeriksa kuota anggota seperti undangan baru (`409 QUOTA_EXCEEDED` bila penuh).
+-   `GET /usage/messages?tz=`: hanya nama IANA (atau `UTC`); bentuk offset (`+07:00`, `UTC+7`) => `400`.
+-   `PATCH /tenant/settings`: nilai yang sama dengan yang tersimpan diabaikan (tidak divalidasi terhadap ceiling) dan tidak tercatat di audit. Kunci `max_api_keys` kini tercatat di `details.changes` (sebelumnya terbuang oleh filter rahasia).

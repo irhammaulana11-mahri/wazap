@@ -328,3 +328,12 @@ Server tidak mengirim email. Pengundang mendapat `token` + `invite_url` sekali t
 melalui sesi tenant sendiri (`POST /messages/send`; token di payload antrean ikut dihapus retensi 30 hari dan token kedaluwarsa 7 hari), atau (4) tautan `wa.me` pada perangkat pengundang. Tautan
 hilang diatasi `POST /team/invitations/:id/reissue` (token lama hangus). `invite_url` dibangun dari `DASHBOARD_BASE_URL` (config), bukan dari header klien, dan membawa token di FRAGMEN (`#token=`) agar tidak dikirim ke server dashboard (tidak masuk access log Nginx/Referer; frontend menghapusnya dari address bar setelah dibaca) (mencegah tautan beracun lewat `Host`/`Origin` palsu).
 Risiko: siapa pun yang memegang tautan dan akun dengan email yang diundang dapat bergabung; tautan yang dikirim lewat kanal tidak aman dapat disadap (terbatas oleh pengikatan email dan kedaluwarsa).
+
+## ADR-035 --- Offboarding anggota: pencabutan undangan dan API key
+
+**Status:** Accepted (pemilik proyek, 2026-11-20; hasil code-review)\
+(1) **Undangan tertunda** yang dibuat anggota dicabut otomatis bila ia dihapus, ditangguhkan, atau diturunkan perannya (promosi tidak mencabut; mengaktifkan ulang tidak menghidupkan kembali): undangan tidak boleh hidup lebih lama
+daripada wewenang pembuatnya. Pemeriksaan wewenang saat penerimaan tidak mungkin karena penerima belum anggota dan RLS menutup pembacaan keanggotaan tenant, sehingga pencabutan dilakukan saat perubahan terjadi.
+(2) **API key** yang dibuat anggota dicabut saat ia DIHAPUS atau KELUAR; saat hanya DITANGGUHKAN key tetap hidup (penangguhan dapat bersifat sementara) dan daftar API key menampilkan pembuatnya agar dapat dicabut manual.
+Pencabutan key harus dilakukan sebelum keanggotaan dihapus (FK `ON DELETE SET NULL` mengosongkan pembuat; ditemukan oleh tes). Semuanya dicatat di audit. **Belum dicakup:** key buatan anggota yang ditangguhkan tidak dicabut
+otomatis; key tidak punya pemilik setelah pembuatnya dihapus sehingga tidak dapat ditelusuri dari daftar (hanya dari audit).

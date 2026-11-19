@@ -499,3 +499,17 @@ Diuji pemilik proyek terhadap sesi nyata (server dev, nomor gateway + satu HP la
 -   **Tindak lanjut (2026-11-19):** `invite_url` kini memakai fragmen (`#token=`) sesuai saran yang disetujui pemilik proyek, sehingga token tidak dikirim ke server dashboard dan tidak
     masuk access log Nginx/Referer. Kontrak untuk frontend berubah (halaman `/invite` membaca `location.hash` lalu menghapusnya dari address bar); `FRONTEND_HANDOFF.md` dan
     `FRONTEND_AGENT_PROMPT.md` diperbarui. Tes `audit.test.ts` kini memastikan tautan tanpa query string.
+
+## Code review (tingkat high) dan perbaikannya (2026-11-20)
+
+-   Status: **REVIEW** (review kode otomatis selesai dan temuan ditindaklanjuti; `/security-review` belum dijalankan).
+-   Temuan (8) dan tindakan: #5 zona waktu offset salah 14 jam (terbukti: 12:00 UTC -> 05:00; diperbaiki: hanya nama IANA yang dikenal PostgreSQL), #2 reissue melewati kuota (terbukti; kuota diperiksa saat
+    menghidupkan undangan kedaluwarsa), #3 undangan melampaui wewenang pembuat (dicabut otomatis), #4 API key anggota yang dihapus (dicabut saat dihapus/keluar; sebagian valid: skenario scope `*` tidak mungkin tetapi
+    masalah intinya benar), #1 audit membuang `max_api_keys` (terbukti; filter memakai batas kata), #8 PATCH kuota menolak nilai lama setelah ceiling turun (nilai yang sama = no-op), #7 helper terduplikasi
+    (`team/team-lock.ts` + tes pemindai sumber), #6 dokumentasikan saja (diterima).
+-   Keputusan pemilik proyek: perbaiki yang jelas; API key dicabut saat DIHAPUS (bukan saat ditangguhkan); undangan dicabut otomatis (ADR-035).
+-   **Bug ditemukan saat memperbaiki:** pencabutan key awalnya tidak bekerja karena FK `api_keys(tenant_id, created_by_user_id) -> tenant_memberships ... ON DELETE SET NULL` mengosongkan pembuat saat keanggotaan
+    dihapus, dan pencabutan saya berjalan sesudahnya. Diperbaiki dengan mencabut SEBELUM menghapus; konsekuensi: `created_by` bernilai `null` untuk key anggota yang sudah dihapus (jejak id ada di audit).
+-   Tests: typecheck OK; `npm test` **238/238** (230 -> 238: `test/review-fixes.test.ts`), stabil 2 kali.
+-   Masih terbuka: `/security-review`; keputusan apakah kuota efektif harus dipotong ke ceiling yang diturunkan; perubahan belum di-commit ke cabang bersih.
+-   Documents updated: API_CONTRACT, DECISION_LOG (ADR-035), SECURITY_POLICY, FRONTEND_HANDOFF, TEST_PLAN, BACKEND_PROGRESS, CHANGELOG.

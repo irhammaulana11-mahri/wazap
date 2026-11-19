@@ -283,3 +283,48 @@ diganti indeks komposit `(status, dispatched_at)` (~0,6 ms), migrasi 0010. Ini b
     mematikan kredensial lama (menghapus berkas di SSD tidak menjamin datanya hilang).
 5.  **Urutan berikutnya:** staging di server target -> integrasi frontend (dibangun ulang oleh agent frontend) -> uji beban/ketahanan
     di staging sebelum tenant sungguhan masuk.
+
+## ADR-030 --- Tim: undangan bertoken, email anggota disalin, pemisahan wewenang
+
+**Status:** Accepted (pemilik proyek menyetujui Team API, 2026-11-19; Fase H)\
+Anggota bergabung HANYA lewat undangan: token acak 256-bit sekali pakai (hanya hash disimpan, berlaku 7 hari), terikat pada email dan peran. Dipilih daripada "tambah
+pengguna langsung berdasarkan email" karena tidak membocorkan apakah sebuah email terdaftar dan memerlukan persetujuan penerima. Tanpa layanan email: pengundang
+menyampaikan token sendiri (frontend membuat tautan). Penerima login dengan akunnya sendiri (workspace pribadinya tetap ada), menerima, lalu `POST /auth/switch-tenant`.
+Wewenang: OWNER mengelola semua; ADMIN hanya MEMBER/VIEWER; tidak ada eskalasi (peran yang boleh diberikan = peran yang boleh dikelola); tidak dapat mengubah akun sendiri;
+tenant selalu memiliki >= 1 OWNER aktif. Peran aktor dibaca ulang di dalam advisory lock per tenant. Email anggota disalin ke `tenant_memberships.member_email` agar kebijakan
+RLS `users` (yang melindungi `password_hash`) tidak dilonggarkan. Semua kegagalan token dijawab seragam. API key tidak dapat mengelola tim. Belum ada: audit log perubahan tim,
+email undangan otomatis, transfer kepemilikan khusus (dilakukan dengan mempromosikan OWNER lain lalu menurunkan yang lama).
+
+## ADR-031 --- Semantik metrik penggunaan
+
+**Status:** Accepted (Fase H)\
+Pesan keluar dihitung menurut `created_at` (saat diantrekan) dengan status SAAT INI (bukan riwayat status); pesan masuk menurut `created_at` (saat diterima gateway); rentang
+`[from, to)`, maks 92 hari, default 24 jam. Sesi/antrean/kuota adalah snapshot, bukan untuk rentang. Deret waktu per jam/hari pada zona waktu IANA yang diminta klien, bucket kosong
+diisi nol, `bucket` = instan UTC awal periode lokal. Data di luar masa retensi (180 hari) tidak ada, sehingga laporan jangka panjang butuh ekspor/agregat terpisah (belum ada).
+Filter `from`/`to` pada `GET /messages` memakai semantik rentang yang sama.
+
+## ADR-032 --- Audit log perubahan tim dan pengaturan
+
+**Status:** Accepted (pemilik proyek, 2026-11-19; Fase H2)\
+Tabel `audit_logs` append-only, dibaca OWNER/ADMIN, ditulis di dalam transaksi perubahan (atomik). Hanya perubahan yang berhasil dan benar-benar mengubah sesuatu yang dicatat
+(bukan penolakan/no-op). Menyimpan: aksi, pelaku (id + email + peran saat kejadian), sasaran, detail sebelum/sesudah, IP koneksi, `request_id`. Tidak menyimpan token/rahasia. IP adalah
+data pribadi: dipertahankan `RETENTION_AUDIT_DAYS` (365 hari) lalu dihapus. Pelaku tidak bisa menghapus/mengubah jejak (tenant maupun platform lewat jalur aplikasi); satu-satunya penghapusan
+adalah retensi oleh konteks platform. **Belum dicakup:** aksi sesi/pesan/webhook/API key (kerangka `recordAudit` dapat dipakai ulang), audit login/akses, jaminan anti-manipulasi terhadap
+operator database (pemilik tabel/superuser dapat mengubah baris; tanpa rantai hash atau penyimpanan eksternal).
+
+## ADR-033 --- Kuota tenant dapat diubah OWNER dalam batas atas global (ceiling)
+
+**Status:** Accepted, DIKONFIRMASI pemilik proyek 2026-11-19 ("baiknya seperti itu dulu": OWNER mengubah dalam ceiling env; ceiling bawaan 10/50/50/120; nilai ceiling produksi ditinjau sebelum produksi)\
+`PATCH /tenant/settings` hanya untuk OWNER dan hanya dalam [minimum, ceiling] dengan ceiling dari env operator (`LIMIT_CEIL_*`). Alasan: kuota juga berfungsi sebagai perlindungan
+anti-ban/anti-penyalahgunaan (khususnya `messages_per_minute`); tenant yang dapat menaikkan tanpa batas menghapus perlindungan itu, sedangkan API operator terpisah (kredensial admin) akan
+menambah permukaan serangan baru dan belum ada peran platform-admin. Konsekuensi: operator memperketat dengan menyamakan ceiling dengan nilai bawaan (kuota efektif tidak bisa dinaikkan tenant)
+atau melonggarkan dengan menaikkan ceiling; mengubah satu tenant di luar ceiling hanya lewat basis data/skrip operator. Tidak boleh di bawah pemakaian saat ini (sesi, API key, anggota + undangan).
+Perubahan berlaku seketika dan diaudit (`settings.updated`).
+
+## ADR-034 --- Undangan tanpa email: tautan, terbit ulang, dan jalur bagikan di klien
+
+**Status:** Accepted (pemilik proyek: "tidak usah email undangan, gunakan metode lain"; Fase H2)\
+Server tidak mengirim email. Pengundang mendapat `token` + `invite_url` sekali tampil dan membagikannya lewat salah satu: (1) salin tautan, (2) QR dari tautan (dibuat di klien), (3) kirim lewat WhatsApp
+melalui sesi tenant sendiri (`POST /messages/send`; token di payload antrean ikut dihapus retensi 30 hari dan token kedaluwarsa 7 hari), atau (4) tautan `wa.me` pada perangkat pengundang. Tautan
+hilang diatasi `POST /team/invitations/:id/reissue` (token lama hangus). `invite_url` dibangun dari `DASHBOARD_BASE_URL` (config), bukan dari header klien, dan membawa token di FRAGMEN (`#token=`) agar tidak dikirim ke server dashboard (tidak masuk access log Nginx/Referer; frontend menghapusnya dari address bar setelah dibaca) (mencegah tautan beracun lewat `Host`/`Origin` palsu).
+Risiko: siapa pun yang memegang tautan dan akun dengan email yang diundang dapat bergabung; tautan yang dikirim lewat kanal tidak aman dapat disadap (terbatas oleh pengikatan email dan kedaluwarsa).

@@ -103,3 +103,19 @@
 -   `GET /messages` dan `/chats`: bila `meta.total_capped=true`, tampilkan "10.000+" alih-alih angka eksak; paginasi tetap berfungsi.
 -   Webhook dapat dinonaktifkan otomatis: tampilkan `disabled_reason` dan tombol aktifkan ulang (`PATCH {active:true}`).
 -   Socket.IO dan semua endpoint tetap sama; header keamanan baru tidak mengubah kontrak.
+
+## Serah-terima untuk Frontend (2026-11-19)
+
+Peta migrasi kontrak lama -> baru, alur auth/refresh, status sesi/pesan, alur QR, daftar endpoint yang belum ada (`team`, `usage`),
+dan contoh respons nyata ada di `docs/04_INTEGRATION/FRONTEND_HANDOFF.md`. Penyebab login frontend gagal: body `{username,password}`
+dan respons `{token}` (kontrak prototipe) vs kontrak baru `{email,password}` -> `data.access_token`.
+
+## Pembaruan Fase H untuk Frontend/Integration
+
+Team API (anggota, undangan, terima undangan), `POST /auth/switch-tenant`, Usage API (`/usage/summary|messages|sessions`), dan filter `GET /messages?from&to` kini tersedia ---
+kontrak dan contoh respons nyata di `FRONTEND_HANDOFF.md` bagian 4.6 dan 4.7. Mock `getTeamMembers`/`getUsageSummary` harus diganti. Gap yang tersisa: bagian 6 dokumen itu.
+
+## Pembaruan Fase H2 untuk Frontend/Integration
+
+Audit log (`GET /audit-logs`), pengaturan/kuota tenant (`GET|PATCH /tenant/settings`), terbit ulang undangan (`POST /team/invitations/:id/reissue`), dan `invite_url` kini tersedia; undangan
+TIDAK dikirim lewat email (bagikan tautan lewat salin/QR/WhatsApp). Kontrak dan contoh: `FRONTEND_HANDOFF.md` bagian 4.6, 4.8, 4.9.

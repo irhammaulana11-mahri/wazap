@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased --- Backend Fase H2 (2026-11-19)
+
+-   Migrasi 0012--0013: `audit_logs` (append-only) dan pengetatan kebijakan pencatatan penerimaan undangan.
+-   Endpoint baru: `GET /audit-logs`, `GET|PATCH /tenant/settings`, `POST /team/invitations/:id/reissue`. Respons undangan memuat `invite_url`. Kode galat baru: `LIMIT_BELOW_USAGE`.
+-   Keputusan: undangan TANPA email (tautan/QR/WhatsApp via sesi tenant), audit log tim + kuota, kuota dapat diubah OWNER dalam batas atas global (`LIMIT_CEIL_*`).
+-   `invite_url` memakai fragmen (`/invite#token=...`) agar token tidak masuk access log; `DASHBOARD_BASE_URL` divalidasi (http(s) tanpa kredensial/query/fragment; https di production).
+-   Env baru: `DASHBOARD_BASE_URL`, `RETENTION_AUDIT_DAYS`, `LIMIT_CEIL_SESSIONS|API_KEYS|MEMBERS|MESSAGES_PER_MINUTE`.
+-   Tes: 227 lulus (15 baru) + 9 validasi performa.
+
+## Unreleased --- Backend Fase H (2026-11-19)
+
+-   Migrasi 0011: `tenant_invitations`, `tenant_memberships.member_email`, `tenant_settings.max_members`, indeks `idx_wa_messages_tenant_in`.
+-   Endpoint baru: `/team/members` (GET/PATCH/DELETE), `/team/invitations` (GET/POST/DELETE) + `/team/invitations/accept`, `POST /auth/switch-tenant`,
+    `/usage/summary`, `/usage/messages`, `/usage/sessions`. `GET /messages` menerima `from`/`to` (rentang `created_at`, `from` inklusif, `to` eksklusif).
+-   Kode galat baru: `INVALID_RANGE`, `CANNOT_MODIFY_SELF`, `INVALID_INVITATION`, `LAST_OWNER`, `ALREADY_MEMBER`, `INVITATION_EXISTS`. Env baru: `TEAM_INVITATION_TTL_HOURS`.
+-   Frontend: mock `team`/`usage` dapat diganti endpoint nyata; lihat `docs/04_INTEGRATION/FRONTEND_HANDOFF.md` dan `docs/08_AI_AGENTS/FRONTEND_AGENT_PROMPT.md` (diperbarui).
+-   Tes: 212 lulus (19 baru) + 8 validasi performa.
+
 ## Unreleased --- Backend Fase G (2026-11-19)
 
 -   Migrasi 0009 (circuit breaker webhook) dan 0010 (indeks komposit outbox, hasil validasi EXPLAIN).

@@ -121,3 +121,22 @@ manual deployment action.
 -   Tidak ada aksi manual. Diterapkan ke dev 2026-11-19. Tes: `npm run test:perf`.
 -   Catatan operasional: pada tabel `outbox_events` sangat besar, `CREATE INDEX` mengunci tulis selama pembuatan; di produksi
     pertimbangkan `CREATE INDEX CONCURRENTLY` di luar transaksi migrasi.
+
+### 0011 --- `backend/src/database/migrations/0011_team_usage.sql`
+
+-   `tenant_memberships.member_email` (+ backfill dari `users` dengan mematikan FORCE RLS sebentar di dalam transaksi migrasi); `tenant_settings.max_members`
+    (default 10); tabel `tenant_invitations` (hanya hash token) dengan RLS; kebijakan INSERT `memberships_insert_invited`; indeks `idx_wa_messages_tenant_in`.
+-   Tidak ada aksi manual. Diterapkan ke dev saat server restart berikutnya (idempoten). **Catatan produksi:** backfill membutuhkan pemilik tabel (role migrator);
+    `ALTER TABLE ... NO FORCE` membutuhkan kepemilikan.
+-   Tes: `test/team.test.ts` (10), `test/usage.test.ts` (9), `test/security.test.ts` (cakupan RLS otomatis), `npm run test:perf`.
+
+### 0012 --- `backend/src/database/migrations/0012_audit_logs.sql`
+
+-   Tabel `audit_logs` (append-only: trigger melarang UPDATE; DELETE hanya platform/cascade; RLS: tenant SELECT/INSERT, platform SELECT/DELETE, tanpa kebijakan UPDATE) + kebijakan
+    INSERT `audit_insert_accept`. Indeks `(tenant_id, created_at DESC, id DESC)`, `(tenant_id, action, created_at DESC)`, `(created_at)`.
+-   Diterapkan ke dev 2026-11-19. Tes: `test/audit.test.ts`, `test/security.test.ts` (cakupan RLS), `npm run test:perf`.
+
+### 0013 --- `backend/src/database/migrations/0013_audit_accept_policy.sql`
+
+-   Memperketat `audit_insert_accept`: selain token, email akun pencatat harus sama dengan email undangan (cegah pemegang token memalsukan catatan "undangan diterima").
+    Migrasi baru karena 0012 sudah diterapkan (migrasi lama tidak boleh diedit). Tes: `test/audit.test.ts`.

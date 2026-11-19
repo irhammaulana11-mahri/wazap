@@ -245,3 +245,25 @@ konfigurasi default (shared_buffers 128MB), satu koneksi, mesin dev. **Bukan ben
 Tindakan: `count(*)` eksak dibatasi (ADR-027); indeks outbox diganti (migrasi 0010). Throughput dasar (1 koneksi, 1 proses):
 enqueue ~7 ms/pesan (~140/dtk sekuensial), relay outbox ~1,8 ms/event (~555/dtk). Belum diukur: klaim+kirim paralel
 banyak sesi, banyak koneksi, beban campuran, dan pompa polling (satu query per sesi CONNECTED per `QUEUE_POLL_MS`).
+
+## 14. Fase H: tim dan penggunaan (migrasi 0011)
+
+-   **Email anggota disalin ke `tenant_memberships.member_email`** karena kebijakan RLS `users` hanya mengizinkan baris milik sendiri dan baris itu memuat
+    `password_hash`; melonggarkannya agar daftar tim bisa membaca `users` akan membuka hash kata sandi anggota lain di tingkat SQL. Konsekuensi: email harus
+    ditulis di setiap jalur pembuatan keanggotaan (register, terima undangan); baris lama diisi lewat backfill migrasi.
+-   **Undangan:** hanya hash token disimpan; penerima dapat menemukan undangan hanya lewat konteks `app.invite_hash` (pola yang sama dengan `api_keys`/`refresh_tokens`).
+    Pembuatan keanggotaan lintas-tenant oleh penerima diizinkan HANYA oleh satu kebijakan INSERT yang memeriksa token, email akun, dan peran. Kuota anggota diperiksa
+    saat undangan dibuat (anggota + tertunda), sehingga tidak perlu menghitung anggota tenant lain saat menerima (yang memang diblokir RLS).
+-   **Metrik penggunaan:** memakai `idx_message_queue_tenant_list (tenant_id, created_at DESC, id)` untuk pesan keluar dan indeks baru
+    `idx_wa_messages_tenant_in (tenant_id, created_at) WHERE direction='IN'` untuk pesan masuk. Validasi EXPLAIN pada tenant ~50 ribu pesan (jendela 30 hari ~3,7 ribu baris):
+    agregat per status 7,7 ms, masuk 5,4 ms, per sesi 5,9 ms, deret harian 6,7 ms; layanan end-to-end `summary` 40 ms, deret harian 15 ms, deret jam 6 ms, per sesi 13 ms.
+    Biaya tumbuh linear terhadap jumlah pesan dalam rentang (maks 92 hari); belum diuji dengan tenant berjuta pesan per jendela.
+
+## 15. Fase H2: audit log dan kuota (migrasi 0012--0013)
+
+-   `audit_logs` ditulis di dalam transaksi yang sama dengan perubahannya (`recordAudit`): perubahan dan jejaknya atomik. Kunci bernuansa rahasia dibuang secara defensif.
+    Tabel append-only: tidak ada kebijakan UPDATE (UPDATE mengenai 0 baris) dan trigger melarang UPDATE/DELETE di luar platform; DELETE oleh platform dipakai retensi.
+    Penyapu retensi audit TIDAK memakai `FOR UPDATE` (baris tak dapat dikunci tanpa kebijakan UPDATE; ditemukan oleh tes retensi).
+-   Validasi EXPLAIN pada 100 ribu baris audit satu tenant: daftar terbaru 0,06 ms, filter aksi 0,21 ms, rentang waktu 0,05 ms (`idx_audit_tenant_time`); penyapu retensi memakai `idx_audit_created`.
+-   Kuota tenant tetap kolom `tenant_settings` (`max_sessions`, `max_api_keys`, `max_members`, `messages_per_minute`); tidak ada tabel baru. Rentang sah dijaga aplikasi
+    ([minimum, ceiling env]); CHECK basis data hanya `>= 0`/`>= 1`.

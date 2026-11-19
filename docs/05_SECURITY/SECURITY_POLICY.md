@@ -106,3 +106,23 @@
     selama masa retensi (ADR-022); (4) kunci enkripsi master hanya di environment (kehilangan = semua sesi pair ulang;
     belum ada integrasi KMS/secret manager); (5) tipe konten media dipercaya dari header; (6) belum ada pemindaian
     SAST/DAST, uji penetrasi, maupun uji beban multi-koneksi; (7) `schema_migrations` tidak berRLS (hanya metadata).
+
+## Implementasi (Fase H)
+
+-   **Tim:** keanggotaan lintas-tenant hanya lewat undangan yang dijaga kebijakan RLS (token + email akun + peran harus cocok; diuji langsung di SQL: penyusup tanpa token,
+    token milik orang lain, eskalasi peran, dan pendaftaran pengguna lain semuanya ditolak). Token undangan 256-bit, hanya hash disimpan, sekali pakai, kedaluwarsa 7 hari, dibatasi
+    10 percobaan/15 menit/pengguna; kegagalan dijawab seragam (tidak ada oracle). Wewenang ADMIN dibatasi; OWNER terakhir terlindungi; perubahan diserialkan per tenant dan peran aktor dibaca ulang
+    di dalam lock. Anggota ditangguhkan/dihapus kehilangan akses seketika (access token diverifikasi ulang tiap permintaan; socket dalam <= 30 detik).
+-   **Isolasi kredensial:** daftar tim tidak membaca tabel `users` (email disalin ke keanggotaan) sehingga `password_hash` anggota lain tetap tidak terjangkau dari konteks tenant.
+-   **`switch-tenant`:** hanya ke keanggotaan AKTIF milik sendiri; family refresh lama dicabut; API key tidak dapat memakainya.
+-   **Risiko tersisa:** belum ada audit log perubahan tim; token undangan yang bocor sebelum dipakai (terikat pada email, jadi hanya pemilik email itu yang bisa memakainya, tetapi siapa pun
+    yang menguasai akun email itu dapat); tidak ada email undangan sehingga penyampaian token adalah tanggung jawab pengundang; `member_email` adalah salinan (tidak ada fitur ganti email saat ini).
+
+## Implementasi (Fase H2)
+
+-   **Audit log:** append-only, atomik dengan perubahan, tanpa rahasia (tes memeriksa token mentah dan hash tidak pernah muncul), hanya OWNER/ADMIN dashboard yang dapat membaca; pencatatan "undangan diterima"
+    dijaga RLS (token + email akun harus cocok; pemalsuan oleh pemegang token ditolak di SQL). Penghapusan hanya retensi platform (`RETENTION_AUDIT_DAYS`). IP pelaku disimpan (data pribadi, dibatasi retensi).
+    **Risiko tersisa:** operator database/pemilik tabel dapat mengubah jejak (tanpa rantai hash/penyimpanan eksternal); belum mencakup aksi sesi/pesan/webhook/API key dan login.
+-   **Kuota:** OWNER dapat mengubah kuota hanya dalam [minimum, ceiling env]; peran dibaca ulang di dalam lock; ADMIN/MEMBER/VIEWER dan API key ditolak. **Risiko tersisa:** OWNER yang kredensialnya dibobol dapat menaikkan
+    kuota sampai ceiling (terbatas dan tercatat di audit); ceiling bawaan (sesi 10, pesan/menit 120) adalah nilai awal, bukan hasil pengukuran risiko ban --- tinjau sebelum produksi.
+-   **Undangan tanpa email:** `invite_url` dibangun dari konfigurasi server (bukan header klien); terbit ulang menghanguskan token lama.

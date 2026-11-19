@@ -73,3 +73,14 @@ Diuji otomatis di `test/security.test.ts`: cakupan RLS seluruh schema (tabel bar
 terlindungi, tanpa kebijakan `USING (true)`, tanpa fungsi SECURITY DEFINER, role runtime bukan superuser/BYPASSRLS. Batas laju per
 tenant terisolasi (tenant B tidak ikut terblokir; ganti IP tidak menghindari batas tenant). `test/e2e.test.ts` menjalankan jalur lengkap
 dengan dua tenant: tenant B tidak menerima event socket/webhook tenant A, tidak dapat membaca QR/chat/pesan/mengirim lewat sesi A.
+
+## Status implementasi (Fase H)
+
+Diuji: tenant lain tidak dapat melihat/mengubah/menghapus anggota atau undangan tenant ini (404/kosong) maupun menyelinap lewat SQL; hanya pemilik email + token yang sah yang dapat
+membuat keanggotaan di tenant pengundang; kebijakan RLS mencegah eskalasi peran dan pendaftaran pengguna lain; metrik penggunaan dan filter tanggal hanya mengembalikan data tenant
+sendiri (sesi tenant lain dalam `session_id` menghasilkan nol, bukan kebocoran); `tenant_invitations` tidak dapat dibaca platform.
+
+## Status implementasi (Fase H2)
+
+Diuji: jejak audit tenant lain tidak terbaca/ditulis/diubah/dihapus (RLS); tenant tidak dapat memalsukan jejak untuk tenant lain atau atas nama pengguna lain; pemegang token undangan berakun lain tidak dapat
+mencatat penerimaan; perubahan kuota satu tenant tidak memengaruhi tenant lain.

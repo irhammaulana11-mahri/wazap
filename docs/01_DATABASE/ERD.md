@@ -101,3 +101,22 @@ erDiagram
 
 `outbox_events` tidak punya FK ke agregat (event harus bertahan lebih lama dari
 baris sumber). Invarian lintas-tenant ditegakkan composite FK dan RLS.
+
+## Pembaruan Fase H
+
+``` mermaid
+erDiagram
+    TENANTS ||--o{ TENANT_INVITATIONS : "tenant_id"
+    USERS ||--o{ TENANT_INVITATIONS : "invited_by / accepted_by (SET NULL)"
+```
+
+`tenant_invitations` tidak mereferensi `tenant_memberships`: keanggotaan baru dibuat saat undangan diterima, dijaga kebijakan RLS (token + email + peran harus cocok).
+
+## Pembaruan Fase H2
+
+``` mermaid
+erDiagram
+    TENANTS ||--o{ AUDIT_LOGS : "tenant_id (cascade)"
+```
+
+`audit_logs.actor_user_id` sengaja bukan FK ke `users` agar jejak tetap utuh bila akun dihapus.

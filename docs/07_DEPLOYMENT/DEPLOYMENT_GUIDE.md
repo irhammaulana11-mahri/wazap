@@ -79,3 +79,11 @@ bukan di berkas ecosystem PM2 yang di-commit:
 2.  Catat sidik jari (bukan rahasia): `grep ^CREDENTIAL_ENCRYPTION_KEYS= .env | cut -d= -f2- | sha256sum`. Salinan valid bila sidik jarinya sama.
 3.  Cadangan database dan kunci disimpan di TEMPAT BERBEDA. Kehilangan kunci = semua sesi harus dipair ulang (data pesan/tenant tidak hilang).
 4.  Latih `npm run keys:rotate -- --dry-run` lalu rotasi nyata di staging sekali.
+
+## Alamat dashboard dan batas atas kuota (Fase H2)
+
+-   `DASHBOARD_BASE_URL`: alamat dashboard yang dibuka pengguna di browser (domain yang dilayani Nginx untuk frontend), mis. `https://wa.contoh.co.id`. Bukan alamat API
+    (`127.0.0.1:3000`) dan bukan server dev Vite. Wajib `https` di production (server menolak start bila tidak). Bila dashboard di subpath, sertakan subpathnya dan pastikan rute `/invite`
+    dilayani di sana. Tautan undangan yang dihasilkan: `<DASHBOARD_BASE_URL>/invite#token=...`. Token ada di fragmen (`#`) sehingga TIDAK dikirim browser ke Nginx (tidak masuk access log atau Referer);
+    token juga sekali pakai, terikat email, dan kedaluwarsa 7 hari. Frontend wajib menghapus token dari address bar setelah dibaca (lihat FRONTEND_HANDOFF bagian 4.6).
+-   `LIMIT_CEIL_*`: batas atas kuota yang dapat diatur OWNER (bawaan 10/50/50/120; ADR-033). Tinjau sebelum produksi. Menyamakan dengan nilai bawaan tenant (3/20/10/60) membuat kuota efektif hanya dapat diubah operator.

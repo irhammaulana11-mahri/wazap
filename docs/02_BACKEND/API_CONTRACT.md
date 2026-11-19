@@ -372,3 +372,77 @@ event webhook/realtime `session.status`.
 -   **Webhook:** objek endpoint kini memuat `consecutive_failures`, `disabled_at`, `disabled_reason`
     (`AUTO_CONSECUTIVE_FAILURES` bila dinonaktifkan otomatis setelah 10 delivery DEAD berturut-turut). Aktifkan ulang dengan
     `PATCH /webhooks/:id {"active":true}` (mereset penanda).
+
+## Implementasi Fase H (2026-11-19): tim, penggunaan, filter tanggal, pindah workspace
+
+Semua respons memakai envelope standar. Contoh respons nyata: `docs/04_INTEGRATION/FRONTEND_HANDOFF.md` bagian 4.6 dan 4.7.
+
+### Tim (hanya pengguna dashboard; API key ditolak 403)
+
+| Method | Path | Peran | Keterangan |
+|---|---|---|---|
+| GET | `/team/members` | OWNER, ADMIN | paginated; `{user_id, email, role, status, joined_at, is_me}` |
+| PATCH | `/team/members/:userId` | OWNER, ADMIN | body strict `{role?, status?: ACTIVE\|SUSPENDED}` (minimal satu) |
+| DELETE | `/team/members/:userId` | semua peran (batas izin di bawah) | hapus anggota; menghapus diri sendiri = keluar |
+| GET | `/team/invitations` | OWNER, ADMIN | paginated; `?status=PENDING\|ACCEPTED\|REVOKED\|EXPIRED`; tanpa token |
+| POST | `/team/invitations` | OWNER, ADMIN | body `{email, role=MEMBER}` -> 201 + `token` SEKALI (`Cache-Control: no-store`), berlaku 7 hari |
+| DELETE | `/team/invitations/:id` | OWNER, ADMIN | cabut (idempoten); 409 bila sudah diterima |
+| POST | `/team/invitations/accept` | semua pengguna dashboard | body `{token}` -> `{tenant:{id,name,slug}, role}`; email akun harus = email undangan |
+| POST | `/auth/switch-tenant` | semua pengguna dashboard | body `{tenant_id}` -> sama seperti login + cookie refresh baru (family lama dicabut) |
+
+Izin: OWNER mengelola semua anggota dan boleh memberi semua peran (termasuk OWNER); ADMIN hanya mengelola dan memberi MEMBER/VIEWER; MEMBER/VIEWER tidak
+mengelola (hanya keluar sendiri). Tidak dapat mengubah peran/status akun sendiri (`CANNOT_MODIFY_SELF`). Tenant tidak boleh kehilangan OWNER aktif terakhir
+(`LAST_OWNER`: menurunkan, menangguhkan, menghapus, atau keluar). Anggota SUSPENDED/dihapus kehilangan akses seketika. Peran aktor dibaca ulang di dalam lock
+transaksi (bukan dari token) sehingga permintaan bersamaan tidak dapat melewati aturan. Kuota: anggota + undangan tertunda <= `tenant_settings.max_members` (default 10).
+Terima undangan: semua kegagalan token dijawab sama (`404 INVALID_INVITATION`); 10 percobaan/15 menit per pengguna.
+
+Kode galat baru: `INVALID_RANGE` 400, `CANNOT_MODIFY_SELF` 403, `INVALID_INVITATION` 404, `LAST_OWNER` 409, `ALREADY_MEMBER` 409, `INVITATION_EXISTS` 409.
+
+### Penggunaan (`usage:read` untuk API key; semua peran dashboard)
+
+| Method | Path | Respons |
+|---|---|---|
+| GET | `/usage/summary?from&to` | `{period, sessions, messages, incoming, queue, quotas}` |
+| GET | `/usage/messages?from&to&group_by=hour\|day&tz=&session_id=` | deret `[{bucket, total, sent, delivered, read, failed, incoming}]` + `meta`; bucket kosong diisi nol |
+| GET | `/usage/sessions?from&to` | `[{session_id, session_name, status, outgoing, failed, incoming}]` |
+
+Rentang `[from, to)`: ISO-8601 dengan offset, default 24 jam terakhir, maks 92 hari (`group_by=hour` maks 7 hari). Pesan keluar menurut `created_at` dan status saat ini;
+pesan masuk menurut `created_at` (saat diterima). `sessions`/`queue`/`quotas` adalah snapshot saat ini. `tz` = nama IANA (default `UTC`); `bucket` = instan UTC awal hari/jam menurut `tz`.
+Data lebih tua dari retensi (180 hari) tidak tersedia.
+
+### Filter tanggal pesan
+
+`GET /messages?from=&to=`: rentang `created_at` (diantrekan); `from` inklusif, `to` eksklusif; ISO-8601 dengan offset; `from < to` (400 bila tidak); dapat digabung dengan `status` dan `session_id`.
+
+## Implementasi Fase H2 (2026-11-19): audit log, kuota tenant, undangan tanpa email
+
+### Undangan tanpa email (ADR-034)
+Tidak ada email otomatis. Respons `POST /team/invitations` dan `POST /team/invitations/:id/reissue` memuat `token` (sekali tampil) dan `invite_url`
+(`<DASHBOARD_BASE_URL>/invite#token=...` --- token di FRAGMEN agar tidak dikirim ke server dashboard/Nginx dan tidak masuk access log atau Referer; `null` bila `DASHBOARD_BASE_URL` belum diatur --- frontend lalu membangun tautan dari origin-nya sendiri; server TIDAK pernah
+memakai header `Origin`/`Host` klien). Pengundang menyampaikan tautan sendiri (salin, QR, atau kirim lewat WhatsApp melalui `POST /messages/send` dari sesi tenant).
+
+| Method | Path | Peran | Keterangan |
+|---|---|---|---|
+| POST | `/team/invitations/:id/reissue` | OWNER, ADMIN (ADMIN hanya undangan MEMBER/VIEWER) | token baru (sekali tampil, `Cache-Control: no-store`), token LAMA langsung hangus, masa berlaku dihitung ulang; hanya status PENDING (termasuk yang kedaluwarsa); selain itu `409 INVALID_STATE` |
+
+### Audit log (hanya OWNER/ADMIN pengguna dashboard; API key ditolak 403)
+
+`GET /audit-logs?page&page_size&action=&actor_user_id=&target_id=&from=&to=` (terbaru dulu; `from` inklusif, `to` eksklusif; `meta.total_capped` seperti daftar lain).
+Item: `{id, action, actor:{user_id,email,role}, target:{type,id,email}, details, ip, request_id, created_at}`.
+Aksi: `member.role_changed` (`details {from,to}`), `member.status_changed` (`{from,to}`), `member.removed` / `member.left` (`{role,status}`), `invitation.created` / `invitation.reissued`
+(`{role,expires_at}`), `invitation.revoked` (`{role}`), `invitation.accepted` (pelaku = penerima; `{role}`), `settings.updated` (`details.changes {kunci:{from,to}}`).
+Dicatat HANYA untuk perubahan yang berhasil dan benar-benar mengubah sesuatu (penolakan 403/409 dan no-op tidak dicatat), dalam transaksi yang sama dengan perubahannya.
+`ip` = alamat koneksi (di belakang proxy: set `TRUST_PROXY`), `request_id` = header `X-Request-Id` respons aksi itu. Jejak tidak memuat token/rahasia. Append-only; dihapus hanya
+oleh retensi (`RETENTION_AUDIT_DAYS`, default 365 hari).
+
+### Kuota tenant
+
+| Method | Path | Peran | Keterangan |
+|---|---|---|---|
+| GET | `/tenant/settings` | semua peran dashboard; API key `usage:read` | `{limits, ceilings, minimums, used, updated_at}` |
+| PATCH | `/tenant/settings` | OWNER (dashboard) | body strict, minimal satu: `{max_sessions?, max_api_keys?, max_members?, messages_per_minute?}` (bilangan bulat) -> objek seperti GET |
+
+`limits` = nilai berlaku; `ceilings` = batas atas global dari env operator (`LIMIT_CEIL_SESSIONS` 10, `LIMIT_CEIL_API_KEYS` 50, `LIMIT_CEIL_MEMBERS` 50, `LIMIT_CEIL_MESSAGES_PER_MINUTE` 120);
+`minimums` = `{max_sessions:1, max_api_keys:0, max_members:1, messages_per_minute:1}`; `used` = `{sessions, api_keys, members}` (anggota + undangan tertunda; definisi sama dengan penolakan `QUOTA_EXCEEDED`).
+Nilai di luar [minimum, ceiling] => `400 VALIDATION_ERROR` (`details[].path` = nama kunci); di bawah pemakaian saat ini untuk sesi/API key/anggota => `409 LIMIT_BELOW_USAGE`.
+Berlaku seketika; satu nilai tidak sah membatalkan seluruh permintaan; mengirim nilai yang sama = tidak ada perubahan dan tidak dicatat audit. Kode galat baru: `LIMIT_BELOW_USAGE` 409.

@@ -444,3 +444,58 @@ Diuji pemilik proyek terhadap sesi nyata (server dev, nomor gateway + satu HP la
     probe TRUNCATE yang lulus karena alasan salah).
 -   **Masih terbuka (tindakan manusia):** unlink perangkat tertaut lama pada 2 akun WhatsApp prototipe; salin kunci master ke password
     manager + offline; jalankan skrip role di staging terhadap role `wazap_app` sungguhan; frontend dibangun ulang oleh agent frontend.
+
+## Fase H --- Team API, Usage API, filter tanggal pesan, switch-tenant (2026-11-19)
+
+-   Status: **REVIEW** (implementasi + tes + dokumen; diminta dan disetujui pemilik proyek setelah serah-terima frontend menemukan gap `team` dan `usage`).
+-   Completed: Team (`GET|PATCH|DELETE /team/members`, undangan `GET|POST|DELETE /team/invitations`, `POST /team/invitations/accept`), `POST /auth/switch-tenant`,
+    Usage (`GET /usage/summary|messages|sessions`), filter `from`/`to` pada `GET /messages`; migrasi 0011; ADR-030 dan ADR-031.
+-   Files baru: `database/migrations/0011_team_usage.sql`; `modules/team/{team.service,team.routes}.ts`; `modules/usage/{usage.service,usage.routes}.ts`;
+    tes `test/{team,usage}.test.ts`. Diubah: `identity/{identity.service,identity.routes}.ts` (`switchTenant`, `member_email` saat register), `database/gateway.ts` (konteks `inviteHash`),
+    `messaging/{messages.service,messages.routes}.ts` (filter tanggal), `app.ts`, `config/env.ts`, `test/perf/explain.perf.ts`, `.env.example`.
+-   Tests: typecheck OK; `npm test` **212/212** (193 -> 212), stabil 2 kali; `npm run test:perf` 8/8 (kueri baru memakai indeks; layanan usage 6--40 ms pada jendela ~3,7 ribu pesan).
+-   Temuan tes yang memperbaiki rancangan: kebijakan RLS tabel tim sengaja tidak memberi akses platform (tes membaca lewat konteks tenant); peran aktor dibaca ulang di dalam lock
+    (balapan dua OWNER saling menurunkan menghasilkan tepat satu sukses dan selalu tersisa satu OWNER).
+-   Known limitations / risks:
+    -   Undangan tanpa email otomatis (token disampaikan manual oleh pengundang); belum ada audit log perubahan tim; belum ada ganti email/kata sandi/lupa kata sandi.
+    -   `member_email` adalah salinan email; baris keanggotaan lama diisi lewat backfill (nullable bila pengguna uji dibuat langsung lewat SQL).
+    -   Usage dihitung langsung dari tabel transaksi: biaya linear terhadap jumlah pesan dalam rentang (maks 92 hari); belum diuji pada tenant berjuta pesan per jendela; tidak ada agregat/cache.
+    -   Data usage hanya sedalam masa retensi (180 hari); pesan keluar dihitung menurut status SAAT INI, bukan riwayat transisi.
+    -   Migrasi 0011 melakukan backfill dengan `NO FORCE ROW LEVEL SECURITY` sementara: membutuhkan pemilik tabel (role migrator) dan mengunci tabel sebentar.
+    -   Tidak ada UI/uji end-to-end terhadap frontend sungguhan (frontend sedang dibangun ulang agent lain).
+-   Decisions required: (1) apakah email undangan otomatis diperlukan (butuh layanan SMTP/penyedia email dan keputusan keamanan sendiri); (2) apakah audit log tim diperlukan; (3) kebutuhan
+    agregat/ekspor usage jangka panjang di atas 180 hari; (4) API ubah kuota tenant (saat ini hanya baca lewat `usage/summary`).
+-   Documents updated: API_CONTRACT, DATABASE_DESIGN (§14), TABLE_SPECIFICATION, ERD, MIGRATION_LOG (0011), DECISION_LOG (ADR-030/031), SECURITY_POLICY, TENANT_ISOLATION,
+    INTEGRATION_CONTRACT, FRONTEND_HANDOFF, FRONTEND_AGENT_PROMPT, TEST_PLAN, BACKEND_PROGRESS, CHANGELOG, `.env.example`.
+-   Next recommended task: verifikasi integrasi frontend terhadap kontrak (login, tim, usage), lalu uji beban/ketahanan di staging dan verifikasi role database.
+
+## Fase H2 --- audit log, API kuota tenant, undangan tanpa email (2026-11-19)
+
+-   Status: **REVIEW**. Menindaklanjuti keputusan pemilik proyek: tidak ada email undangan (pakai metode lain), audit log perubahan tim, dan API ubah kuota.
+-   Completed: `audit_logs` (+ `GET /audit-logs`) dengan pencatatan atomik untuk 8 aksi tim dan `settings.updated`; `POST /team/invitations/:id/reissue`; `invite_url`
+    (`DASHBOARD_BASE_URL`); `GET|PATCH /tenant/settings` (OWNER, dalam batas atas global `LIMIT_CEIL_*`); retensi audit (`RETENTION_AUDIT_DAYS`); migrasi 0012 dan 0013; ADR-032..034.
+-   Files baru: `migrations/0012_audit_logs.sql`, `0013_audit_accept_policy.sql`; `modules/audit/{audit,audit.service,audit.routes}.ts`; `modules/tenant/{settings.service,settings.routes}.ts`;
+    tes `test/{audit,settings}.test.ts`. Diubah: `team/{team.service,team.routes}.ts`, `engine/retention.ts`, `app.ts`, `config/env.ts`, `test/perf/explain.perf.ts`, `test/retention.test.ts`, `.env.example`.
+-   Tests: typecheck OK; `npm test` **227/227** (212 -> 227), stabil 2 kali; `npm run test:perf` 9/9 (audit: 0,05--0,21 ms pada 100 ribu baris).
+-   Temuan tes yang memperbaiki kode: (1) penyapu retensi audit tidak menghapus apa pun karena `SELECT ... FOR UPDATE` mensyaratkan kebijakan UPDATE yang sengaja tidak ada --- penguncian dihapus;
+    (2) kebijakan pencatatan "undangan diterima" terlalu longgar (pemegang token dapat memalsukan) --- diperketat di migrasi 0013 (0012 sudah diterapkan sehingga tidak diedit).
+-   Known limitations / risks:
+    -   Model otorisasi kuota (OWNER dalam ceiling env) adalah **interpretasi saya** atas "API ubah kuota"; bila yang dimaksud adalah operator/platform-admin, API itu belum ada (butuh peran platform-admin dan kredensial terpisah).
+    -   Audit hanya mencakup tim dan pengaturan; tidak mencakup login, sesi, pesan, webhook, API key; operator DB dapat mengubah jejak (tanpa rantai hash/penyimpanan eksternal).
+    -   Ceiling bawaan (10/50/50/120) belum didasarkan pengukuran risiko ban/kapasitas.
+    -   Pengiriman undangan lewat WhatsApp dilakukan frontend memakai API pesan yang ada (belum ada endpoint khusus); token ikut di payload antrean sampai retensi (30 hari) menghapusnya.
+-   Decisions required: (1) konfirmasi model kuota (OWNER dalam ceiling vs. operator-only); (2) nilai ceiling produksi; (3) perluasan audit ke aksi lain; (4) nilai `DASHBOARD_BASE_URL` produksi.
+-   Documents updated: API_CONTRACT, DATABASE_DESIGN (§15), TABLE_SPECIFICATION, ERD, MIGRATION_LOG (0012/0013), DECISION_LOG (ADR-032..034), SECURITY_POLICY, TENANT_ISOLATION, INTEGRATION_CONTRACT,
+    FRONTEND_HANDOFF, FRONTEND_AGENT_PROMPT, TEST_PLAN, BACKEND_PROGRESS, CHANGELOG, `.env.example`.
+
+### Keputusan terkonfirmasi pasca-Fase H2 (2026-11-19)
+
+-   Model kuota (OWNER dalam ceiling env, bukan API operator) **disetujui** pemilik proyek; ceiling bawaan 10/50/50/120 dipertahankan sampai ditinjau sebelum produksi
+    (tinjau terhadap kapasitas server dan risiko ban WhatsApp). API platform-admin tetap tidak ada.
+-   Validasi `DASHBOARD_BASE_URL` diperketat: wajib http(s) tanpa kredensial/query/fragment, dan **https di production** (gagal start dengan pesan yang menyebut variabelnya).
+    Cacat ditemukan tes: `new URL()` di dalam `refine` melempar `TypeError` mentah untuk nilai tanpa skema; kini ditangkap. Tes: `test/config.test.ts` (3). Total `npm test`: 230.
+-   Masih terbuka: nilai `DASHBOARD_BASE_URL` produksi (alamat dashboard sebenarnya) dan peninjauan ceiling produksi.
+
+-   **Tindak lanjut (2026-11-19):** `invite_url` kini memakai fragmen (`#token=`) sesuai saran yang disetujui pemilik proyek, sehingga token tidak dikirim ke server dashboard dan tidak
+    masuk access log Nginx/Referer. Kontrak untuk frontend berubah (halaman `/invite` membaca `location.hash` lalu menghapusnya dari address bar); `FRONTEND_HANDOFF.md` dan
+    `FRONTEND_AGENT_PROMPT.md` diperbarui. Tes `audit.test.ts` kini memastikan tautan tanpa query string.

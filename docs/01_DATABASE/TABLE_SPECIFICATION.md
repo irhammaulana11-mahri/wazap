@@ -222,3 +222,24 @@ keluar), `occurred_at`, `created_at`, `body_purged_at`.
 `recipient` boleh termasker `^\*{4,11}[0-9]{4}$` setelah retensi.
 
 Rollback: forward-fix; dev DROP tabel Fase F.
+
+## Fase H
+
+### tenant_invitations (tenant_id) --- S
+`id`, `tenant_id` (FK tenants cascade), `email` (huruf kecil), `role` (OWNER/ADMIN/MEMBER/VIEWER), `token_hash char(64)` UNIQUE (SHA-256; token mentah tidak disimpan),
+`status` (`PENDING|ACCEPTED|REVOKED`), `invited_by`, `expires_at`, `created_at`, `accepted_at`, `accepted_by`. Unik parsial `(tenant_id, email) WHERE status='PENDING'`.
+RLS: tenant mengelola miliknya; penerima menemukan undangan HANYA lewat `app.invite_hash`; penerima hanya dapat mengubah PENDING (belum kedaluwarsa) menjadi ACCEPTED atas namanya.
+Platform TIDAK punya akses (disengaja).
+
+### tenant_memberships (perubahan)
+`+ member_email varchar(254)` (salinan email agar daftar tim tidak membaca `users`; nullable untuk baris lama/uji). Kebijakan INSERT tambahan `memberships_insert_invited`:
+penerima hanya boleh menyisipkan keanggotaan dirinya bila token undangan valid, email akunnya = email undangan, dan peran = peran undangan.
+
+### tenant_settings (perubahan)
+`+ max_members integer NOT NULL DEFAULT 10` (anggota + undangan tertunda).
+
+### audit_logs (tenant_id) --- S (Fase H2)
+`id bigint identity PK`, `tenant_id` (FK tenants cascade), `actor_user_id` (tanpa FK: jejak bertahan walau akun dihapus), `actor_email`, `actor_role` (salinan saat kejadian),
+`action` (`^[a-z_]+\.[a-z_]+$`), `target_type` (`member|invitation|settings`), `target_id`, `target_email`, `details jsonb` (objek; tanpa rahasia), `ip varchar(45)`,
+`request_id`, `created_at`. Append-only. RLS: tenant SELECT/INSERT; penerima undangan hanya boleh mencatat `invitation.accepted` miliknya (token + email cocok);
+DELETE hanya platform (retensi).

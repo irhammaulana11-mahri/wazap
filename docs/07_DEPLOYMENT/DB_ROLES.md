@@ -75,3 +75,8 @@ Skrip ini diuji terhadap role dev (pemilik schema: mendeteksi pelanggaran) dan t
     `SELECT * FROM gateway.message_queue` tanpa konteks tenant mengembalikan 0 baris.
 5.  `SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'wazap_app'` => `f | f`.
 6.  Jalankan `npm run test:perf` dan `npm test` terhadap staging (schema sementara) memakai kredensial yang berhak CREATE SCHEMA.
+
+## Role cadangan (wazap_backup)
+
+`pg_dump` oleh role biasa GAGAL pada schema ini karena semua tabel `FORCE ROW LEVEL SECURITY` (terbukti; lihat BACKUP_RESTORE.md). Cadangan memakai role terpisah `wazap_backup`: `LOGIN`, `BYPASSRLS`, `pg_read_all_data`, `default_transaction_read_only = on`, tanpa hak tulis. Pembuatan (idempoten, oleh superuser): `deploy/ops/setup-backup-role.sql`, lalu `\password wazap_backup`.
+`BYPASSRLS` membaca data semua tenant: batasi di `pg_hba.conf` hanya dari host cadangan, kredensial 0600 di luar repo, tidak pernah dipakai aplikasi. Role ini bersifat global dan tidak ikut dump: simpan skrip pembuatan role (migrator, aplikasi, cadangan) di runbook penyedia database.

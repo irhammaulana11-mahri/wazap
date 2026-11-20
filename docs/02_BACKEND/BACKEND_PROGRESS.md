@@ -570,3 +570,7 @@ Nomor nyata, topologi produksi (API dan worker proses terpisah, Nginx TLS, `NODE
 **Temuan untuk frontend:** konfirmasi kode pemulihan menelan galat diam-diam (`catch {}`) sehingga kegagalan tidak terlihat; tidak ada tombol konfirmasi di luar modal penerbitan kode.
 **Catatan:** satu sesi menyimpan ~2.844 baris `session_auth_state` (sebagian besar `lid-mapping`/`tctoken`/`pre-key`, 432 KB); DIUKUR dan tidak menjadi masalah skala (ADR-044: `open` konstan, 50 sesi 6.900+ op/dtk). Isi media masuk tidak diunduh (hanya tipe dan caption). Event datang tidak berurutan saat ada retry (`delivered` dapat mendahului `sent`).
 **Belum:** uji lama berjam-jam, banyak sesi per engine, media masuk diunduh, circuit breaker webhook dengan penerima nyata (diuji otomatis saja), grup (diabaikan), alarm/pemantauan, Let's Encrypt.
+
+## Runbook produksi, cadangan, dan latihan rotasi kunci (2026-11-20) --- SEBAGIAN
+`RUNBOOK.md` (peta sistem, rutinitas, deploy/rollback, indikator, 14 playbook insiden, rotasi kunci), `BACKUP_RESTORE.md`, `deploy/ops/{backup.sh,restore-drill.sh,setup-backup-role.sql}`, ADR-046. Menemukan bahwa `pg_dump` gagal/parsial di bawah FORCE RLS dan menutupnya dengan pagar dan role BYPASSRLS.
+Bukti: tes CLI rotasi, tes dokumen, uji pagar skrip. **Belum:** latihan pemulihan penuh pada data staging (butuh superuser), role `wazap_backup` di server, WAL/PITR, penyalinan cadangan ke luar host, uji di produksi, kontak on-call dan ambang alarm.

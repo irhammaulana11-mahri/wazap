@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- Backend: runbook produksi, cadangan/pemulihan, latihan rotasi kunci (2026-11-20)
+
+-   Baru (ADR-046): `docs/07_DEPLOYMENT/RUNBOOK.md` dan `BACKUP_RESTORE.md`; `deploy/ops/backup.sh`, `restore-drill.sh`, `setup-backup-role.sql`. Tidak ada perubahan kode aplikasi.
+-   Temuan keamanan operasional: `pg_dump` oleh role biasa gagal dan meninggalkan berkas parsial di bawah FORCE RLS; cadangan harus lewat superuser atau role `BYPASSRLS` khusus (baca-saja).
+-   Tes: `rotate-cli.test.ts` (CLI rotasi kunci sungguhan) dan `runbook-docs.test.ts` (dokumen operasi tidak boleh menyimpang dari kode).
+
 ## Unreleased --- Backend: spesifikasi OpenAPI dari kode dan mode kontrak (2026-11-20)
 
 -   Baru (ADR-045): `docs/02_BACKEND/openapi.json` (OpenAPI 3.1, 75 operasi) dihasilkan dari skema Zod yang dipakai route dan metadata guard (`npm run openapi`). Tidak ada perubahan perilaku API.

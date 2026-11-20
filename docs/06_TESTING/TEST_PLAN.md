@@ -135,3 +135,8 @@ Bukan bagian `npm test` (jalankan lewat `npm run test:perf` atau langsung). Mene
 -   `openapi.test.ts`: route <-> dokumen lengkap dua arah, `$ref` terselesaikan, parameter path cocok, keamanan turunan guard, skema request strict, dan `openapi.json` mutakhir (`npm run openapi` bila gagal).
 -   `contract.test.ts`: siklus webhook penuh (9 operasi), logout/logout-all, health, dan galat standar.
 -   Uji mutasi: field wajib diganti nama, tipe diubah (`attempts` string), `secret` diganti nama, dokumen satu route dihapus: semuanya gagal dengan pesan yang menunjuk operasinya.
+
+## Operasi produksi (ADR-046)
+-   `test/rotate-cli.test.ts` (3 tes): CLI `keys:rotate` sebagai proses terpisah; dry-run tidak mengubah, rotasi nyata, kunci lama lalu dapat dipensiunkan, idempoten; pensiun dini => exit 2 tanpa membocorkan rahasia/kunci; konfigurasi salah => exit 1.
+-   `test/runbook-docs.test.ts` (6 tes): perintah `npm run`, berkas, nama env, teks log/kode galat, angka batas laju/retensi di RUNBOOK dan BACKUP_RESTORE sama dengan kode; pagar skrip cadangan tetap ada.
+-   Skrip cadangan (uji manual lokal, hasil di BACKUP_RESTORE.md "Bukti"): pagar role, dump gagal tanpa berkas sisa, cadangan utuh + checksum, hitung baris, retensi, kegagalan rapi bukan superuser. Latihan pemulihan penuh: butuh superuser (status di BACKUP_RESTORE.md).

@@ -92,7 +92,7 @@ jobs:
       - name: Sintaks skrip
         run: |
           set -e
-          for f in deploy/staging/bin/*.sh backend/scripts/*.sh; do bash -n "$f" && echo "ok $f"; done
+          for f in deploy/staging/bin/*.sh deploy/ops/*.sh backend/scripts/*.sh; do bash -n "$f" && echo "ok $f"; done
           for f in deploy/staging/bin/*.mjs deploy/staging/tools/*.mjs deploy/staging/ecosystem.config.cjs; do node --check "$f" && echo "ok $f"; done
 
       - name: Vhost Nginx dirender dan lolos `nginx -t`

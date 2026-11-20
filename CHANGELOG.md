@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased --- Rancangan ekspor data workspace (2026-11-20)
+
+-   Diusulkan (ADR-048, `docs/02_BACKEND/DATA_EXPORT_DESIGN.md`): ekspor pesan, laporan pengiriman, chat, kontak, audit, dan anggota untuk OWNER/ADMIN dengan konfirmasi kata sandi, CSV/NDJSON streaming berbatas, dalam isolasi RLS tenant. Belum diimplementasikan.
+
 ## Unreleased --- Latihan pemulihan cadangan staging lulus (2026-11-20)
 
 -   Bukti operasional: cadangan `wazap_staging` (27 tabel, 3.213 baris) dipulihkan ke database sementara dengan jumlah baris sama persis, RLS ENABLE+FORCE utuh pada semua tabel, 75 kebijakan, dan migrasi berurutan sampai 0018. Tidak ada perubahan kode.

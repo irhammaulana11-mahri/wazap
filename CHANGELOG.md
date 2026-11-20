@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased --- Backend: analisis dan tes perf auth state (2026-11-20)
+
+-   Analisis (ADR-044): kekhawatiran skala `session_auth_state` (2,8 ribu baris per sesi) dibantah dengan pengukuran; penyimpanan malas, `open` konstan, 50 sesi bersamaan 6.900+ op/dtk tanpa galat. Tidak ada perubahan kode aplikasi.
+-   Baru: `test/perf/auth-store.perf.ts` sebagai pagar regresi. Risiko tersisa dicatat (pool bersama lease/heartbeat pada DB berjarak, penyimpanan akun besar).
+
 ## Unreleased --- CI (2026-11-20)
 
 -   Baru (ADR-043): `.github/workflows/ci.yml` (backend, deploy-config, hygiene, audit), `dependabot.yml`, `backend/scripts/ci-test.sh` dan `check-migrations.sh`. Action dipin ke SHA; hak `contents: read`.

@@ -470,3 +470,14 @@ vhost Nginx dirender dan diuji `nginx -t` dengan aturan XFF ditimpa; tidak ada b
 **Terbukti secara lokal (env kosong tanpa `.env`):** 304 tes lulus lewat `ci-test.sh`; uji mutasi: DB tidak terjangkau => gagal; migrasi diubah/dihapus/diganti nama/melompat/duplikat => gagal; XFF ditambah atau diteruskan dari klien => gagal.
 **Risiko tersisa:** workflow BELUM pernah berjalan di runner GitHub (hanya divalidasi sintaksnya dan tiap langkah dijalankan lokal; `actionlint` tidak dapat dijalankan); `postgres:18` dan Ubuntu 24.04 mungkin berbeda halus dari PostgreSQL lokal;
 `npm audit` belum memblokir; frontend belum tercakup (belum di repo ini); tes beban/perf tidak dijalankan di CI.
+
+## ADR-044 --- Penyimpanan auth state: kekhawatiran skala dibantah dengan pengukuran (2026-11-20)
+
+**Konteks:** pada uji WhatsApp sungguhan satu sesi menyimpan 2.844 baris `session_auth_state` dalam beberapa menit, dan saya mencatatnya sebagai risiko skala ("waktu start pada puluhan sesi"). Dianalisis sebelum bertindak.
+**Temuan:** (1) isinya bukan kunci yang menumpuk: 1.645 `lid-mapping` (49 B), 807 `pre-key` (tetap ~812 saat pairing), 362 `tctoken`, hanya 9 `session`; total 432 KB, tabel 1,5 MB. Pertumbuhan mengikuti JUMLAH KONTAK akun, bukan waktu.
+(2) 2.675 baris ditulis dalam satu menit pairing (sinkronisasi awal), lalu 1-4 baris per menit. (3) `auth-store.ts` bersifat malas: `open()` hanya membaca baris `creds`, `keys.get` hanya id yang diminta, `keys.set` satu query `unnest` per batch; tidak ada pemuatan massal.
+**Terukur (`test/perf/auth-store.perf.ts`, lokal, schema sementara):** akun 30 ribu baris: sinkron awal 0,7-0,9 dtk, `open` p95 2 ms (sama dengan 2,8 ribu baris), `get` 10 id p95 2 ms, `set` 1 item p95 4 ms, erase 14 ms, tabel 11 MB. 50 sesi bersamaan dengan pool 10 dijenuhkan: 6.900-8.900 op/dtk, p95 10-13 ms, 0 galat
+(kebutuhan realistis ~1.250 op/dtk). Mutasi: `open()` yang memuat semua baris dibuat p95 menjadi 130 ms dan tes gagal.
+**Keputusan:** tidak ada perubahan kode; kekhawatiran awal ditarik. Tes perf dijadikan pagar regresi (ambang ~10x longgar).
+**Risiko tersisa (nyata, lebih kecil):** (a) pool DB worker (`DB_POOL_MAX` 10) dipakai bersama operasi lease/heartbeat dan auth state: terukur aman pada DB lokal, belum pada DB jarak jauh (tiap `get`/`set` = satu transaksi dengan beberapa pernyataan, latensi berlipat); pantau `lease_rem_s` dan ukur ulang di staging berjarak sebelum >20 sesi.
+(b) penyimpanan ~11 MB per akun besar (30 ribu baris): 50 akun besar ~550 MB, tanpa pemangkasan `lid-mapping`/`tctoken`; pantau `pg_total_relation_size`. (c) benchmark sintetis (ukuran payload dari satu akun nyata), tanpa jaringan; pola tulis Baileys pada laju pesan tinggi belum diukur; blob `app-state-sync-version` hingga 91 KB ditulis ulang penuh tiap sinkron.

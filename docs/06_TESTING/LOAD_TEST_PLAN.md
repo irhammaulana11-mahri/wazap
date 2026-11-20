@@ -54,3 +54,11 @@ sebenarnya (sesi per engine, pesan/dtk per sesi) HARUS diukur di infrastruktur t
 Langkah 6 (restart worker) dan 7 (gangguan database/jaringan) metode di atas kini punya uji otomatis di `backend/test/resilience.test.ts`
 (lihat TEST_PLAN). Ini membuktikan kebenaran saat gangguan, BUKAN kapasitas: uji beban multi-sesi tetap harus dijalankan di infrastruktur target.
 
+## Hasil: penyimpanan auth state (2026-11-20; ADR-044)
+`node --import tsx --test --test-timeout=300000 test/perf/auth-store.perf.ts` (PostgreSQL lokal, tanpa latensi jaringan). Ambang lulus/gagal ~10x lebih longgar dari hasil terukur.
+| Skenario | Terukur |
+|---|---|
+| Akun 2,8 ribu baris (akun uji nyata) | sinkron awal 130 ms; `open` p95 0,9 ms; `get` p95 0,7 ms; `set` p95 1,3 ms; erase 2 ms |
+| Akun besar 30 ribu baris | sinkron awal 0,7-0,9 dtk; `open` p95 2 ms (tidak bergantung jumlah baris); `get` 10 id p95 2 ms; `set` p95 4 ms; erase 14 ms; tabel 11 MB |
+| 50 sesi bersamaan, pool 10, jenuh | 6.900-8.900 op/dtk; p95 10-13 ms; 0 galat (kebutuhan realistis ~1.250 op/dtk) |
+Belum diukur: DB berjarak (latensi jaringan), laju pesan tinggi dengan Baileys sungguhan, kontensi pool dengan lease/heartbeat pada >20 sesi.

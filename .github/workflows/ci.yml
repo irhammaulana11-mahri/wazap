@@ -80,6 +80,29 @@ jobs:
           MIN_TESTS: '300'
         run: scripts/ci-test.sh
 
+  frontend:
+    name: Frontend (instal, typecheck, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instal dependensi (sesuai lockfile)
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck dan build (tsc --noEmit lalu vite build)
+        working-directory: frontend
+        run: npm run build
+
   deploy-config:
     name: Konfigurasi deploy (skrip dan vhost Nginx)
     runs-on: ubuntu-24.04
@@ -124,6 +147,13 @@ jobs:
           bad="$(git ls-files -s -- '*.sh' | awk '$1 != "100755" {print $4}')"
           if [ -n "$bad" ]; then echo "GAGAL: skrip tanpa bit executable di git:"; echo "$bad"; exit 1; fi
           echo "semua skrip *.sh executable"
+
+      - name: Tidak ada arsip atau hasil build ter-commit
+        # Arsip (zip/tar) dan dist/ adalah artefak, bukan sumber; mudah tak sengaja ikut `git add -A`.
+        run: |
+          bad="$(git ls-files | grep -E '\.(zip|tar|tgz|tar\.gz|7z|rar)$|(^|/)dist/' || true)"
+          if [ -n "$bad" ]; then echo "GAGAL: arsip/hasil build ter-commit:"; echo "$bad"; exit 1; fi
+          echo "tidak ada arsip atau hasil build ter-commit"
 
       - name: Tidak ada symlink atau node_modules ter-commit
         # Symlink mode 120000 menunjuk path lokal (mis. /home/.../node_modules) dan merusak npm ci di CI; pola .gitignore `node_modules/` tidak mengabaikan symlink.

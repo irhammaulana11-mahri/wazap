@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- Frontend masuk repo bersih, kontrak API, dan CI (2026-11-20)
+
+-   Baru (ADR-047): frontend dibawa ke `clean/backend-v1` (commit tersendiri); `frontend/dist` dan arsip agent kit diabaikan git. CI: job `frontend` (typecheck + build) dan pagar hygiene arsip/`dist`/symlink.
+-   Kontrak: `test/frontend-contract.test.ts` memeriksa semua panggilan `/api/v1` frontend terhadap `openapi.json` (66 dari 66 di `services/api.ts` cocok).
+-   Dihapus: `frontend/src/api.ts`, klien prototipe lama yang tidak dipakai dan berisi endpoint yang sudah tidak ada.
+
 ## Unreleased --- Backend: runbook produksi, cadangan/pemulihan, latihan rotasi kunci (2026-11-20)
 
 -   Baru (ADR-046): `docs/07_DEPLOYMENT/RUNBOOK.md` dan `BACKUP_RESTORE.md`; `deploy/ops/backup.sh`, `restore-drill.sh`, `setup-backup-role.sql`. Tidak ada perubahan kode aplikasi.

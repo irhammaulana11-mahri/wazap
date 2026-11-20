@@ -28,3 +28,8 @@ Urutan deploy ulang: build -> `migrate:prod` -> `pm2 restart wazap-stg-engine` -
 - Sertifikat self-signed: browser akan memperingatkan; untuk produksi pakai CA sungguhan (Let's Encrypt) dan naikkan HSTS.
 - `verify.sh` membuat satu akun uji acak di DB staging; aman dibiarkan (staging).
 - Tanpa sudo, vhost yang sama dapat diuji dengan `nginx -c` milik user biasa (lihat `nginx/user-nginx.conf.tpl`).
+
+## Alat uji
+`tools/webhook-receiver.mjs`: penerima webhook uji (hanya 127.0.0.1) yang memverifikasi `X-Wazap-Signature` dan mencatat tiap percobaan ke JSONL; mode `ok`, `fail:<N>`, `slow`, `redirect` lewat `POST /_control`.
+Memakai penerima lokal berarti MELONGGARKAN `WEBHOOK_ALLOW_HTTP` dan `WEBHOOK_ALLOW_PRIVATE_TARGETS` di api.env dan worker.env: lakukan hanya selama uji, kembalikan lalu restart worker dan API, dan buktikan kembali bahwa `http://127.0.0.1/...` ditolak 422.
+Rahasia webhook dan API key uji disimpan di berkas 0600 di luar repo dan dihapus (`shred`) setelah uji; jangan mencetaknya.

@@ -558,8 +558,15 @@ Belum: uji dengan WhatsApp sungguhan di staging (API dan pekerja terpisah), mult
 (XFF ditambah, bukan ditimpa; `env_file` PM2 tidak ada) dan membuktikan perbaikannya dengan uji mutasi. Kunci master dan JWT staging baru (acak, 0600, di luar repo).
 Terpasang di Nginx sistem dan `verify.sh` lulus. **Belum:** Let's Encrypt/domain publik, cadangan kunci master staging, CSP dashboard, uji WhatsApp sungguhan, pemantauan.
 
-## Uji WhatsApp sungguhan (staging, API + worker terpisah) (2026-11-20) --- SEBAGIAN
-Terbukti dengan nomor nyata: sesi dibuat -> QR (~6 dtk) -> CONNECTED; auth state terenkripsi (kunci v1); kirim teks, balasan masuk, receipt READ; restart API tidak menyentuh sesi;
-restart engine memulihkan sesi dari auth state dalam 11 dtk tanpa QR (fencing token naik). Menemukan 1 bug nyata: chat ganda per kontak (LID vs nomor) -> ADR-041/migrasi 0018, diperbaiki dan datanya digabung.
-**Catatan skala:** satu sesi sudah menyimpan 2.831 baris `session_auth_state` dalam beberapa menit (kunci Signal); tinjau ukuran/waktu start pada puluhan sesi.
-**Belum:** putus perangkat dari ponsel, media masuk/keluar nyata, webhook ke penerima nyata, uji lama (berjam-jam), banyak sesi, alarm.
+## Uji WhatsApp sungguhan (staging, API + worker terpisah) (2026-11-20) --- DONE
+Nomor nyata, topologi produksi (API dan worker proses terpisah, Nginx TLS, `NODE_ENV=production`, role DB terpisah). Terbukti:
+-   **Sesi:** QR (~6 dtk) -> CONNECTED; auth state terenkripsi (kunci v1); restart API tidak menyentuh sesi; restart engine memulihkan sesi dari auth state dalam 11 dtk tanpa QR (fencing token naik).
+-   **Putus perangkat dari ponsel:** `LOGGED_OUT`, `desired=DISCONNECTED`, kredensial dan auth state terhapus (0 baris), riwayat utuh, tanpa reconnect berulang, event di outbox; pairing ulang berhasil.
+-   **Pesan:** teks keluar/masuk, receipt DELIVERED/READ, gambar dan dokumen keluar (READ), gambar/video/dokumen masuk (tipe benar, tanpa duplikat, event outbox). Tipe media salah => FAILED `MEDIA_TYPE_INVALID` tanpa retry sia-sia.
+-   **SSRF media:** http, 127.0.0.1, localhost, [::1], 169.254.169.254, dan DNS yang menunjuk ke loopback (localtest.me) semuanya 422 sebelum masuk antrean.
+-   **Webhook (penerima nyata, `deploy/staging/tools/webhook-receiver.mjs`):** HMAC valid + timestamp segar pada semua 18 permintaan; `webhook.test`; sent/delivered/incoming; retry (500, 500, 200) dengan `event_id` dan `delivery_id` tetap, jeda ~9 dan ~16 dtk;
+    redirect 302 tidak diikuti (gagal + retry); replay mengirim `event_id` yang sama; pulih sendiri setelah penerima sehat (8/8 DELIVERED).
+**Bug nyata yang ditemukan dan diperbaiki:** chat ganda per kontak (ADR-041, 0018); POST tanpa body dari browser 400 (ADR-042); kuota login per-IP dihabiskan skrip uji (ADR-042).
+**Temuan untuk frontend:** konfirmasi kode pemulihan menelan galat diam-diam (`catch {}`) sehingga kegagalan tidak terlihat; tidak ada tombol konfirmasi di luar modal penerbitan kode.
+**Catatan:** satu sesi menyimpan ~2.831 baris `session_auth_state` dalam beberapa menit (kunci Signal); tinjau ukuran/waktu start pada puluhan sesi. Isi media masuk tidak diunduh (hanya tipe dan caption). Event datang tidak berurutan saat ada retry (`delivered` dapat mendahului `sent`).
+**Belum:** uji lama berjam-jam, banyak sesi per engine, media masuk diunduh, circuit breaker webhook dengan penerima nyata (diuji otomatis saja), grup (diabaikan), alarm/pemantauan, Let's Encrypt.

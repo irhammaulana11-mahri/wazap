@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased --- Backend: hasil uji WhatsApp sungguhan di staging (2026-11-20)
+
+-   Terbukti dengan nomor nyata dan topologi produksi: pairing, restart API/engine tanpa QR, putus perangkat, teks dan media dua arah, SSRF media (8 variasi), dan webhook (HMAC, retry, redirect, replay). Tidak ada perubahan kode di entri ini.
+-   Baru: `deploy/staging/tools/webhook-receiver.mjs` (penerima uji yang memverifikasi tanda tangan, dapat disetel gagal/redirect/lambat). Dokumen: temuan untuk frontend di `FRONTEND_HANDOFF.md`, perilaku urutan webhook di `WEBHOOK_SPECIFICATION.md`.
+
 ## Unreleased --- Backend: body JSON kosong diterima (2026-11-20)
 
 -   Perbaikan (ADR-042): POST tanpa body dengan `content-type: application/json` (cara browser/fetch) tidak lagi 400. Memulihkan konfirmasi kode pemulihan, logout, dan `connect`/`disconnect`/`reconnect` sesi dari dashboard. JSON rusak, prototype poisoning, dan batas ukuran tetap ditolak. Tes: `empty-body.test.ts` 4 baru, total 304 lulus.

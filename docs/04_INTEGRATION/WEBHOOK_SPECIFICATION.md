@@ -93,3 +93,11 @@ Setelah `WEBHOOK_AUTO_DISABLE_AFTER` (default 10) delivery `DEAD` berturut-turut
 tertunda menjadi `DEAD` (`ENDPOINT_INACTIVE`) dan dapat di-replay setelah endpoint diaktifkan lagi. Satu delivery sukses
 mereset hitungan; percobaan yang masih akan di-retry dan `webhook.test` tidak dihitung. Pastikan endpoint Anda memantau
 status ini (`GET /webhooks`) atau pantau lonjakan `DEAD` di `GET /webhooks/:id/deliveries?status=DEAD`.
+
+## Terbukti dengan penerima nyata (2026-11-20)
+
+-   Tanda tangan `v1=` valid pada 18/18 permintaan; header `X-Wazap-Event-Id` sama dengan `event_id` di body.
+-   Retry: `event_id` dan `delivery_id` TETAP pada semua percobaan (500, 500, 200; jeda ~9 dan ~16 dtk). **Urutan tidak dijamin**: `message.delivered` dapat tiba sebelum `message.sent` saat salah satunya sedang di-retry; konsumen harus idempoten dan tidak bergantung pada urutan.
+-   Replay mengirim ulang event yang sama dengan `event_id` dan `delivery_id` yang sama (sama dengan retry di mata penerima).
+-   Redirect 302 tidak diikuti: dicatat gagal (`HTTP_ERROR`) dan di-retry. Pemeriksaan SSRF juga berlaku saat pendaftaran URL (422 `INVALID_WEBHOOK_URL`).
+-   `message.incoming.text` bisa `null` untuk media tanpa caption (gambar, video, dokumen); isi media tidak dibawa.

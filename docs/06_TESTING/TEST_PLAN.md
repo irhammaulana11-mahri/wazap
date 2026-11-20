@@ -110,3 +110,14 @@ Bug ini hanya terlihat dengan WhatsApp sungguhan: adapter palsu tidak memakai LI
 ## Body JSON kosong (`backend/test/empty-body.test.ts`, 4 tes; ADR-042)
 Konfirmasi kode pemulihan dan logout dengan `content-type: application/json` tanpa body => bukan 400; rute berbody tetap 400 `VALIDATION_ERROR`; JSON rusak, `__proto__`/`constructor` ditolak 400; batas ukuran 413 utuh.
 Bug hanya muncul dari browser asli (header selalu ada), tidak dari `inject`. `npm test`: 304 lulus.
+
+## Uji WhatsApp sungguhan di staging (2026-11-20)
+Manual terpandu dengan nomor nyata, diverifikasi lewat DB (konteks platform, hanya baca), log worker, dan penerima webhook nyata (`deploy/staging/tools/webhook-receiver.mjs`).
+| Area | Hasil |
+|---|---|
+| Pairing, restart API, restart engine | lulus (pulih 11 dtk tanpa QR) |
+| Putus perangkat dari ponsel | lulus (LOGGED_OUT, kredensial terhapus, riwayat utuh, pairing ulang) |
+| Teks, gambar, dokumen keluar; teks, gambar, video, dokumen masuk | lulus (receipt READ) |
+| SSRF media (8 variasi) | lulus (semua 422) |
+| Webhook: HMAC, retry, redirect, replay, pemulihan | lulus (event_id/delivery_id stabil) |
+Bug nyata yang hanya terlihat di sini: chat ganda LID vs nomor (ADR-041), body JSON kosong dari browser (ADR-042). Tes otomatis lama tidak menangkapnya karena adapter palsu dan `inject` tidak meniru WhatsApp/browser.

@@ -529,3 +529,10 @@ tidak ada lagi, jadi bila UI menyimpan `chat_id` terpilih (state/URL), tangani `
 
 Sebelumnya `POST` dengan `Content-Type: application/json` dan body kosong dijawab `400 BAD_REQUEST`. Kini diterima (mis. `confirm`, `logout`, `connect`, `disconnect`, `reconnect`). Tidak perlu mengubah frontend; boleh tetap mengirim header itu.
 Rute yang butuh body tetap `400 VALIDATION_ERROR` bila body kosong.
+
+## Temuan uji WhatsApp sungguhan untuk frontend (2026-11-20)
+
+1.  `ProfilePage.tsx`: konfirmasi kode pemulihan memakai `catch { /* ignore */ }` lalu menutup modal. Bila gagal, banner "belum dikonfirmasi" tetap ada tanpa penjelasan. Tampilkan galat dan jangan tutup modal sebelum berhasil.
+2.  Tidak ada cara mengonfirmasi di luar modal penerbitan kode; pengguna yang sudah menyimpan kode tetapi gagal mengonfirmasi harus menerbitkan kode baru. Pertimbangkan tombol "Saya sudah menyimpan" pada kartu status.
+3.  Pesan media masuk hanya membawa tipe dan caption (`text` dapat `null`); tampilkan "[Gambar]"/"[Dokumen]" bukan pesan kosong. Isi media belum diunduh backend.
+4.  Dashboard belum dapat mengirim media; backend menyediakan `POST /messages/send-media` (URL https publik; URL internal ditolak 422 `INVALID_MEDIA_URL`).

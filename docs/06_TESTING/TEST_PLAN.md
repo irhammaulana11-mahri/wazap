@@ -121,3 +121,8 @@ Manual terpandu dengan nomor nyata, diverifikasi lewat DB (konteks platform, han
 | SSRF media (8 variasi) | lulus (semua 422) |
 | Webhook: HMAC, retry, redirect, replay, pemulihan | lulus (event_id/delivery_id stabil) |
 Bug nyata yang hanya terlihat di sini: chat ganda LID vs nomor (ADR-041), body JSON kosong dari browser (ADR-042). Tes otomatis lama tidak menangkapnya karena adapter palsu dan `inject` tidak meniru WhatsApp/browser.
+
+## CI (`.github/workflows/ci.yml`; ADR-043)
+Job `backend` (PostgreSQL 18, role non-superuser): migrasi, typecheck, build, tes lewat `scripts/ci-test.sh`. Job `deploy-config`: sintaks skrip dan `nginx -t` vhost. Job `hygiene`: bit executable, tanpa berkas env/rahasia. Job `audit`: `npm audit` informatif.
+Cara menjalankan lokal seperti CI: `env -i PATH=$PATH HOME=$HOME DB_HOST=... DB_DATABASE=... DB_USERNAME=... DB_PASSWORD=... JWT_SECRET=... backend/scripts/ci-test.sh` (tanpa `.env`).
+Pagar: tes dilewati/dibatalkan/kurang dari `MIN_TESTS` (280) = gagal. Naikkan `MIN_TESTS` bila jumlah tes bertambah banyak. Pagar migrasi: `backend/scripts/check-migrations.sh <base>`.

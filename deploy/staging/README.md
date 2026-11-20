@@ -33,3 +33,6 @@ Urutan deploy ulang: build -> `migrate:prod` -> `pm2 restart wazap-stg-engine` -
 `tools/webhook-receiver.mjs`: penerima webhook uji (hanya 127.0.0.1) yang memverifikasi `X-Wazap-Signature` dan mencatat tiap percobaan ke JSONL; mode `ok`, `fail:<N>`, `slow`, `redirect` lewat `POST /_control`.
 Memakai penerima lokal berarti MELONGGARKAN `WEBHOOK_ALLOW_HTTP` dan `WEBHOOK_ALLOW_PRIVATE_TARGETS` di api.env dan worker.env: lakukan hanya selama uji, kembalikan lalu restart worker dan API, dan buktikan kembali bahwa `http://127.0.0.1/...` ditolak 422.
 Rahasia webhook dan API key uji disimpan di berkas 0600 di luar repo dan dihapus (`shred`) setelah uji; jangan mencetaknya.
+
+## Catatan git (bit executable)
+Repo dikembangkan di partisi NTFS dengan `core.fileMode=false`, jadi git tidak mencatat bit executable otomatis. Skrip baru: `git update-index --chmod=+x <berkas>` sebelum commit (CI memeriksanya).

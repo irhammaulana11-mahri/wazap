@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- CI (2026-11-20)
+
+-   Baru (ADR-043): `.github/workflows/ci.yml` (backend, deploy-config, hygiene, audit), `dependabot.yml`, `backend/scripts/ci-test.sh` dan `check-migrations.sh`. Action dipin ke SHA; hak `contents: read`.
+-   Pagar: tes dilewati dianggap gagal (tanpanya DB mati = 251 tes dilewati tapi hijau), migrasi terapan tidak boleh diubah, XFF Nginx harus ditimpa.
+-   Perbaikan: semua skrip shell kini tercatat executable di git (sebelumnya 100644 karena `core.fileMode=false` di partisi NTFS; clone mendapat "Permission denied").
+
 ## Unreleased --- Backend: hasil uji WhatsApp sungguhan di staging (2026-11-20)
 
 -   Terbukti dengan nomor nyata dan topologi produksi: pairing, restart API/engine tanpa QR, putus perangkat, teks dan media dua arah, SSRF media (8 variasi), dan webhook (HMAC, retry, redirect, replay). Tidak ada perubahan kode di entri ini.

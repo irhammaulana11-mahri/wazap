@@ -457,3 +457,16 @@ Kunci advisory (JID lalu nomor, urutan tetap) mencegah duplikat dari penulis par
 Tes memakai `inject` tanpa header itu, sehingga tidak terlihat. (2) `verify.sh` mengirim puluhan login salah dari `127.0.0.1`, IP yang sama dengan browser pengguna di loopback, dan menghabiskan kuota login per-IP ("Terlalu banyak percobaan").
 **Keputusan:** parser JSON kustom menerima body kosong/spasi sebagai "tanpa body" dan mendelegasikan sisanya ke parser bawaan Fastify (JSON rusak 400, prototype poisoning ditolak, batas ukuran 413 tetap). Rute yang butuh body tetap 400 `VALIDATION_ERROR` lewat skema.
 `verify.sh` memakai sumber `127.0.0.2` (`VERIFY_SOURCE_IP`) agar tidak memakai kuota IP browser. **Risiko tersisa:** `verify.sh` membuat akun uji dan dibatasi register 5/jam/IP; pembatas laju masih in-memory (restart API mereset).
+
+## ADR-043 --- CI dengan pagar yang menutup tiga cara pipeline "hijau palsu" (2026-11-20)
+
+**Konteks:** 304 tes hanya berjalan di mesin pengembang. Menambah CI sederhana (`npm test`) akan memberi rasa aman palsu karena tiga hal yang ditemukan saat menyusunnya:
+1.  Tes memakai `skip` bila PostgreSQL tidak terjangkau: dengan DB salah konfigurasi `npm test` keluar 0 dengan 251 dari 304 tes DILEWATI.
+2.  Superuser PostgreSQL mem-bypass RLS; role CI harus non-superuser tanpa `BYPASSRLS` seperti role dev, kalau tidak tes isolasi tidak bermakna.
+3.  Repo dikembangkan di partisi NTFS (`core.fileMode=false`): git mencatat semua skrip sebagai 100644, sehingga clone di CI/server mendapat skrip yang tidak dapat dijalankan langsung ("Permission denied").
+**Keputusan:** `.github/workflows/ci.yml` dengan job `backend` (typecheck, build, tes), `deploy-config`, `hygiene`, dan `audit` (informasi). Pagar: `backend/scripts/ci-test.sh` (tes dilewati/dibatalkan/kurang dari 280 = gagal);
+`backend/scripts/check-migrations.sh` (migrasi terapan tidak boleh diubah/dihapus/diganti nama, nomor berurutan: mencegah insiden checksum 0014); bit executable skrip dicek di index git (`git update-index --chmod=+x`);
+vhost Nginx dirender dan diuji `nginx -t` dengan aturan XFF ditimpa; tidak ada berkas env/kunci privat/nilai rahasia ter-commit. Semua action dipin ke SHA commit; hak `contents: read`; tanpa rahasia (database CI sekali pakai); Dependabot mingguan untuk npm dan actions.
+**Terbukti secara lokal (env kosong tanpa `.env`):** 304 tes lulus lewat `ci-test.sh`; uji mutasi: DB tidak terjangkau => gagal; migrasi diubah/dihapus/diganti nama/melompat/duplikat => gagal; XFF ditambah atau diteruskan dari klien => gagal.
+**Risiko tersisa:** workflow BELUM pernah berjalan di runner GitHub (hanya divalidasi sintaksnya dan tiap langkah dijalankan lokal; `actionlint` tidak dapat dijalankan); `postgres:18` dan Ubuntu 24.04 mungkin berbeda halus dari PostgreSQL lokal;
+`npm audit` belum memblokir; frontend belum tercakup (belum di repo ini); tes beban/perf tidak dijalankan di CI.

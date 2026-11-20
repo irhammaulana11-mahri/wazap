@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'clean/**', 'feat/**']
+  pull_request:
+  workflow_dispatch:
+
+# Hak minimum: CI hanya membaca repo. Tidak ada rahasia yang dipakai (semua nilai di bawah hanya untuk database CI sekali pakai).
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (typecheck, build, migrasi, tes)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-superuser-not-a-secret
+          POSTGRES_DB: wazap_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d wazap_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      # Role aplikasi/tes meniru role dev: BUKAN superuser dan tanpa BYPASSRLS (superuser melewati RLS dan membuat tes isolasi tak berarti).
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: wazap_ci
+      DB_USERNAME: wazap_ci
+      DB_PASSWORD: ci-only-not-a-secret
+      JWT_SECRET: ci-only-jwt-secret-not-a-secret-0123456789
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0 # pagar migrasi membandingkan dengan commit dasar
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Siapkan role database non-superuser
+        env:
+          PGPASSWORD: ci-superuser-not-a-secret
+        run: |
+          psql -h 127.0.0.1 -U postgres -d wazap_ci -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE wazap_ci LOGIN PASSWORD 'ci-only-not-a-secret' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+          GRANT CREATE ON DATABASE wazap_ci TO wazap_ci;
+          SQL
+
+      - name: Instal dependensi (sesuai lockfile)
+        working-directory: backend
+        run: npm ci
+
+      - name: Pagar migrasi (tidak boleh mengubah migrasi terapan, nomor berurutan)
+        run: backend/scripts/check-migrations.sh "${{ github.event.pull_request.base.sha || github.event.before }}"
+
+      - name: Typecheck
+        working-directory: backend
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: backend
+        run: npm run build
+
+      - name: Tes (tes dilewati/dibatalkan dianggap gagal)
+        working-directory: backend
+        run: scripts/ci-test.sh
+
+  deploy-config:
+    name: Konfigurasi deploy (skrip dan vhost Nginx)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Sintaks skrip
+        run: |
+          set -e
+          for f in deploy/staging/bin/*.sh backend/scripts/*.sh; do bash -n "$f" && echo "ok $f"; done
+          for f in deploy/staging/bin/*.mjs deploy/staging/tools/*.mjs deploy/staging/ecosystem.config.cjs; do node --check "$f" && echo "ok $f"; done
+
+      - name: Vhost Nginx dirender dan lolos `nginx -t`
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq nginx >/dev/null
+          T="$(mktemp -d)"; mkdir -p "$T/web" "$T/run/tmp"
+          WAZAP_ENV_DIR="$T/env" deploy/staging/bin/make-cert.sh "$T/tls"
+          deploy/staging/bin/render-nginx.sh "$T/vhost.conf" 8443 "$T/tls" "$T/web"
+          sed -e "s#@RUN_DIR@#$T/run#g" -e "s#@VHOST@#$T/vhost.conf#g" deploy/staging/nginx/user-nginx.conf.tpl > "$T/nginx.conf"
+          nginx -t -c "$T/nginx.conf" -e "$T/run/error.log"
+          # aturan keamanan yang sudah terbukti di staging: XFF HARUS ditimpa, bukan ditambah
+          grep -qF 'X-Forwarded-For   $remote_addr' "$T/vhost.conf"
+          ! grep -v '^[[:space:]]*#' "$T/vhost.conf" | grep -qF 'proxy_add_x_forwarded_for'
+
+  hygiene:
+    name: Higiene repo (rahasia dan berkas lingkungan)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Skrip shell tercatat executable di git
+        # Repo dikembangkan di partisi NTFS (core.fileMode=false) sehingga bit executable mudah hilang; clone di CI/server lalu mendapat
+        # skrip yang tidak dapat dijalankan langsung ("Permission denied"). Tandai dengan: git update-index --chmod=+x <berkas>
+        run: |
+          bad="$(git ls-files -s -- '*.sh' | awk '$1 != "100755" {print $4}')"
+          if [ -n "$bad" ]; then echo "GAGAL: skrip tanpa bit executable di git:"; echo "$bad"; exit 1; fi
+          echo "semua skrip *.sh executable"
+
+      - name: Tidak ada berkas env/rahasia yang ter-commit
+        run: |
+          set -u; bad=0
+          while IFS= read -r f; do
+            case "$f" in *.env.example) ;; *) echo "GAGAL: berkas lingkungan ter-commit: $f"; bad=1;; esac
+          done < <(git ls-files | grep -E '(^|/)\.env($|\.)' || true)
+          if git grep -nE 'BEGIN (RSA |EC |OPENSSH |)PRIVATE KEY' -- . ':!.github' >/tmp/k 2>&1; then cat /tmp/k; echo "GAGAL: kunci privat ter-commit"; bad=1; fi
+          if git grep -nIE '(CREDENTIAL_ENCRYPTION_KEYS|JWT_SECRET|DB_PASSWORD|DB_MIGRATE_PASSWORD)=[A-Za-z0-9+/_-]{20,}' -- ':!.github' ':!docs' >/tmp/s 2>&1; then sed -E 's/=.*/=<disembunyikan>/' /tmp/s; echo "GAGAL: nilai rahasia ter-commit"; bad=1; fi
+          exit $bad
+
+  audit:
+    name: Audit dependensi (informasi, tidak memblokir)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: npm audit (produksi, tingkat tinggi ke atas)
+        working-directory: backend
+        run: npm audit --omit=dev --audit-level=high

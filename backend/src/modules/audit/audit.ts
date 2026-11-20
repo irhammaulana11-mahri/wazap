@@ -7,13 +7,13 @@ export type AuditAction =
   | 'join_code.rotated' | 'join_code.disabled' | 'join_request.approved' | 'join_request.rejected' | 'join_request.created'
   | 'account.password_changed' | 'account.password_reset' | 'account.email_changed' | 'account.recovery_code_created' | 'account.sessions_revoked'
   | 'api_key.updated' | 'session.renamed' | 'tenant.renamed' | 'tenant.deleted' | 'tenant.restored'
-  | 'settings.updated';
+  | 'settings.updated' | 'data.exported';
 
 export interface AuditEntry {
   tenantId: string;
   actor: { userId: string; email?: string | null; role?: Role | null };
   action: AuditAction;
-  targetType: 'member' | 'invitation' | 'settings' | 'join_request' | 'join_code' | 'account' | 'api_key' | 'session' | 'tenant';
+  targetType: 'member' | 'invitation' | 'settings' | 'join_request' | 'join_code' | 'account' | 'api_key' | 'session' | 'tenant' | 'export';
   targetId?: string | null;
   targetEmail?: string | null;
   /** Detail perubahan (mis. peran sebelum/sesudah). JANGAN memasukkan token/rahasia. */

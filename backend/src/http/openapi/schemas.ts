@@ -147,3 +147,8 @@ export const Restored = z.looseObject({ restored: bool, tenant: Tenant, must_rec
 export const TenantDeleted = z.looseObject({ deleted: bool, sessions_scheduled: int, purge_after_days: int });
 export const JoinCodeState = z.looseObject({ enabled: bool, created_at: nl(Dt).optional(), created_by: nl(Uuid).optional() });
 export const UsageSeriesMeta = z.looseObject({ from: Dt, to: Dt, group_by: z.enum(['hour', 'day']), tz: str });
+export const ExportPolicy = z.looseObject({
+  enabled: bool, max_rows: int, max_span_days: int, per_hour: int, types: z.array(str),
+  retention: z.looseObject({ content_days: int, row_days: int, audit_days: int }),
+});
+

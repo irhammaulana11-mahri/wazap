@@ -133,6 +133,15 @@ const baseSchema = z.object({
   /** 0 = nonaktif. Default hanya loopback: health pekerja tidak untuk internet. */
   WORKER_HEALTH_PORT: z.coerce.number().int().min(0).max(65535).default(8001),
   WORKER_HEALTH_HOST: z.string().min(1).default('127.0.0.1'),
+  // Ekspor data workspace (ADR-048). Ekspor yang melebihi batas ditolak 422 SEBELUM data dikirim (tidak pernah memotong diam-diam).
+  /** Saklar mati operator: false => semua ekspor 503 NOT_CONFIGURED (respons insiden tanpa deploy kode). */
+  EXPORT_ENABLED: z.enum(['true', 'false']).default('true'),
+  EXPORT_MAX_ROWS: z.coerce.number().int().min(1).max(5_000_000).default(200_000),
+  EXPORT_MAX_SPAN_DAYS: z.coerce.number().int().min(1).max(3650).default(92),
+  EXPORT_BATCH_ROWS: z.coerce.number().int().min(10).max(5000).default(1000),
+  EXPORT_MAX_SECONDS: z.coerce.number().int().min(10).max(3600).default(300),
+  EXPORT_PER_USER_PER_HOUR: z.coerce.number().int().min(1).max(1000).default(5),
+  EXPORT_MAX_CONCURRENT: z.coerce.number().int().min(1).max(50).default(2),
 });
 
 const schema = baseSchema.superRefine((c, ctx) => {

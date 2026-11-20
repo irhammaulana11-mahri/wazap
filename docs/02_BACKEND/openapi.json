@@ -39,6 +39,9 @@
       "name": "Workspace"
     },
     {
+      "name": "Ekspor"
+    },
+    {
       "name": "Penggunaan"
     },
     {
@@ -8257,6 +8260,813 @@
           },
           "413": {
             "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/messages": {
+      "post": {
+        "operationId": "post_exports_messages",
+        "tags": [
+          "Ekspor"
+        ],
+        "summary": "Ekspor riwayat pesan masuk dan keluar (CSV atau NDJSON, streaming)",
+        "description": "Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "OWNER",
+          "ADMIN"
+        ],
+        "x-user-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "format": {
+                    "default": "csv",
+                    "type": "string",
+                    "enum": [
+                      "csv",
+                      "ndjson"
+                    ]
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "session_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "IN",
+                      "OUT"
+                    ]
+                  }
+                },
+                "required": [
+                  "password",
+                  "from",
+                  "to"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berkas ekspor (streaming); isi mengikuti format yang diminta",
+            "headers": {
+              "Content-Disposition": {
+                "description": "attachment; filename=\"wazap-<slug>-<jenis>-<tanggal>.<csv|ndjson>\"",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Export-Rows": {
+                "description": "Jumlah baris saat ekspor dimulai (tepat untuk jenis berentang waktu dan chats/members; perkiraan untuk contacts)",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/outbound": {
+      "post": {
+        "operationId": "post_exports_outbound",
+        "tags": [
+          "Ekspor"
+        ],
+        "summary": "Ekspor laporan pengiriman (antrean keluar) (CSV atau NDJSON, streaming)",
+        "description": "Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "OWNER",
+          "ADMIN"
+        ],
+        "x-user-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "format": {
+                    "default": "csv",
+                    "type": "string",
+                    "enum": [
+                      "csv",
+                      "ndjson"
+                    ]
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "session_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "PENDING",
+                      "PROCESSING",
+                      "SENT",
+                      "DELIVERED",
+                      "READ",
+                      "FAILED",
+                      "CANCELLED",
+                      "UNKNOWN",
+                      "RECONCILIATION_REQUIRED"
+                    ]
+                  }
+                },
+                "required": [
+                  "password",
+                  "from",
+                  "to"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berkas ekspor (streaming); isi mengikuti format yang diminta",
+            "headers": {
+              "Content-Disposition": {
+                "description": "attachment; filename=\"wazap-<slug>-<jenis>-<tanggal>.<csv|ndjson>\"",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Export-Rows": {
+                "description": "Jumlah baris saat ekspor dimulai (tepat untuk jenis berentang waktu dan chats/members; perkiraan untuk contacts)",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/chats": {
+      "post": {
+        "operationId": "post_exports_chats",
+        "tags": [
+          "Ekspor"
+        ],
+        "summary": "Ekspor daftar chat (CSV atau NDJSON, streaming)",
+        "description": "Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "OWNER",
+          "ADMIN"
+        ],
+        "x-user-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "format": {
+                    "default": "csv",
+                    "type": "string",
+                    "enum": [
+                      "csv",
+                      "ndjson"
+                    ]
+                  },
+                  "session_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berkas ekspor (streaming); isi mengikuti format yang diminta",
+            "headers": {
+              "Content-Disposition": {
+                "description": "attachment; filename=\"wazap-<slug>-<jenis>-<tanggal>.<csv|ndjson>\"",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Export-Rows": {
+                "description": "Jumlah baris saat ekspor dimulai (tepat untuk jenis berentang waktu dan chats/members; perkiraan untuk contacts)",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/contacts": {
+      "post": {
+        "operationId": "post_exports_contacts",
+        "tags": [
+          "Ekspor"
+        ],
+        "summary": "Ekspor kontak (digabung per nomor) (CSV atau NDJSON, streaming)",
+        "description": "Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "OWNER",
+          "ADMIN"
+        ],
+        "x-user-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "format": {
+                    "default": "csv",
+                    "type": "string",
+                    "enum": [
+                      "csv",
+                      "ndjson"
+                    ]
+                  }
+                },
+                "required": [
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berkas ekspor (streaming); isi mengikuti format yang diminta",
+            "headers": {
+              "Content-Disposition": {
+                "description": "attachment; filename=\"wazap-<slug>-<jenis>-<tanggal>.<csv|ndjson>\"",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Export-Rows": {
+                "description": "Jumlah baris saat ekspor dimulai (tepat untuk jenis berentang waktu dan chats/members; perkiraan untuk contacts)",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/audit-logs": {
+      "post": {
+        "operationId": "post_exports_audit_logs",
+        "tags": [
+          "Ekspor"
+        ],
+        "summary": "Ekspor log audit (CSV atau NDJSON, streaming)",
+        "description": "Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "OWNER",
+          "ADMIN"
+        ],
+        "x-user-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "format": {
+                    "default": "csv",
+                    "type": "string",
+                    "enum": [
+                      "csv",
+                      "ndjson"
+                    ]
+                  },
+                  "from": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "to": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "password",
+                  "from",
+                  "to"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berkas ekspor (streaming); isi mengikuti format yang diminta",
+            "headers": {
+              "Content-Disposition": {
+                "description": "attachment; filename=\"wazap-<slug>-<jenis>-<tanggal>.<csv|ndjson>\"",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Export-Rows": {
+                "description": "Jumlah baris saat ekspor dimulai (tepat untuk jenis berentang waktu dan chats/members; perkiraan untuk contacts)",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/members": {
+      "post": {
+        "operationId": "post_exports_members",
+        "tags": [
+          "Ekspor"
+        ],
+        "summary": "Ekspor anggota tim (CSV atau NDJSON, streaming)",
+        "description": "Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "OWNER",
+          "ADMIN"
+        ],
+        "x-user-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "format": {
+                    "default": "csv",
+                    "type": "string",
+                    "enum": [
+                      "csv",
+                      "ndjson"
+                    ]
+                  }
+                },
+                "required": [
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berkas ekspor (streaming); isi mengikuti format yang diminta",
+            "headers": {
+              "Content-Disposition": {
+                "description": "attachment; filename=\"wazap-<slug>-<jenis>-<tanggal>.<csv|ndjson>\"",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Export-Rows": {
+                "description": "Jumlah baris saat ekspor dimulai (tepat untuk jenis berentang waktu dan chats/members; perkiraan untuk contacts)",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/exports/policy": {
+      "get": {
+        "operationId": "get_exports_policy",
+        "tags": [
+          "Ekspor"
+        ],
+        "summary": "Batas ekspor dan retensi data (untuk UI)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-roles": [
+          "OWNER",
+          "ADMIN",
+          "MEMBER",
+          "VIEWER"
+        ],
+        "x-user-only": true,
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        },
+                        "max_rows": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "max_span_days": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "per_hour": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "types": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "retention": {
+                          "type": "object",
+                          "properties": {
+                            "content_days": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "row_days": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "audit_days": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "content_days",
+                            "row_days",
+                            "audit_days"
+                          ],
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "enabled",
+                        "max_rows",
+                        "max_span_days",
+                        "per_hour",
+                        "types",
+                        "retention"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
           },
           "429": {
             "$ref": "#/components/responses/Error429"

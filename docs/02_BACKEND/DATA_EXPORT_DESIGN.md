@@ -1,6 +1,6 @@
 # Rancangan: ekspor data workspace
 
-> **STATUS: DIUSULKAN (2026-11-20), belum diimplementasikan.** ADR-048. Keputusan yang masih menunggu pemilik produk ada di bagian 13; nilai bawaan yang diusulkan dipakai bila tidak diubah.
+> **STATUS (2026-11-20): BACKEND DIIMPLEMENTASIKAN dan diuji (bagian 14); frontend belum.** ADR-048. Keputusan bagian 13 diputuskan pemilik produk: memakai semua usulan bawaan.
 
 ## 1. Tujuan dan ruang lingkup
 
@@ -45,7 +45,7 @@ Semua waktu dalam ISO-8601 UTC. Kolom dalam urutan tetap (bagian dari kontrak; p
 
 1.  Guard: `authenticate` + `requireRole('OWNER', 'ADMIN')` (API key mendapat 403, seperti endpoint tim). Untuk `audit-logs` dan `members` tetap OWNER/ADMIN (sama dengan aksesnya sekarang).
 2.  Konfirmasi kata sandi di body (`password`), diverifikasi dengan `verifyPassword` yang sudah ada; gagal menghasilkan `403 INVALID_PASSWORD`, dihitung pembatas laju yang sama dengan percobaan kata sandi lain.
-3.  Pembatas laju: 5 ekspor per jam per pengguna; maksimal 1 ekspor berjalan per workspace dan 2 per proses API (409 `EXPORT_IN_PROGRESS` / 429 `RATE_LIMITED` dengan `Retry-After`). Di memori, seperti pembatas lain (catatan: berlaku per instans; API memang satu instans).
+3.  Pembatas laju: 5 ekspor per jam per pengguna (ditagih SETELAH pra-hitung lolos, jadi 400/422 tidak menghabiskan jatah); percobaan kata sandi SALAH dibatasi 5 per 15 menit dan penguncian dicek SEBELUM verifikasi (ekspor sah berturut-turut tidak terkunci); maksimal 1 ekspor berjalan per workspace dan 2 per proses API (409 `EXPORT_IN_PROGRESS` / 429 `RATE_LIMITED` dengan `Retry-After`). Di memori, seperti pembatas lain (catatan: berlaku per instans; API memang satu instans).
 4.  Audit `data.exported` ditulis di blok `finally` dengan `outcome` (`completed`, `aborted`, `failed`), jenis, format, rentang, `rows`, `bytes`, `duration_ms`. Tanpa isi data dan tanpa kata sandi.
 5.  Header respons: `Content-Disposition: attachment; filename="wazap-<slug>-<type>-<YYYYMMDD>.<csv|ndjson>"` (slug disanitasi ASCII), `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`.
 6.  Pemantauan (masuk rancangan #4): alarm bila `data.exported` per workspace melonjak atau ekspor terjadi di luar kebiasaan.
@@ -96,14 +96,15 @@ Dampak pada spesifikasi OpenAPI (ADR-045): `Operation` perlu mendukung respons n
 
 ## 8. Perubahan database (migrasi 0019)
 
-1.  Indeks `CREATE INDEX idx_wa_messages_tenant_time ON wa_messages (tenant_id, occurred_at, id)` untuk ekspor `messages` lintas chat (saat ini hanya ada indeks per chat dan per `created_at` global). Divalidasi dengan `npm run test:perf` (EXPLAIN tanpa Seq Scan pada data besar).
-2.  `audit_logs`: tambah aksi `data.exported` ke `CHECK` aksi dan tipe target `export` (atau memakai `tenant`) serta kebijakan INSERT yang sudah ada.
+1.  Indeks `idx_wa_messages_tenant_time ON wa_messages (tenant_id, occurred_at, id)` dan `idx_message_queue_tenant_time ON message_queue (tenant_id, created_at, id)` (indeks antrean yang ada berurutan `created_at DESC` sehingga tidak cocok untuk keyset ascending) untuk ekspor `messages` dan `outbound` lintas chat (saat ini hanya ada indeks per chat dan per `created_at` global). Divalidasi dengan `npm run test:perf` (EXPLAIN tanpa Seq Scan pada data besar).
+2.  `audit_logs`: tipe target `export` ditambahkan ke `CHECK target_type`. Aksi `data.exported` TIDAK perlu perubahan (CHECK aksi hanya pola umum `^[a-z_]+\.[a-z_]+$`); kebijakan INSERT yang ada dipakai.
 3.  Tanpa tabel baru di v1.
 
 ## 9. Konfigurasi baru
 
 | Variabel | Bawaan | Arti |
 |---|---|---|
+| `EXPORT_ENABLED` | true | saklar mati operator: false => semua ekspor 503 `NOT_CONFIGURED` (respons insiden) |
 | `EXPORT_MAX_ROWS` | 200000 | batas baris per ekspor (pra-hitung) |
 | `EXPORT_MAX_SPAN_DAYS` | 92 | rentang waktu maksimal |
 | `EXPORT_BATCH_ROWS` | 1000 | baris per batch keyset |
@@ -144,3 +145,17 @@ Dampak pada spesifikasi OpenAPI (ADR-045): `Operation` perlu mendukung respons n
 | 5 | Apakah anggota lain (OWNER lain) perlu diberi tahu saat ada ekspor? | Cukup audit log dan pemantauan di v1 |
 
 Catatan kepatuhan (bukan nasihat hukum): dalam layanan ini workspace (pelanggan) umumnya bertindak sebagai pengendali data pribadi kontaknya dan platform sebagai pemroses; fitur ini memberi pengendali alat untuk memenuhi permintaan akses data menurut UU PDP. Kewajiban pastinya perlu dikonfirmasi penasihat hukum.
+
+## 14. Hasil implementasi backend (2026-11-20)
+
+**Dibuat:** migrasi `0019_data_export.sql`; `src/modules/export/{csv.ts, definitions.ts, export.service.ts, export.routes.ts}`; `identity.confirmPassword`; `RateLimiter.blocked`; dukungan respons streaming di generator OpenAPI dan mode kontrak; tujuh operasi baru di `openapi.json` (82 total); konfigurasi `EXPORT_*`.
+**Endpoint:** `POST /api/v1/exports/{messages|outbound|chats|contacts|audit-logs|members}` dan `GET /api/v1/exports/policy`.
+
+**Bukti:** `test/export.test.ts` (18 tes), `test/perf/export.perf.ts` (3 tes), tes OpenAPI/kontrak otomatis mencakup endpoint baru.
+-   *Terbukti oleh tes:* injeksi formula dinetralkan; isolasi tenant (A tidak menerima B, juga dengan `session_id` milik B); hanya OWNER/ADMIN pengguna dashboard (MEMBER, VIEWER, API key, tanpa kredensial ditolak); kata sandi salah 403 dan terkunci 429; jatah 5 per jam; 422 `EXPORT_TOO_LARGE` sebelum byte data dan tanpa menghabiskan jatah; validasi rentang; batas atas terkunci; audit completed/aborted tanpa isi data; pembatalan klien (layanan dan **koneksi HTTP sungguhan**) menghentikan loop; satu ekspor per workspace (409) dan batas bersamaan (429); saklar mati 503.
+-   *Performa (30 ribu baris, PostgreSQL lokal):* sekitar 50 ribu baris/dtk, puncak memori +30 MB, nol koneksi `idle in transaction` saat klien lambat; EXPLAIN memakai indeks 0019 tanpa Sort/Seq Scan.
+-   *Uji mutasi:* netralisasi formula dimatikan, pra-hitung dilewati, batas atas tidak dikunci, audit tidak ditulis, guard dicabut, kata sandi tidak diverifikasi, slot tidak dikunci, jatah dihapus, dan indeks dihapus masing-masing menggagalkan tes. **Pertahanan berlapis terbukti:** tanpa filter `tenant_id` di SQL, RLS tetap menahan kebocoran; kebocoran baru terdeteksi bila filter DAN konteks tenant sama-sama dicabut.
+
+**Temuan selama implementasi:** (1) pembatas kata sandi awalnya menghitung SETIAP ekspor sehingga pengguna sah yang mengekspor beberapa jenis berturut-turut terkunci setelah 5 kali (ditemukan tes jatah); kini hanya percobaan salah yang dihitung dan penguncian dicek sebelum verifikasi. (2) Aturan CHECK aksi audit ternyata generik: hanya `target_type` yang perlu migrasi.
+
+**Risiko tersisa:** batas dan konkurensi berlaku per proses API (satu instans; sama dengan pembatas lain); ekspor jenis `contacts` tanpa batas waktu sehingga `X-Export-Rows` perkiraan; baris berstempel waktu lampau yang tiba SELAMA ekspor (riwayat sinkron) dapat tidak ikut atau, bila melampaui batas, membuat ekspor gagal (`failed`, koneksi diputus; CSV tidak punya penanda akhir, NDJSON tanpa manifest = terpotong); sel CSV berawalan `= + - @` tampil dengan awalan `'` (disengaja); ukuran dan waktu diuji pada 30 ribu baris lokal, bukan 200 ribu pada DB berjarak; Nginx menyangga respons (klien lambat tidak menahan API, tetapi pembatalan klien merambat setelah buffer Nginx); frontend dan ekspor asinkron/terjadwal belum ada.

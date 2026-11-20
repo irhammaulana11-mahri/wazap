@@ -15,9 +15,10 @@ import { routeContracts as usageC } from '../../modules/usage/usage.routes.js';
 import { routeContracts as auditC } from '../../modules/audit/audit.routes.js';
 import { routeContracts as tenantC } from '../../modules/tenant/tenant.routes.js';
 import { routeContracts as settingsC } from '../../modules/tenant/settings.routes.js';
+import { routeContracts as exportC } from '../../modules/export/export.routes.js';
 
 export const CONTRACTS: Record<string, RouteContract> = {
-  ...identityC, ...sessionsC, ...messagesC, ...chatsC, ...webhooksC, ...teamC, ...joinC, ...usageC, ...auditC, ...tenantC, ...settingsC,
+  ...identityC, ...sessionsC, ...messagesC, ...chatsC, ...webhooksC, ...teamC, ...joinC, ...usageC, ...auditC, ...tenantC, ...settingsC, ...exportC,
 };
 
 export interface CollectedRoute { key: string; method: string; url: string; guards: GuardMeta[] }
@@ -113,6 +114,16 @@ export function generateOpenApi(routes: CollectedRoute[]): Json {
       if (schema) r.content = { 'application/json': { schema: toSchema(schema, 'output', defs) } };
       if (op.cookie === 'sets-refresh' && code < 300) r.headers = { 'Set-Cookie': { description: 'Refresh token (wzp_rt) sebagai cookie HttpOnly, Secure di production, SameSite=Strict, Path=/api/v1/auth.', schema: { type: 'string' } } };
       responses[status] = r;
+    }
+    if (op.stream) {
+      responses['200'] = {
+        description: 'Berkas ekspor (streaming); isi mengikuti format yang diminta',
+        headers: {
+          'Content-Disposition': { description: 'attachment; filename="wazap-<slug>-<jenis>-<tanggal>.<csv|ndjson>"', schema: { type: 'string' } },
+          'X-Export-Rows': { description: 'Jumlah baris saat ekspor dimulai (tepat untuk jenis berentang waktu dan chats/members; perkiraan untuk contacts)', schema: { type: 'integer' } },
+        },
+        content: Object.fromEntries(op.stream.contentTypes.map((ct) => [ct, { schema: { type: 'string' } }])),
+      };
     }
     const isHealth = path.startsWith('/health');
     const errs = new Set<number>(op.errors ?? []);

@@ -92,6 +92,11 @@ Cek: `echo | openssl s_client -connect <host>:443 -servername <host> 2>/dev/null
 ### P14. Cadangan gagal atau rusak
 `backup.sh` keluar kode 1 dengan penyebab di log (role tanpa BYPASSRLS, `pg_dump` gagal, tabel tanpa entri data). Perbaiki dan jalankan ulang segera; jangan menunggu jadwal berikutnya. Cadangan yang checksumnya tidak cocok dibuang. Lakukan latihan pemulihan (BACKUP_RESTORE.md) setelah memperbaiki.
 
+### P15. Ekspor data: lonjakan, penyalahgunaan, atau keluhan "ekspor ditolak"
+**Cek:** audit `data.exported` per workspace (`GET /audit-logs` oleh OWNER, atau DB; `details.rows`, `bytes`, `outcome`, `ip`); beban API (`pm2`, `/health/ready`). **Penolakan wajar:** `422 EXPORT_TOO_LARGE` (persempit rentang; batas `EXPORT_MAX_ROWS`/`EXPORT_MAX_SPAN_DAYS`), `409 EXPORT_IN_PROGRESS` (satu ekspor per workspace), `429 RATE_LIMITED` (jatah `EXPORT_PER_USER_PER_HOUR`, atau `EXPORT_MAX_CONCURRENT` per proses), `403 INVALID_PASSWORD` (5 salah per 15 menit mengunci).
+**Dugaan penyalahgunaan (sesi pengguna dibajak):** hentikan SEMUA ekspor seketika dengan `EXPORT_ENABLED=false` lalu `pm2 restart` API (ekspor menjawab 503 `NOT_CONFIGURED`; fitur lain tidak terganggu); cabut sesi pengguna (`logout-all` / ganti kata sandi, menaikkan `token_version`); tinjau audit `data.exported` untuk data yang sudah keluar. Aktifkan kembali setelah akun diamankan.
+**Beban:** ekspor berjalan di proses API (satu instans) dengan batch pendek; bila API melambat saat ekspor besar, turunkan `EXPORT_MAX_CONCURRENT`/`EXPORT_MAX_ROWS`. **Jangan** menaikkan batas tanpa mengukur ulang (`test/perf/export.perf.ts`).
+
 ## 6. Prosedur rotasi kunci master (terbukti dengan CLI sungguhan, `test/rotate-cli.test.ts`)
 1.  Buat kunci baru: `openssl rand -base64 32`; tambahkan sebagai versi baru **tanpa menghapus yang lama**: `CREDENTIAL_ENCRYPTION_KEYS="1:<lama>,2:<baru>"`, `CREDENTIAL_ACTIVE_KEY_VERSION=2`. Cadangkan nilai itu ke password manager + salinan offline SEBELUM melanjutkan.
 2.  Restart SEMUA proses (API dan setiap worker) agar semuanya menulis dengan versi 2.

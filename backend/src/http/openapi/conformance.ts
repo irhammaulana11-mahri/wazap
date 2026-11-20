@@ -28,14 +28,14 @@ export function installContractCheck(app: FastifyInstance): void {
     });
   }
   app.addHook('onSend', (req, reply, payload, done) => {
-    try { check(req.method, req.routeOptions?.url, reply.statusCode, payload); } catch (e) { violations.push({ op: 'internal', status: 0, problem: String((e as Error).message) }); }
+    try { check(req.method, req.routeOptions?.url, reply.statusCode, payload, String(reply.getHeader('content-type') ?? '')); } catch (e) { violations.push({ op: 'internal', status: 0, problem: String((e as Error).message) }); }
     done(null, payload);
   });
 }
 
 const fmt = (e: z.ZodError) => e.issues.slice(0, 3).map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
 
-function check(method: string, url: string | undefined, status: number, payload: unknown): void {
+function check(method: string, url: string | undefined, status: number, payload: unknown, contentType = ''): void {
   if (!url || method === 'HEAD' || method === 'OPTIONS') return; // 404 tanpa route, preflight
   if (!url.startsWith('/api/v1') && !url.startsWith('/health')) return; // route buatan tes (mis. /boom), bukan bagian API publik
   const key = opKey(method, url);
@@ -50,6 +50,11 @@ function check(method: string, url: string | undefined, status: number, payload:
     const schema = documented ?? ErrorBody;
     const r = schema.safeParse(body);
     if (!r.success) violations.push({ op: key, status, problem: `body galat tidak sesuai: ${fmt(r.error)}` });
+    return;
+  }
+  if (op.stream && status < 300) { // aliran non-JSON: periksa status dan Content-Type saja
+    if (status !== 200) violations.push({ op: key, status, problem: `status sukses ${status} tidak terdokumentasi (hanya 200)` });
+    else if (!op.stream.contentTypes.some((ct) => contentType.toLowerCase().startsWith(ct))) violations.push({ op: key, status, problem: `Content-Type ${contentType || '(kosong)'} bukan salah satu dari ${op.stream.contentTypes.join(', ')}` });
     return;
   }
   if (!(status in op.responses)) { violations.push({ op: key, status, problem: `status sukses ${status} tidak terdokumentasi (terdokumentasi: ${Object.keys(op.responses).join(', ')})` }); return; }

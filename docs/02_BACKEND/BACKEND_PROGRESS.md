@@ -575,5 +575,6 @@ Nomor nyata, topologi produksi (API dan worker proses terpisah, Nginx TLS, `NODE
 `RUNBOOK.md` (peta sistem, rutinitas, deploy/rollback, indikator, 14 playbook insiden, rotasi kunci), `BACKUP_RESTORE.md`, `deploy/ops/{backup.sh,restore-drill.sh,setup-backup-role.sql}`, ADR-046. Menemukan bahwa `pg_dump` gagal/parsial di bawah FORCE RLS dan menutupnya dengan pagar dan role BYPASSRLS.
 Bukti: tes CLI rotasi, tes dokumen, uji pagar skrip. **Latihan pemulihan penuh pada staging nyata LULUS** (27 tabel, 3.213 baris sama persis, RLS utuh, migrasi sampai 0018). **Belum:** role `wazap_backup` di server dan uji hak role pada hasil pemulihan, WAL/PITR, penyalinan cadangan ke luar host, uji di produksi, kontak on-call dan ambang alarm.
 
-## Ekspor data workspace --- DIUSULKAN (2026-11-20)
-Rancangan `DATA_EXPORT_DESIGN.md` (ADR-048): enam jenis ekspor, OWNER/ADMIN + konfirmasi kata sandi, streaming CSV/NDJSON dengan batas dan pra-hitung, RLS tenant, audit, migrasi 0019, rencana uji dan UI. Belum ada kode; menunggu keputusan bagian 13.
+## Ekspor data workspace (2026-11-20) --- BACKEND DONE, frontend belum
+`DATA_EXPORT_DESIGN.md` (ADR-048): enam jenis ekspor, OWNER/ADMIN + konfirmasi kata sandi, streaming CSV/NDJSON dengan batas dan pra-hitung, RLS tenant, audit `data.exported`, saklar `EXPORT_ENABLED`, migrasi 0019, playbook RUNBOOK P15.
+Bukti: 18 tes fungsional + 3 tes perf (30 ribu baris: ~50 ribu baris/dtk, +30 MB, nol idle-in-tx; indeks 0019 dipakai) + kontrak OpenAPI (82 operasi) + uji mutasi pada tiap pengaman. **Belum:** frontend (lihat FRONTEND_HANDOFF), uji 200 ribu baris pada DB berjarak, ekspor asinkron/terjadwal, akses API key.

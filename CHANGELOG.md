@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- Backend: ekspor data workspace (2026-11-20)
+
+-   Baru (ADR-048): `POST /api/v1/exports/{messages|outbound|chats|contacts|audit-logs|members}` (CSV aman dari injeksi formula atau NDJSON dengan manifest, streaming berbatas) dan `GET /api/v1/exports/policy`. Hanya OWNER/ADMIN pengguna dashboard dengan konfirmasi kata sandi; 422 sebelum data bila melebihi batas; audit `data.exported`; saklar `EXPORT_ENABLED`. Konfigurasi baru `EXPORT_*`.
+-   Database: migrasi 0019 (indeks `wa_messages (tenant_id, occurred_at, id)` dan `message_queue (tenant_id, created_at, id)`; `target_type` audit `export`).
+-   Kode: `RateLimiter.blocked`, `identity.confirmPassword`; OpenAPI mendukung respons streaming (82 operasi). Tes: `export.test.ts` 18, `perf/export.perf.ts` 3. Runbook: playbook P15.
+
 ## Unreleased --- Rancangan ekspor data workspace (2026-11-20)
 
 -   Diusulkan (ADR-048, `docs/02_BACKEND/DATA_EXPORT_DESIGN.md`): ekspor pesan, laporan pengiriman, chat, kontak, audit, dan anggota untuk OWNER/ADMIN dengan konfirmasi kata sandi, CSV/NDJSON streaming berbatas, dalam isolasi RLS tenant. Belum diimplementasikan.

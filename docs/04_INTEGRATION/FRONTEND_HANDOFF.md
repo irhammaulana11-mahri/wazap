@@ -541,3 +541,15 @@ Rute yang butuh body tetap `400 VALIDATION_ERROR` bila body kosong.
 
 `docs/02_BACKEND/openapi.json` memuat seluruh 75 operasi: skema request (strict, wajib/opsional, batas), skema response, scope/peran per operasi, dan galat standar. Frontend dapat menghasilkan tipe TypeScript darinya
 (`npx openapi-typescript docs/02_BACKEND/openapi.json -o src/api-types.d.ts`) alih-alih menulis tipe tangan; diperiksa terhadap response asli oleh tes backend sehingga tidak menyimpang dari server. Abaikan field baru yang tidak dikenal (penambahan field kompatibel).
+
+## Ekspor data workspace: kontrak untuk UI (2026-11-20, ADR-048)
+
+Backend siap; frontend belum. Rancangan UI: `docs/02_BACKEND/DATA_EXPORT_DESIGN.md` bagian 10. Kontrak mesin-terbaca: `openapi.json` (tag `Ekspor`).
+-   **Panggil `GET /exports/policy`** saat membuka halaman: `{enabled, max_rows, max_span_days, per_hour, types, retention}`. Bila `enabled=false` sembunyikan tombol ekspor dan tampilkan "Ekspor dinonaktifkan sementara". Tampilkan retensi: "Isi pesan disimpan {content_days} hari, riwayat {row_days} hari" (pengguna perlu tahu mengapa ekspor berguna).
+-   **Tombol ekspor hanya untuk OWNER dan ADMIN** (MEMBER/VIEWER 403; API key tidak dipakai di UI).
+-   **Unduh dengan `fetch` + `Authorization` (bukan tautan)**: `POST /exports/{type}` body `{password, format: 'csv'|'ndjson', from?, to?, session_id?, direction?, status?}`; baca `res.body` bertahap (hitung byte untuk indikator), beri `AbortController` untuk tombol Batal (server menghentikan loop dan mencatat `aborted`), kumpulkan ke `Blob`, lalu simpan dengan nama dari `Content-Disposition`. Berkas bisa hingga puluhan MB: tampilkan peringatan untuk rentang besar.
+-   **Kata sandi**: minta di dialog konfirmasi, kirim sekali, JANGAN simpan di state/storage setelahnya. `403 INVALID_PASSWORD` tetap di dialog; 5 salah per 15 menit mengunci (`429`).
+-   **Rentang**: wajib untuk `messages`, `outbound`, `audit-logs` (bawaan 30 hari terakhir, maksimal `max_span_days`); tawarkan "per bulan" untuk data besar.
+-   **Galat**: `422 EXPORT_TOO_LARGE` -> "Terlalu banyak data (maks {max_rows} baris); persempit rentang" (angka dari `error.details[0]`); `409 EXPORT_IN_PROGRESS` -> "Ekspor lain sedang berjalan"; `429` -> tampilkan waktu tunggu dari `Retry-After`; `503 NOT_CONFIGURED` -> dinonaktifkan operator; jaringan putus di tengah unduhan -> berkas tidak lengkap: CSV tidak punya penanda akhir, NDJSON tanpa baris `_manifest` terakhir = terpotong (tawarkan ulangi).
+-   **Jangan** menyimpan hasil ekspor di server/localStorage; sel teks berawalan `= + - @` sengaja diberi awalan `'` (anti injeksi formula): jelaskan di bantuan bila perlu.
+-   Tempat tombol: Pengaturan "Data & Privasi" (semua jenis), halaman Pesan/Obrolan (`messages`, `outbound`, `chats`), Kontak, Audit, Tim (`members`); dialog hapus workspace menyarankan ekspor lebih dulu.

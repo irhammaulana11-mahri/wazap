@@ -144,3 +144,8 @@ Bukan bagian `npm test` (jalankan lewat `npm run test:perf` atau langsung). Mene
 ## Frontend (ADR-047)
 -   CI job `frontend`: `npm ci`, `tsc --noEmit`, `vite build`. Belum ada tes unit/komponen/E2E peramban (celah yang diketahui).
 -   `test/frontend-contract.test.ts` (2 tes): semua panggilan `/api/v1/...` di `frontend/src` ada di `openapi.json` (path dan method; path Socket.IO `/api/v1/realtime` dikecualikan eksplisit), dan tidak ada rahasia/berkas `.env` di frontend. Mutasi: klien lama dipulihkan atau endpoint diganti nama => gagal.
+
+## Ekspor data (`test/export.test.ts` 18 tes, `test/perf/export.perf.ts` 3 tes; ADR-048)
+Penulis CSV (kutipan, BOM, CRLF, injeksi formula); ekspor pesan CSV/NDJSON (manifest); isolasi tenant (juga `session_id` milik tenant lain); hak akses (MEMBER/VIEWER/API key/tanpa kredensial); kata sandi salah dan penguncian; jatah per jam (422/400 tidak menagih); terlalu besar 422 sebelum byte data; validasi rentang; batas atas terkunci; audit completed/aborted tanpa isi data; pembatalan lewat layanan dan **HTTP sungguhan**; slot per workspace dan batas bersamaan; enam jenis ekspor dengan kolom persis sesuai kontrak; saklar mati; kebijakan.
+Perf: EXPLAIN memakai indeks 0019 tanpa Sort/Seq Scan; 30 ribu baris stabil memori; tanpa koneksi `idle in transaction` saat klien lambat. Jalankan perf: `node --import tsx --test --test-timeout=300000 test/perf/export.perf.ts`.
+Uji mutasi (semua menggagalkan tes): netralisasi formula, pra-hitung, batas atas, audit, guard user-only dan peran, verifikasi kata sandi, slot, jatah, indeks; RLS menahan kebocoran walau filter SQL dicabut, dan kebocoran terdeteksi bila keduanya dicabut.

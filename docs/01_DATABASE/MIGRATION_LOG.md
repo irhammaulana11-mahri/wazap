@@ -165,3 +165,7 @@ manual deployment action.
 
 -   `wa_chats.lid_jid` + indeks unik parsial `(session_id, lid_jid)` dan indeks `(session_id, contact_phone)`. Fungsi `resolve_chat(tenant, session, jid, phone, name, at)`: satu aturan identitas chat (JID nomor vs `@lid`), menggabungkan chat ganda tanpa kehilangan pesan, diserialkan kunci advisory. Trigger `mirror_outbound_message` (versi 0007) kini memakai fungsi itu.
 -   Perbaikan data: blok `DO` menggabungkan duplikat yang sudah ada (konteks platform hanya di transaksi migrasi). Terbukti pada data staging: 2 chat (nomor dan LID) menjadi 1 dengan 4 pesan utuh. ADR-041. Tes: `test/chat-identity.test.ts`.
+
+### 0019 --- `backend/src/database/migrations/0019_data_export.sql`
+
+-   Indeks `idx_wa_messages_tenant_time (tenant_id, occurred_at, id)` dan `idx_message_queue_tenant_time (tenant_id, created_at, id)` untuk ekspor keyset (indeks antrean lama berurutan `created_at DESC` sehingga tidak cocok). `audit_logs.target_type` menerima `export` (aksi `data.exported` sudah sesuai pola CHECK aksi). ADR-048. Tes: `test/export.test.ts`, `test/perf/export.perf.ts` (EXPLAIN memakai indeks; mutasi tanpa indeks gagal).

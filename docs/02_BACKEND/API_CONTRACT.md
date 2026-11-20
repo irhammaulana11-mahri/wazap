@@ -507,3 +507,13 @@ Aksi audit baru: `account.password_changed|email_changed|recovery_code_created|s
 `docs/02_BACKEND/openapi.json` (OpenAPI 3.1, 75 operasi) adalah rujukan mesin-terbaca untuk kontrak ini; dihasilkan oleh `cd backend && npm run openapi` dan dijaga mutakhir oleh tes (ADR-045). Jangan diedit tangan.
 Skema request berasal dari validasi yang sama dengan server; keamanan per operasi (`x-roles`, `x-required-scope`, `x-user-only`) dibaca dari guard nyata. Contoh membuat klien bertipe: `npx openapi-typescript docs/02_BACKEND/openapi.json -o client.d.ts`.
 Bila prosa di atas dan `openapi.json` berbeda, `openapi.json` yang benar (ia diperiksa terhadap response asli oleh `npm run test:contract`).
+
+## Ekspor data workspace (ADR-048; kontrak mesin-terbaca di `openapi.json`)
+
+`POST /api/v1/exports/{type}` dengan `type` salah satu `messages`, `outbound`, `chats`, `contacts`, `audit-logs`, `members`. Hanya OWNER/ADMIN pengguna dashboard (API key 403), body strict dengan `password` (kata sandi akun) dan `format` (`csv` bawaan | `ndjson`).
+-   Berentang waktu (`messages`, `outbound`, `audit-logs`): `from` dan `to` wajib (ISO-8601 dengan offset, `from < to`, maks `EXPORT_MAX_SPAN_DAYS`=92 hari); filter opsional `session_id`, `direction` (messages), `status` (outbound). `to` di masa depan dipotong ke waktu mulai.
+-   Sukses `200`: berkas streaming (`text/csv; charset=utf-8` atau `application/x-ndjson`), header `Content-Disposition: attachment; filename="wazap-<slug>-<jenis>-<YYYYMMDD>.<csv|ndjson>"`, `X-Export-Rows`, `Cache-Control: no-store`. CSV: UTF-8 BOM, CRLF, sel teks berawalan `= + - @` tab/CR diberi awalan `'`. NDJSON: baris terakhir `{"_manifest": {...}}` (tanpa manifest = terpotong).
+-   Galat (amplop standar): `400 VALIDATION_ERROR`, `401`, `403 FORBIDDEN | INVALID_PASSWORD`, `409 EXPORT_IN_PROGRESS`, `422 EXPORT_TOO_LARGE` (`details: [{max_rows, estimated_rows, capped}]`; ditolak SEBELUM data dikirim), `429 RATE_LIMITED` (+`Retry-After`), `503 SERVICE_UNAVAILABLE | NOT_CONFIGURED` (ekspor dinonaktifkan operator).
+-   Kolom tiap jenis adalah bagian dari kontrak (penambahan hanya di akhir). Tidak pernah diekspor: kredensial/auth state WhatsApp, hash/kunci/secret, data tenant lain.
+`GET /api/v1/exports/policy` (semua pengguna dashboard): `{enabled, max_rows, max_span_days, per_hour, types, retention: {content_days, row_days, audit_days}}`.
+Batas: 5 ekspor per jam per pengguna (ditagih setelah pra-hitung lolos), 5 percobaan kata sandi salah per 15 menit, 1 ekspor per workspace, `EXPORT_MAX_CONCURRENT` per proses. Setiap ekspor tercatat audit `data.exported` (`outcome` = completed | aborted | failed, jumlah baris dan byte).

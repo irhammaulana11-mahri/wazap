@@ -15,9 +15,13 @@ export interface Operation {
   userOnly?: boolean;
   /** Menerima header Idempotency-Key. */
   idempotency?: boolean;
+  /** Respons sukses 200 berupa aliran non-JSON (mis. ekspor CSV/NDJSON): hanya status, Content-Type, dan header diperiksa, bukan isi. */
+  stream?: { contentTypes: string[] };
 }
 
 const ok = S.okOf, list = S.listOf;
+const EXPORT_STREAM = { contentTypes: ['text/csv', 'application/x-ndjson'] };
+const EXPORT_NOTE = 'Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.';
 const O = (tag: string, summary: string, responses: Operation['responses'], extra: Partial<Operation> = {}): Operation => ({ tag, summary, responses, ...extra });
 
 /** Kunci: `METHOD /path` persis seperti didaftarkan di Fastify, tanpa awalan /api/v1 (kecuali /health*). Kelengkapan dijaga test/openapi.test.ts. */
@@ -111,6 +115,15 @@ export const OPERATIONS: Record<string, Operation> = {
   'DELETE /tenant': O('Workspace', 'Hapus workspace (masa pemulihan)', { 200: ok(S.TenantDeleted) }),
   'GET /tenant/settings': O('Workspace', 'Kuota, batas atas, dan pemakaian', { 200: ok(S.TenantSettings) }),
   'PATCH /tenant/settings': O('Workspace', 'Ubah kuota dalam batas atas', { 200: ok(S.TenantSettings) }, { errors: [409] }),
+
+  // ---- Ekspor data (ADR-048) ----
+  'POST /exports/messages': O('Ekspor', 'Ekspor riwayat pesan masuk dan keluar (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
+  'POST /exports/outbound': O('Ekspor', 'Ekspor laporan pengiriman (antrean keluar) (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
+  'POST /exports/chats': O('Ekspor', 'Ekspor daftar chat (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
+  'POST /exports/contacts': O('Ekspor', 'Ekspor kontak (digabung per nomor) (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
+  'POST /exports/audit-logs': O('Ekspor', 'Ekspor log audit (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
+  'POST /exports/members': O('Ekspor', 'Ekspor anggota tim (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
+  'GET /exports/policy': O('Ekspor', 'Batas ekspor dan retensi data (untuk UI)', { 200: ok(S.ExportPolicy) }),
 
   // ---- Penggunaan dan audit ----
   'GET /usage/summary': O('Penggunaan', 'Ringkasan penggunaan dan kuota', { 200: ok(S.UsageSummary) }),

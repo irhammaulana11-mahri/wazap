@@ -35,7 +35,7 @@ test('nama variabel env di RUNBOOK/BACKUP_RESTORE adalah variabel konfigurasi ya
   // dari definisi skema (variabel opsional tidak muncul di objek config bila tidak diisi)
   const known = new Set([...read('backend/src/config/env.ts').matchAll(/^\s+([A-Z][A-Z0-9_]+):\s*z\./gm)].map((m) => m[1]!));
   assert.ok(known.size > 80 && known.has('ENGINE_NODE_NAME') && known.has('CREDENTIAL_ACTIVE_KEY_VERSION'), 'pembacaan skema env gagal');
-  const prefixes = /^(DB_|WORKER_|ENGINE_|WEBHOOK_|RETENTION_|CREDENTIAL_|ENABLE_|JWT_|API_|TRUST_|SHUTDOWN_|QUEUE_|MEDIA_|JOIN_|DASHBOARD_|AUTO_MIGRATE|ACCESS_TOKEN_|REFRESH_TOKEN_)/;
+  const prefixes = /^(DB_|WORKER_|ENGINE_|WEBHOOK_|EXPORT_|RETENTION_|CREDENTIAL_|ENABLE_|JWT_|API_|TRUST_|SHUTDOWN_|QUEUE_|MEDIA_|JOIN_|DASHBOARD_|AUTO_MIGRATE|ACCESS_TOKEN_|REFRESH_TOKEN_)/;
   const bad: string[] = [];
   for (const f of ['docs/07_DEPLOYMENT/RUNBOOK.md', 'docs/07_DEPLOYMENT/BACKUP_RESTORE.md']) {
     for (const m of read(f).matchAll(/`([A-Z][A-Z0-9_]{3,})(?:=[^`]*)?`/g)) {
@@ -52,7 +52,7 @@ test('teks log, status, dan kode yang dikutip RUNBOOK benar-benar dikeluarkan ko
     'belum dimigrasi', 'role DB tidak aman', 'sudah berjalan di proses lain', 'kunci singleton hilang dan tidak dapat direbut kembali',
     'gagal menempatkan sesi', 'gagal memulihkan sesi dengan lease kedaluwarsa', 'auth_state_unavailable', 'duplicate_phone_number',
     'AUTO_CONSECUTIVE_FAILURES', 'realtime.resync', 'confirm_duplicate_risk', 'SERVICE_UNAVAILABLE', 'RECONCILIATION_REQUIRED', 'LOGGED_OUT',
-    'CREDENTIAL_ENCRYPTION_KEYS belum diset',
+    'CREDENTIAL_ENCRYPTION_KEYS belum diset', 'EXPORT_TOO_LARGE', 'EXPORT_IN_PROGRESS', 'data.exported', 'NOT_CONFIGURED',
   ];
   const notInSrc = phrases.filter((p) => !src.includes(p)), notInDoc = phrases.filter((p) => !runbook.includes(p));
   assert.deepEqual(notInSrc, [], `kutipan tidak ada di kode: ${notInSrc.join('; ')}`);

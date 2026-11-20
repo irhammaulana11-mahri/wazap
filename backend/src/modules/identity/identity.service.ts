@@ -356,6 +356,12 @@ export function createIdentityService(db: GatewayDb) {
       return set.codes;
     },
 
+    /** Langkah pengaman untuk operasi sensitif (mis. ekspor data): kata sandi akun harus benar. Tanpa efek samping. */
+    async confirmPassword(userId: string, password: string): Promise<void> {
+      const u = await db.tx({ userId }, async (c) => (await c.query('SELECT password_hash, status FROM users WHERE id = $1', [userId])).rows[0] as { password_hash: string; status: string } | undefined);
+      if (!u || u.status !== 'ACTIVE' || !(await verifyPassword(password, u.password_hash))) throw new AppError('INVALID_PASSWORD', 403, 'Kata sandi salah');
+    },
+
     /** Ganti email akun (butuh kata sandi). Email tidak diverifikasi (keputusan tanpa email); salinan member_email di semua keanggotaan ikut diperbarui. */
     async changeEmail(a: AccountActor, input: { password: string; newEmail: string }) {
       const email = input.newEmail.trim().toLowerCase();

@@ -30,6 +30,8 @@ import { RateLimiter } from './modules/identity/rate-limit.js';
 import { tryGetCredentialCrypto } from './security/credential-crypto.js';
 import { getGatewayDb } from './database/gateway.js';
 import { installContractCheck } from './http/openapi/conformance.js';
+import { createExportService, type ExportService } from './modules/export/export.service.js';
+import { exportRoutes } from './modules/export/export.routes.js';
 import { AppError, installErrorHandling } from './http/errors.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 
@@ -58,6 +60,7 @@ export interface AppDeps {
   usage?: UsageService;
   audit?: AuditService;
   settings?: SettingsService;
+  exports?: ExportService;
   limiter?: RateLimiter;
   /** Pembatas laju API umum (IP + tenant). Default: instans baru dengan batas dari env. */
   apiLimiter?: RateLimiter;
@@ -139,6 +142,7 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
   const usage = deps.usage ?? createUsageService(getGatewayDb());
   const audit = deps.audit ?? createAuditService(getGatewayDb());
   const settings = deps.settings ?? createSettingsService(getGatewayDb());
+  const dataExport = deps.exports ?? createExportService(getGatewayDb());
   const sessions = deps.sessions ?? createSessionService(getGatewayDb(), { crypto: tryGetCredentialCrypto(config) });
 
   // Health (publik, tanpa detail internal)
@@ -164,6 +168,7 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
       await scope.register(usageRoutes, { usage, authenticate });
       await scope.register(auditRoutes, { audit, authenticate });
       await scope.register(settingsRoutes, { settings, authenticate });
+      await scope.register(exportRoutes, { exports: dataExport, identity, authenticate, limiter: deps.limiter });
       await scope.register(tenantRoutes, { tenant, authenticate, limiter: deps.limiter });
     },
     { prefix: '/api/v1' }

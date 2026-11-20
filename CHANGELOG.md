@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased --- Latihan pemulihan cadangan staging lulus (2026-11-20)
+
+-   Bukti operasional: cadangan `wazap_staging` (27 tabel, 3.213 baris) dipulihkan ke database sementara dengan jumlah baris sama persis, RLS ENABLE+FORCE utuh pada semua tabel, 75 kebijakan, dan migrasi berurutan sampai 0018. Tidak ada perubahan kode.
+
 ## Unreleased --- Frontend masuk repo bersih, kontrak API, dan CI (2026-11-20)
 
 -   Baru (ADR-047): frontend dibawa ke `clean/backend-v1` (commit tersendiri); `frontend/dist` dan arsip agent kit diabaikan git. CI: job `frontend` (typecheck + build) dan pagar hygiene arsip/`dist`/symlink.

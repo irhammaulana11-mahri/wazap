@@ -139,7 +139,7 @@ Bukan bagian `npm test` (jalankan lewat `npm run test:perf` atau langsung). Mene
 ## Operasi produksi (ADR-046)
 -   `test/rotate-cli.test.ts` (3 tes): CLI `keys:rotate` sebagai proses terpisah; dry-run tidak mengubah, rotasi nyata, kunci lama lalu dapat dipensiunkan, idempoten; pensiun dini => exit 2 tanpa membocorkan rahasia/kunci; konfigurasi salah => exit 1.
 -   `test/runbook-docs.test.ts` (6 tes): perintah `npm run`, berkas, nama env, teks log/kode galat, angka batas laju/retensi di RUNBOOK dan BACKUP_RESTORE sama dengan kode; pagar skrip cadangan tetap ada.
--   Skrip cadangan (uji manual lokal, hasil di BACKUP_RESTORE.md "Bukti"): pagar role, dump gagal tanpa berkas sisa, cadangan utuh + checksum, hitung baris, retensi, kegagalan rapi bukan superuser. Latihan pemulihan penuh: butuh superuser (status di BACKUP_RESTORE.md).
+-   Skrip cadangan (uji manual lokal, hasil di BACKUP_RESTORE.md "Bukti"): pagar role, dump gagal tanpa berkas sisa, cadangan utuh + checksum, hitung baris, retensi, kegagalan rapi bukan superuser. Latihan pemulihan penuh pada staging nyata (2026-11-20) LULUS: 27 tabel, 3.213 baris sama persis, RLS ENABLE+FORCE, 75 kebijakan, migrasi 0018 (rincian di BACKUP_RESTORE.md "Bukti").
 
 ## Frontend (ADR-047)
 -   CI job `frontend`: `npm ci`, `tsc --noEmit`, `vite build`. Belum ada tes unit/komponen/E2E peramban (celah yang diketahui).

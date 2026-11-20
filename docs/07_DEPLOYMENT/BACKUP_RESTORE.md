@@ -1,6 +1,6 @@
 # Cadangan dan pemulihan
 
-> **STATUS:** skrip dan pagar diuji (lihat "Bukti"). Latihan pemulihan penuh pada data staging nyata: lihat bagian "Latihan pemulihan" untuk statusnya.
+> **STATUS (2026-11-20):** skrip dan pagar diuji, dan **latihan pemulihan penuh pada data staging nyata LULUS** (lihat "Bukti"). Belum: uji hak role (`verify-db-roles.sh`) pada hasil pemulihan, role `wazap_backup` di server, WAL/PITR, penyalinan ke luar host.
 
 ## Yang harus dicadangkan (dan di mana)
 
@@ -53,5 +53,6 @@ Role `wazap_migrator`/`wazap_app` harus ada di cluster tujuan SEBELUM pemulihan 
 
 ## Bukti
 
+-   **Latihan pemulihan penuh pada data staging nyata (2026-11-20, PostgreSQL 18, dijalankan oleh superuser):** `backup.sh` menghasilkan `wazap-wazap_staging-gateway-<waktu>.dump` (735.120 byte, 27 entri data untuk 27 tabel). `restore-drill.sh`: checksum berkas cocok; `pg_restore --exit-on-error` selesai tanpa galat; **jumlah baris sama persis di 27 tabel (3.213 baris)**; semua tabel masih `ENABLE`+`FORCE ROW LEVEL SECURITY`; 75 kebijakan RLS ada; nomor migrasi berurutan sampai 0018; database sementara dihapus otomatis. Hasil akhir: "PEMULIHAN TERBUKTI UTUH". Langkah hak role aplikasi dilewati (APP_USER/APP_PASSWORD tidak diisi).
 -   Pagar (`backup.sh`, diuji lokal): role tanpa BYPASSRLS ditolak (exit 1, nol berkas); `pg_dump` yang gagal di tengah jalan (RLS) tidak meninggalkan berkas apa pun; cadangan utuh + checksum; jumlah baris yang dihitung dari isi dump cocok dengan sumber (250 dan 40); retensi menyisakan minimal 3 berkas; `restore-drill.sh` oleh bukan superuser gagal rapi (exit 2, tanpa database tersisa).
 -   Rotasi kunci (bagian dari cadangan kunci): `test/rotate-cli.test.ts` menjalankan CLI sungguhan.

@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
-import { ChatItem, ChatMessageItem, MessageItem, MessageStatus } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { ChatItem, ChatMessageItem, MessageItem, MessageStatus, ExportType } from '../types';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
+import { ExportDrawer } from '../components/export/ExportDrawer';
 import {
   MessageSquare,
   Clock,
@@ -30,6 +32,7 @@ import {
   Strikethrough,
   Code,
   UserPlus,
+  Download,
 } from 'lucide-react';
 
 const COMMON_EMOJIS = ['👍', '🙏', '😀', '❤️', '✅', '🔥', '📦', '🛒', '🚀'];
@@ -71,9 +74,15 @@ const STATUS_CONFIG: Record<
 export const ChatsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
+  const { role } = useAuth();
+  const canExport = role === 'OWNER' || role === 'ADMIN';
 
   // Left View Mode: 'chats' (WhatsApp threads) | 'queue' (Gateway outbox messages log)
   const [leftTab, setLeftTab] = useState<'chats' | 'queue'>('chats');
+
+  // Export drawer state
+  const [isExportDrawerOpen, setIsExportDrawerOpen] = useState(false);
+  const [exportType, setExportType] = useState<ExportType>('messages');
 
   // Selected session filter
   const [selectedSessionId, setSelectedSessionId] = useState('');
@@ -295,6 +304,21 @@ export const ChatsPage: React.FC = () => {
               ))}
             </select>
           </div>
+
+          {/* Ekspor Data Button (OWNER / ADMIN) */}
+          {canExport && (
+            <button
+              onClick={() => {
+                setExportType(leftTab === 'queue' ? 'outbound' : 'messages');
+                setIsExportDrawerOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition shadow-xs"
+              title="Ekspor data percakapan atau antrean pesan"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              Ekspor
+            </button>
+          )}
 
           {/* New Chat Button */}
           <button
@@ -874,6 +898,14 @@ export const ChatsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Export Drawer */}
+      <ExportDrawer
+        isOpen={isExportDrawerOpen}
+        onClose={() => setIsExportDrawerOpen(false)}
+        initialType={exportType}
+        initialSessionId={selectedSessionId || undefined}
+      />
     </div>
   );
 };

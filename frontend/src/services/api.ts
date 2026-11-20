@@ -30,6 +30,17 @@ import {
   TenantSettingsData,
   AuditLogItem,
   Role,
+  ExportType,
+  ExportPolicyData,
+  ExportRequestBody,
+  AlertCatalogData,
+  AlertChannelItem,
+  CreateAlertChannelBody,
+  UpdateAlertChannelBody,
+  AlertTestResult,
+  AlertRuleItem,
+  PutAlertRuleBody,
+  AlertDeliveryItem,
 } from '../types';
 
 // RULE 2.2: Access token disimpan DI MEMORI (variabel modul), BUKAN localStorage/sessionStorage
@@ -50,8 +61,9 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
-    public details?: { path: string; message: string }[],
-    public requestId?: string
+    public details?: { path: string; message: string }[] | any,
+    public requestId?: string,
+    public retryAfterSec?: number
   ) {
     super(message);
     this.name = 'ApiError';
@@ -177,12 +189,16 @@ async function request<T>(
       message: response.status === 503 ? 'Layanan database sedang sibuk. Silakan coba kembali.' : `HTTP ${response.status}`,
     };
 
+    const retryAfterHeader = response.headers.get('retry-after');
+    const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
+
     throw new ApiError(
       response.status,
       errorPayload.code,
       errorPayload.message,
       errorPayload.details,
-      body?.request_id
+      body?.request_id,
+      !isNaN(retryAfterSec as number) ? retryAfterSec : undefined
     );
   }
 
@@ -743,6 +759,222 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(cred),
     });
+    return res.data;
+  },
+
+  // ==========================================
+  // DATA EXPORT (ADR-048)
+  // ==========================================
+  getExportPolicy: async () => {
+    const res = await request<ApiResponse<ExportPolicyData>>('/api/v1/exports/policy', {
+      method: 'GET',
+    });
+    return res.data;
+  },
+
+  exportData: async (
+    type: ExportType,
+    body: ExportRequestBody,
+    opts?: { signal?: AbortSignal; onProgress?: (bytes: number) => void },
+    isRetry = false
+  ): Promise<{ blob: Blob; filename: string; rows?: number }> => {
+    let exportPath: string;
+    switch (type) {
+      case 'messages':
+        exportPath = '/api/v1/exports/messages';
+        break;
+      case 'outbound':
+        exportPath = '/api/v1/exports/outbound';
+        break;
+      case 'chats':
+        exportPath = '/api/v1/exports/chats';
+        break;
+      case 'contacts':
+        exportPath = '/api/v1/exports/contacts';
+        break;
+      case 'audit-logs':
+        exportPath = '/api/v1/exports/audit-logs';
+        break;
+      case 'members':
+        exportPath = '/api/v1/exports/members';
+        break;
+      default:
+        throw new Error(`Tipe ekspor tidak dikenal: ${type}`);
+    }
+
+    // Clean body per Zod strictObject in backend routes
+    const cleanPayload: Record<string, unknown> = {
+      password: body.password,
+      format: body.format || 'csv',
+    };
+
+    if (type === 'messages' || type === 'outbound' || type === 'audit-logs') {
+      if (body.from) cleanPayload.from = body.from;
+      if (body.to) cleanPayload.to = body.to;
+    }
+    if (type === 'messages' || type === 'outbound' || type === 'chats') {
+      if (body.session_id) cleanPayload.session_id = body.session_id;
+    }
+    if (type === 'messages' && body.direction) {
+      cleanPayload.direction = body.direction;
+    }
+    if (type === 'outbound' && body.status) {
+      cleanPayload.status = body.status;
+    }
+
+    const token = tokenStore.get();
+    const headers = new Headers();
+    headers.set('Content-Type', 'application/json');
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const res = await fetch(exportPath, {
+      method: 'POST',
+      headers,
+      credentials: 'same-origin',
+      body: JSON.stringify(cleanPayload),
+      signal: opts?.signal,
+    });
+
+    // Handle 401: single-flight refresh token
+    if (res.status === 401 && !isRetry) {
+      if (!refreshPromise) {
+        refreshPromise = executeRefresh().finally(() => {
+          refreshPromise = null;
+        });
+      }
+      const newToken = await refreshPromise;
+      if (newToken) {
+        return api.exportData(type, body, opts, true);
+      }
+      tokenStore.clear();
+      if (onUnauthorizedCallback) {
+        onUnauthorizedCallback();
+      }
+      throw new ApiError(401, 'UNAUTHENTICATED', 'Sesi telah berakhir. Silakan login kembali.');
+    }
+
+    if (!res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      const isJson = contentType.includes('application/json');
+      const errBody = isJson ? await res.json().catch(() => ({})) : null;
+      const errorPayload: ApiErrorPayload = errBody?.error || {
+        code: res.status === 503 ? 'SERVICE_UNAVAILABLE' : res.status === 429 ? 'RATE_LIMITED' : 'API_ERROR',
+        message:
+          res.status === 503
+            ? 'Layanan sedang tidak tersedia. Silakan coba kembali.'
+            : `Terjadi galat (HTTP ${res.status})`,
+      };
+
+      const retryAfterHeader = res.headers.get('retry-after');
+      const retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
+
+      throw new ApiError(
+        res.status,
+        errorPayload.code,
+        errorPayload.message,
+        errorPayload.details,
+        errBody?.request_id,
+        !isNaN(retryAfterSec as number) ? retryAfterSec : undefined
+      );
+    }
+
+    const disp = res.headers.get('content-disposition') || '';
+    const filenameMatch = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disp);
+    const filename = filenameMatch ? decodeURIComponent(filenameMatch[1]) : `wazap-export-${type}.${body.format || 'csv'}`;
+    const rowsHeader = res.headers.get('x-export-rows');
+    const rowsCount = rowsHeader ? parseInt(rowsHeader, 10) : undefined;
+
+    const reader = res.body?.getReader();
+    if (!reader) {
+      throw new Error('Aliran pembaca (ReadableStream) tidak didukung pada browser ini.');
+    }
+
+    const chunks: Uint8Array[] = [];
+    let receivedBytes = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        receivedBytes += value.length;
+        opts?.onProgress?.(receivedBytes);
+      }
+    }
+
+    const blob = new Blob(chunks as BlobPart[], {
+      type: res.headers.get('content-type') || (body.format === 'ndjson' ? 'application/x-ndjson' : 'text/csv; charset=utf-8'),
+    });
+
+    return {
+      blob,
+      filename,
+      rows: rowsCount,
+    };
+  },
+
+  // ==========================================
+  // ALERTS (ADR-049)
+  // ==========================================
+  getAlertCatalog: async () => {
+    const res = await request<ApiResponse<AlertCatalogData>>('/api/v1/alerts/catalog');
+    return res.data;
+  },
+
+  listAlertChannels: async () => {
+    const res = await request<ApiResponse<AlertChannelItem[]>>('/api/v1/alerts/channels');
+    return res.data;
+  },
+
+  createAlertChannel: async (body: CreateAlertChannelBody) => {
+    const res = await request<ApiResponse<{ id: string }>>('/api/v1/alerts/channels', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    return res.data;
+  },
+
+  updateAlertChannel: async (id: string, body: UpdateAlertChannelBody) => {
+    const res = await request<ApiResponse<{ id: string }>>(`/api/v1/alerts/channels/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    return res.data;
+  },
+
+  deleteAlertChannel: async (id: string, password: string) => {
+    const res = await request<ApiResponse<{ id: string; deleted?: boolean }>>(`/api/v1/alerts/channels/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ password }),
+    });
+    return res.data;
+  },
+
+  testAlertChannel: async (id: string) => {
+    const res = await request<ApiResponse<AlertTestResult>>(`/api/v1/alerts/channels/${id}/test`, {
+      method: 'POST',
+    });
+    return res.data;
+  },
+
+  listAlertRules: async () => {
+    const res = await request<ApiResponse<AlertRuleItem[]>>('/api/v1/alerts/rules');
+    return res.data;
+  },
+
+  putAlertRule: async (code: string, body: PutAlertRuleBody) => {
+    const res = await request<ApiResponse<AlertRuleItem>>(`/api/v1/alerts/rules/${code}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+    return res.data;
+  },
+
+  listAlertDeliveries: async (limit?: number) => {
+    const path = limit !== undefined ? `/api/v1/alerts/deliveries?limit=${limit}` : '/api/v1/alerts/deliveries';
+    const res = await request<ApiResponse<AlertDeliveryItem[]>>(path);
     return res.data;
   },
 };

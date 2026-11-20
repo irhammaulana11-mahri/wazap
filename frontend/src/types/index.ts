@@ -388,3 +388,139 @@ export interface AuditLogItem {
   request_id: string;
   created_at: string;
 }
+
+// ==========================================
+// DATA EXPORT (ADR-048)
+// ==========================================
+export type ExportType = 'messages' | 'outbound' | 'chats' | 'contacts' | 'audit-logs' | 'members';
+export type ExportFormat = 'csv' | 'ndjson';
+
+export interface ExportRetentionPolicy {
+  content_days: number;
+  row_days: number;
+  audit_days: number;
+}
+
+export interface ExportPolicyData {
+  enabled: boolean;
+  max_rows: number;
+  max_span_days: number;
+  per_hour: number;
+  types: ExportType[];
+  retention: ExportRetentionPolicy;
+}
+
+export interface ExportRequestBody {
+  password: string;
+  format?: ExportFormat;
+  from?: string;
+  to?: string;
+  session_id?: string;
+  direction?: 'IN' | 'OUT';
+  status?: string;
+}
+
+export interface ExportTooLargeDetails {
+  max_rows: number;
+  estimated_rows: number;
+  capped: boolean;
+}
+
+// ==========================================
+// ALERTS (ADR-049)
+// ==========================================
+export type AlertChannelType = 'TELEGRAM' | 'SLACK';
+
+export interface AlertCatalogRuleThreshold {
+  default: number;
+  min: number;
+  max: number;
+  unit: string;
+}
+
+export interface AlertCatalogRule {
+  code: string;
+  label: string;
+  description: string;
+  threshold: AlertCatalogRuleThreshold | null;
+  repeats: boolean;
+}
+
+export interface AlertCatalogCooldown {
+  default: number;
+  min: number;
+  max: number;
+}
+
+export interface AlertCatalogData {
+  enabled: boolean;
+  max_channels: number;
+  channel_types: AlertChannelType[];
+  cooldown: AlertCatalogCooldown;
+  rules: AlertCatalogRule[];
+}
+
+export interface AlertChannelItem {
+  id: string;
+  type: AlertChannelType;
+  name: string;
+  target_hint: string;
+  active: boolean;
+  consecutive_failures: number;
+  disabled_at: string | null;
+  disabled_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CreateAlertChannelBody =
+  | { type: 'TELEGRAM'; name: string; token: string; chat_id: string; password: string }
+  | { type: 'SLACK'; name: string; url: string; password: string };
+
+export interface UpdateAlertChannelBody {
+  name?: string;
+  active?: boolean;
+  password?: string;
+  token?: string;
+  chat_id?: string;
+  url?: string;
+}
+
+export interface AlertTestResult {
+  ok: boolean;
+  status_code: number | null;
+  error_code: string | null;
+  duration_ms: number;
+}
+
+export interface AlertRuleItem {
+  code: string;
+  enabled: boolean;
+  threshold: number | null;
+  cooldown_minutes: number;
+  channel_ids: string[];
+  updated_at: string | null;
+}
+
+export interface PutAlertRuleBody {
+  enabled: boolean;
+  threshold?: number;
+  cooldown_minutes?: number;
+  channel_ids: string[];
+}
+
+export type AlertDeliveryStatus = 'PENDING' | 'SENT' | 'DEAD';
+
+export interface AlertDeliveryItem {
+  id: string;
+  channel_id: string | null;
+  channel_name: string | null;
+  rule_code: string;
+  status: AlertDeliveryStatus;
+  attempts: number;
+  last_status_code: number | null;
+  last_error_code: string | null;
+  sent_at: string | null;
+  created_at: string;
+}
+

@@ -17,7 +17,9 @@ import {
   User,
   Globe,
   Lock,
+  Download,
 } from 'lucide-react';
+import { ExportDrawer } from '../components/export/ExportDrawer';
 
 export const AuditLogsPage: React.FC = () => {
   const { role } = useAuth();
@@ -26,6 +28,7 @@ export const AuditLogsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [actionFilter, setActionFilter] = useState('');
+  const [isExportDrawerOpen, setIsExportDrawerOpen] = useState(false);
 
   const {
     data: auditResult,
@@ -76,25 +79,37 @@ export const AuditLogsPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Filter Action */}
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <select
-            value={actionFilter}
-            onChange={(e) => {
-              setActionFilter(e.target.value);
-              setPage(1);
-            }}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-700 focus:outline-none"
+        {/* Filter Action & Export */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <select
+              value={actionFilter}
+              onChange={(e) => {
+                setActionFilter(e.target.value);
+                setPage(1);
+              }}
+              className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-700 focus:outline-none"
+            >
+              <option value="">Semua Aksi</option>
+              <option value="MEMBER_INVITED">Undangan Dikirim</option>
+              <option value="MEMBER_JOINED">Anggota Bergabung</option>
+              <option value="ROLE_CHANGED">Perubahan Peran</option>
+              <option value="MEMBER_REMOVED">Anggota Dikeluarkan</option>
+              <option value="QUOTA_UPDATED">Kuota Diperbarui</option>
+              <option value="INVITATION_REVOKED">Undangan Dibatalkan</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsExportDrawerOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold transition shadow-xs"
+            title="Ekspor seluruh rekaman log audit"
           >
-            <option value="">Semua Aksi</option>
-            <option value="MEMBER_INVITED">Undangan Dikirim</option>
-            <option value="MEMBER_JOINED">Anggota Bergabung</option>
-            <option value="ROLE_CHANGED">Perubahan Peran</option>
-            <option value="MEMBER_REMOVED">Anggota Dikeluarkan</option>
-            <option value="QUOTA_UPDATED">Kuota Diperbarui</option>
-            <option value="INVITATION_REVOKED">Undangan Dibatalkan</option>
-          </select>
+            <Download className="w-3.5 h-3.5 text-slate-500" />
+            <span>Ekspor Log Audit</span>
+          </button>
         </div>
       </div>
 
@@ -206,6 +221,14 @@ export const AuditLogsPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Export Drawer */}
+      <ExportDrawer
+        isOpen={isExportDrawerOpen}
+        onClose={() => setIsExportDrawerOpen(false)}
+        initialType="audit-logs"
+        lockType={true}
+      />
     </div>
   );
 };

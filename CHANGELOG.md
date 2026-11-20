@@ -1,5 +1,47 @@
 # Changelog
 
+## Unreleased --- Frontend tab Notifikasi (alarm workspace) (2026-11-20)
+
+-   Baru (ADR-049): Tab "Notifikasi" pada halaman Pengaturan (`SettingsPage.tsx`, `?tab=notifications`) untuk mengelola kanal dan aturan notifikasi alarm per workspace.
+    -   Klien API (`frontend/src/services/api.ts`): Penambahan 9 fungsi API alarm berbasis token di memori dan penanganan `ApiError`:
+        -   `getAlertCatalog()` -> `GET /api/v1/alerts/catalog`
+        -   `listAlertChannels()` -> `GET /api/v1/alerts/channels`
+        -   `createAlertChannel(body)` -> `POST /api/v1/alerts/channels` (discriminated union: `{type: 'TELEGRAM', name, token, chat_id, password}` atau `{type: 'SLACK', name, url, password}`)
+        -   `updateAlertChannel(id, body)` -> `PATCH /api/v1/alerts/channels/${id}`
+        -   `deleteAlertChannel(id, password)` -> `DELETE /api/v1/alerts/channels/${id}` dengan body JSON `{password}`
+        -   `testAlertChannel(id)` -> `POST /api/v1/alerts/channels/${id}/test`
+        -   `listAlertRules()` -> `GET /api/v1/alerts/rules`
+        -   `putAlertRule(code, body)` -> `PUT /api/v1/alerts/rules/${code}`
+        -   `listAlertDeliveries(limit?)` -> `GET /api/v1/alerts/deliveries` (dengan query `?limit=n` hanya jika diberikan)
+    -   Komponen Notifikasi Alarm (`frontend/src/components/alerts/`):
+        -   `AlertsTab.tsx`: Komponen induk tab Notifikasi, menampilkan banner operator jika `catalog.enabled === false` (kontrol tulis dinonaktifkan tanpa menyembunyikan data), serta penanganan `ErrorState` jika katalog gagal dimuat tanpa angka atau daftar aturan cadangan (zero fallbacks).
+        -   `AlertChannelsSection.tsx`: Menampilkan indikator kuota kanal dari katalog ("{n} dari {max_channels} kanal"), daftar kartu kanal (Telegram/Slack, nama, `target_hint` berakhiran ••••abcd, switch status aktif, penanganan `disabled_reason === 'AUTO_CONSECUTIVE_FAILURES'` dengan tombol aktifkan ulang), tombol uji kirim langsung dengan feedback status live berbasis `aria-live="polite"` (`ok: true` -> sukses; `ok: false` -> penjelasan galat; 429 membawa waktu tunggu `retryAfterSec`), tombol ganti target, dan hapus kanal.
+        -   `AlertChannelModal.tsx`: Dialog modal interaktif untuk pembuatan kanal baru, pembaruan kredensial target, dan penghapusan kanal. Menampilkan panduan ringkas integrasi bot Telegram (@BotFather) dan webhook Slack/Discord; menjamin kerahasiaan token/URL hanya di state lokal sementara; membersihkan kata sandi dan kredensial seketika di blok `finally`; auto-fokus kembali ke kolom kata sandi pada galat `403 INVALID_PASSWORD`; menampilkan `request_id` dengan tombol salin; serta penjebakan fokus keyboard (Tab/Shift+Tab) yang dapat diakses penuh.
+        -   `AlertRulesSection.tsx`: Menampilkan seluruh 8 aturan kejadian gateway dari katalog server, sakelar aktif ber-`aria-checked`, konfigurasi ambang batas numerik (hanya untuk aturan berambang), jeda ulang cooldown menit (hanya untuk aturan berulang), pemilih kanal multi-select (maksimal 5), validasi UI mencegah aktivasi aturan tanpa kanal terpilih, serta banner peringatan jujur mengenai sifat notifikasi sebagai bantuan.
+        -   `AlertDeliveriesSection.tsx`: Tabel riwayat 50 pengiriman pesan alarm terakhir (`listAlertDeliveries(50)`), pencocokan kode aturan dengan label katalog resmi, status badge (`SENT`, `PENDING`, `DEAD`), pemetaan kode galat ramah pengguna (`HTTP_401/403/404`, `RATE_CAPPED`, `CHANNEL_INACTIVE`), dan tombol muat ulang manual tanpa auto-polling agresif.
+    -   Pembatasan Akses: Tab Notifikasi di `SettingsPage.tsx` hanya terlihat dan dapat diakses oleh peran `OWNER` dan `ADMIN` (`useAuth().role`); pengguna lain yang mengakses URL langsung disajikan layar "Akses Dibatasi".
+
+## Unreleased --- Frontend perbaikan ekspor data (2026-11-20)
+
+-   Perbaikan (ADR-048): Penjaminan kelengkapan berkas ekspor dan transparansi kebijakan privasi di frontend dashboard.
+    -   Modul murni baru `frontend/src/utils/exportIntegrity.ts`: fungsi `verifyExportBlob()` berbasis `blob.stream()` dan `TextDecoder` bertahap tanpa memuat seluruh berkas ke memori; parser CSV sadar tanda kutip (CRLF/koma di dalam sel) mendeteksi berkas terpotong secara deterministik; parser NDJSON memvalidasi manifest akhir dan kecocokan baris data.
+    -   Modul murni baru `frontend/src/utils/exportRange.ts`: fungsi `buildExportRange()` untuk validasi tanggal ketat, pencegahan NaN saat input kosong/tidak valid, kalkulasi milidetik anti-DST, serta pembuatan format ISO-8601 dengan offset zona waktu lokal akurat.
+    -   Pembersihan angka cadangan (fallbacks): menghapus seluruh angka tebakan (`90`, `180`, `30`, `365`, `5`) di `ExportDrawer.tsx` dan `SettingsPage.tsx`; menampilkan keadaan memuat (`—`), galat, dan menonaktifkan tombol Mulai Ekspor sampai data kebijakan resmi berhasil diambil dari server.
+    -   Keamanan kredensial: `setPassword('')` dipindahkan ke blok `finally` pada `handleSubmit` (selalu dikosongkan pada sukses, gagal, atau batal); auto-fokus kembali ke kolom kata sandi saat `INVALID_PASSWORD`.
+    -   Penanganan galat & aksesibilitas: ekstraksi header `Retry-After` menjadi atribut `retryAfterSec` pada `ApiError` dengan hitung mundur detik untuk status 429; menampilkan `request_id` dengan tombol salin; menghubungkan seluruh `<label htmlFor>` dengan elemen kontrol; perbaikan keyboard navigation (penjebak fokus Tab/Shift+Tab dan pengembalian fokus ke pemicu saat drawer ditutup).
+    -   Pembersihan kode: penghapusan komentar `/* method: ... */` di `api.ts`; penundaan `URL.revokeObjectURL` 1 detik untuk kompatibilitas peramban.
+
+## Unreleased --- Frontend ekspor data workspace (2026-11-20)
+
+-   Baru (ADR-048): UI Ekspor Data Workspace di frontend dashboard.
+    -   Layanan API (`frontend/src/services/api.ts`): penambahan `getExportPolicy()` dan `exportData(type, body, { signal, onProgress })` dengan streaming `fetch`, kalkulasi progres byte bertahap (`getReader`), token auth memori, single-flight 401 refresh, dan penanganan galat `ApiError` terstandar.
+    -   Komponen `ExportDrawer` (`frontend/src/components/export/ExportDrawer.tsx`): drawer slide-over modern untuk 6 jenis data ekspor (`messages`, `outbound`, `chats`, `contacts`, `audit-logs`, `members`), pilihan format CSV (dengan perlindungan anti-formula injection) atau NDJSON, pemilih rentang tanggal cepat (30 hari, bulan ini, bulan lalu, 7 hari) berbatas `max_span_days`, filter opsional per sesi/arah/status, input konfirmasi kata sandi akun aman, indikator unduhan byte dinamis, tombol Batal via `AbortController`, dan validasi integritas berkas (`_manifest` NDJSON dan pencocokan baris CSV terhadap header `X-Export-Rows`).
+    -   Penempatan UI:
+        -   Tab baru "Data & Privasi" (`?tab=data`) di `SettingsPage.tsx`: kartu informasi transparansi retensi data (`content_days`, `row_days`, `audit_days`) untuk seluruh pengguna, serta katalog 6 kartu ekspor bagi peran OWNER dan ADMIN.
+        -   Banner rekomendasi ekspor data pada Zona Bahaya (`SettingsPage.tsx`) sebelum penghapusan workspace.
+        -   Tombol kontekstual "Ekspor" terintegrasi di `ChatsPage.tsx` (`messages` & `outbound`), `ContactsPage.tsx` (`contacts`), `AuditLogsPage.tsx` (`audit-logs`), dan `TeamPage.tsx` (`members`).
+    -   Verifikasi: `npm run build` frontend lulus 100% (1.13s), dan `backend/test/frontend-contract.test.ts` lulus penuh (semua path `/api/v1/exports/...` cocok dengan spesifikasi OpenAPI).
+
 ## Unreleased --- Prompt agent frontend untuk UI ekspor data (2026-11-20)
 
 -   Baru: `docs/08_AI_AGENTS/FRONTEND_EXPORT_AGENT_PROMPT.md`: tugas, kontrak, penempatan UI, penanganan galat, cara verifikasi (build, tes kontrak frontend, uji manual), dan aturan agar agent frontend mengerjakan UI ekspor tanpa mengubah backend. Tidak ada perubahan kode.

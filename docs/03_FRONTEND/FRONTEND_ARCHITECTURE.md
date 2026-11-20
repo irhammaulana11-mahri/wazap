@@ -26,6 +26,8 @@ React 19, Vite, TypeScript, Tailwind CSS v4, React Router v7, TanStack Query v5,
 ```text
 frontend/src/
 ├── components/
+│   ├── alerts/            # AlertsTab, AlertChannelsSection, AlertChannelModal, AlertRulesSection, AlertDeliveriesSection
+│   ├── export/            # ExportDrawer, verifikasi integritas berkas, rentang tanggal anti-DST
 │   ├── layout/            # Sidebar, Header (dengan Tenant Switcher & status indicator), MainLayout
 │   └── ui/                # LoadingState, EmptyState, ErrorState, MockNotice
 ├── context/
@@ -70,3 +72,17 @@ frontend/src/
    - Koneksi WebSocket Socket.IO menggunakan path `/api/v1/realtime` dengan access token yang dikirim pada handshake `auth: { token }`.
    - Ketika koneksi socket terputus lalu tersambung kembali (`connect`) atau menerima event `realtime.resync`, query cache TanStack Query secara otomatis dibatalkan (`invalidateQueries`) untuk memastikan konsistensi data.
    - Saat pengguna berpindah workspace melalui `switchTenant`, seluruh query cache TanStack Query langsung dikosongkan (`queryClient.clear()`) dan koneksi socket disambung ulang dengan token baru.
+5. **Siklus Hidup Ekspor Data Workspace (ADR-048):**
+   - **Streaming Fetch & Dynamic Progress:** Panggilan `POST /api/v1/exports/{type}` dilakukan via `fetch` langsung dengan token Authorization in-memory dan single-flight 401 refresh. Aliran dibaca bertahap via `res.body.getReader()` dan byte dihitung untuk indikator progres interaktif tanpa menahan seluruh berkas di memori aplikasi.
+   - **Pembatalan Aliran (AbortController):** Tombol Batal memicu sinyal abort; server Fastify menangkap event close dan mencatat audit `outcome: 'aborted'` secara akurat.
+   - **Integritas Berkas (`verifyExportBlob`):** Pengujian kelengkapan berkas berbasis aliran stream pembaca byte bertahap (`blob.stream()`, `TextDecoder`) tanpa memuat berkas raksasa ke memori: parser CSV sadar tanda kutip mendeteksi pemotongan di dalam sel yang memuat CRLF/LF/koma/kutipan, dan parser NDJSON memvalidasi integritas manifest akhir (`_manifest.rows === dataRows`).
+   - **Validasi Rentang Tanggal (`buildExportRange`):** Pembuatan rentang tanggal murni yang menolak input kosong/NaN/invalid/terbalik, serta memastikan rentang dalam milidetik tidak melampaui `max_span_days * 86_400_000` ms bahkan saat terjadi transisi zona waktu Daylight Saving Time (DST).
+   - **Transparansi Tanpa Cadangan (Zero Fallback):** Tidak menggunakan angka tebakan/cadangan statis untuk nilai kebijakan. UI menampilkan status pemuatan (`—`) atau galat sampai data kebijakan server berhasil diambil.
+   - **Zero Secret Leakage:** Kata sandi akun hanya disimpan dalam variabel lokal sesaat selama permintaan ekspor dan langsung dikosongkan pada blok `finally` (baik saat sukses, gagal, maupun dibatalkan). Pencabutan URL berkas (`URL.revokeObjectURL`) ditunda 1 detik untuk kompatibilitas peramban penuh. Konten berkas hasil ekspor tidak pernah disimpan di localStorage maupun state persisten.
+6. **Siklus Hidup Notifikasi Alarm Workspace (ADR-049):**
+   - **Kerahasiaan Kredensial (Zero Storage Leaks):** Token bot Telegram, chat ID, webhook Slack, serta kata sandi akun hanya disimpan pada state form lokal sementara. Nilai tersebut segera dikosongkan pada blok `finally` setelah proses selesai (sukses, gagal, atau modal ditutup). Kredensial tidak pernah ditulis ke `localStorage`, `sessionStorage`, URL, devtools query cache, maupun pesan log peramban.
+   - **Tanpa Nilai Cadangan (Zero Policy Fallbacks):** Daftar aturan pemicu alarm, batas toleransi (min..max dan satuan), batas cooldown, serta kuota maksimal kanal diambil langsung secara otoritatif dari server via `GET /api/v1/alerts/catalog`. Jika katalog gagal dimuat, komponen menampilkan `ErrorState` dengan tombol coba lagi tanpa menggunakan nilai atau daftar bawaan tebakan.
+   - **Uji Kirim Sinkron & Live Status:** Uji kirim kanal (`POST /alerts/channels/:id/test`) menyajikan umpan balik langsung via `aria-live="polite"` dengan memeriksa nilai boolean `data.ok` (bukan hanya HTTP 200). Kegagalan memetakan rincian kode status HTTP (401/403/404) dan galat jaringan (TIMEOUT, DNS_FAILED).
+   - **Pencegahan Brute-Force & Penanganan Galat:** Galat `403 INVALID_PASSWORD` mempertahankan posisi dialog dan mengembalikan auto-fokus ke kolom kata sandi. Galat `429 RATE_LIMITED` mengekstrak header `Retry-After` untuk menampilkan hitung mundur waktu tunggu interaktif. Seluruh galat menyajikan kotak `request_id` kecil dengan tombol salin cepat.
+   - **Aksesibilitas Form Penuh:** Modal menggunakan `role="dialog"` dan `aria-modal="true"`, seluruh label terhubung eksplisit dengan `htmlFor`, fokus keyboard terjebak di dalam dialog (Tab & Shift+Tab), tombol Esc menutup modal, dan fokus dikembalikan ke elemen pemicu saat dialog ditutup. Sakelar aktif menerapkan `role="switch"` dan `aria-checked`.
+   - **Isolasi Peran OWNER/ADMIN:** Tab Notifikasi di `SettingsPage.tsx` (`?tab=notifications`) hanya dapat dilihat dan diakses oleh peran OWNER dan ADMIN. Pengguna dengan peran lain disajikan peringatan "Akses Dibatasi".

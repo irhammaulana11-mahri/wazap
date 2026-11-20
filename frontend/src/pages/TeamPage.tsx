@@ -30,7 +30,9 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
+  Download,
 } from 'lucide-react';
+import { ExportDrawer } from '../components/export/ExportDrawer';
 
 export const TeamPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -39,6 +41,9 @@ export const TeamPage: React.FC = () => {
 
   // Navigation tab: 'members' | 'invitations' | 'join-requests'
   const [activeTab, setActiveTab] = useState<'members' | 'invitations' | 'join-requests'>('members');
+
+  // Export drawer state
+  const [isExportDrawerOpen, setIsExportDrawerOpen] = useState(false);
 
   // Invite modal state
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -342,6 +347,16 @@ export const TeamPage: React.FC = () => {
         </div>
         {isOwnerOrAdmin && (
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsExportDrawerOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-xs sm:text-sm font-bold text-slate-700 transition shadow-xs"
+              title="Ekspor seluruh daftar anggota tim dan hak akses"
+            >
+              <Download className="w-4 h-4 text-slate-500" />
+              <span>Ekspor Anggota</span>
+            </button>
+
             <button
               onClick={() => {
                 setInviteError('');
@@ -1292,6 +1307,14 @@ export const TeamPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Export Drawer */}
+      <ExportDrawer
+        isOpen={isExportDrawerOpen}
+        onClose={() => setIsExportDrawerOpen(false)}
+        initialType="members"
+        lockType={true}
+      />
     </div>
   );
 };

@@ -97,3 +97,21 @@ Setiap halaman wajib mengimplementasikan 5 keadaan visual:
 3. **Error State:** Kotak peringatan jelas dengan kode error, deskripsi ramah, dan tombol "Coba Lagi" (Retry).
 4. **Unauthorized State:** Tampilan terisolasi khusus peran non-otoritas (misal saat non-admin mengakses `/audit-logs` atau `/settings`).
 5. **Success Feedback:** Alert banner hijau yang menghilang otomatis setelah 3-4 detik.
+
+### 9. Antarmuka Ekspor Data Workspace & Privasi (`ExportDrawer` & `/settings?tab=data`)
+- **Pola Drawer Slide-Over:** Menggunakan komponen `ExportDrawer` yang konsisten dari sisi kanan layar, dengan fokus otomatis ke input kata sandi jika terjadi kesalahan.
+- **Transparansi Kebijakan Retensi:** Kartu informasi retensi hari (`content_days`, `row_days`, `audit_days`) ditampilkan di tab Data & Privasi untuk seluruh anggota tim, mengedukasi batas masa simpan data.
+- **Katalog Ekspor & Kontekstual:** Kartu ekspor di tab Data & Privasi serta tombol kontekstual pada halaman Pesan/Chats, Kontak, Audit Logs, dan Tim untuk peran OWNER dan ADMIN.
+- **Pilihan Format & Keamanan Formula:** Pilihan format CSV (dengan label anti-formula injection `= + - @`) dan NDJSON (dengan manifest baris akhir).
+- **Pemilih Rentang Tanggal Cepat:** Tombol preset "30 Hari Terakhir", "Bulan Ini", "Bulan Lalu", dan "7 Hari" dengan validasi interaktif tidak melebihi `max_span_days`.
+- **Indikator Streaming & Tombol Batal:** Menampilkan byte terunduh secara dinamis (`formatBytes`) dan tombol Batal ber-`AbortController` yang menghentikan transmisi dan memicu pencatatan audit `aborted` di server.
+- **Pemeriksaan Kelengkapan Berkas:** Pengujian otomatis `_manifest.rows` pada NDJSON dan baris data CSV terhadap header `X-Export-Rows` sebelum berkas diserahkan ke sistem unduhan peramban.
+
+### 10. Antarmuka Notifikasi Alarm Workspace (`/settings?tab=notifications` - ADR-049)
+- **Akses Eksklusif OWNER/ADMIN:** Tab Notifikasi dilindungi pembatasan peran di tingkat navigasi tab dan komponen; pengguna unauthorized disajikan kartu "Akses Dibatasi".
+- **Banner Status Operator:** Jika operator menonaktifkan fitur alarm (`catalog.enabled === false`), banner peringatan ramah ditampilkan di bagian atas tab dan seluruh tombol modifikasi (tulis) dinonaktifkan secara otomatis tanpa menyembunyikan konfigurasi yang sudah ada.
+- **Kanal Notifikasi Multi-Platform:** Menampilkan daftar kartu kanal (Telegram bot dan Slack/Discord webhook), petunjuk target 4 digit terakhir (`••••abcd`), tombol aktifkan/nonaktifkan instan, tombol ganti target, dan hapus kanal berkonfirmasi kata sandi.
+- **Indikator Kuota Kanal Dinamis:** Menampilkan rasio pemakaian kanal terhadap kuota maksimum server (`max_channels`) tanpa nilai tebakan, serta menonaktifkan tombol tambah saat kuota penuh.
+- **Live Test Feedback:** Tombol "Uji Kirim" menyajikan umpan balik langsung berbasis `aria-live="polite"` dengan waktu respons (ms), membedakan pesan sukses dari kegagalan autentikasi (401/403/404) dan jaringan (TIMEOUT/DNS).
+- **Aturan Pemicu dari Katalog Otoritatif:** 8 aturan alarm resmi dari katalog server dengan deskripsi lengkap, sakelar aktif `aria-checked`, input ambang toleransi min..max (untuk aturan berambang), jeda ulang cooldown menit (untuk aturan berulang), serta selektor multi-kanal maksimal 5 kanal.
+- **Riwayat Pengiriman & Pemetaan Galat:** Tabel 50 pengiriman log alarm terbaru dengan badge status (`SENT`, `PENDING`, `DEAD`), keterangan galat ramah pengguna (`HTTP_401/403/404`, `RATE_CAPPED`, `CHANNEL_INACTIVE`), dan tombol muat ulang manual tanpa auto-polling agresif.

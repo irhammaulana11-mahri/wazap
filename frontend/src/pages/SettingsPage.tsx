@@ -26,7 +26,16 @@ import {
   Sparkles,
   ArrowRight,
   HelpCircle,
+  Database,
+  Download,
+  Clock,
+  History,
+  MessageSquare,
+  Bell,
 } from 'lucide-react';
+import { ExportType } from '../types';
+import { ExportDrawer } from '../components/export/ExportDrawer';
+import { AlertsTab } from '../components/alerts/AlertsTab';
 
 export const SettingsPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -34,12 +43,28 @@ export const SettingsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { role, tenant, refetchUser } = useAuth();
   const isOwner = role === 'OWNER';
+  const canExport = role === 'OWNER' || role === 'ADMIN';
+  const canManageAlerts = role === 'OWNER' || role === 'ADMIN';
 
-  // Active Tab: 'quota' | 'general' | 'danger'
+  // Active Tab: 'quota' | 'general' | 'data' | 'danger'
   const activeTab = searchParams.get('tab') || 'quota';
   const setActiveTab = (tab: string) => {
     setSearchParams({ tab });
   };
+
+  // Export drawer state & policy
+  const [isExportDrawerOpen, setIsExportDrawerOpen] = useState(false);
+  const [exportDrawerType, setExportDrawerType] = useState<ExportType>('messages');
+  const openExportDrawer = (type: ExportType) => {
+    setExportDrawerType(type);
+    setIsExportDrawerOpen(true);
+  };
+
+  const { data: exportPolicy } = useQuery({
+    queryKey: ['export-policy'],
+    queryFn: () => api.getExportPolicy(),
+    staleTime: 60_000,
+  });
 
   // Form Quota states
   const [maxSessions, setMaxSessions] = useState<number>(5);
@@ -250,33 +275,61 @@ export const SettingsPage: React.FC = () => {
           </button>
 
           {isOwner && (
-            <>
-              <button
-                type="button"
-                onClick={() => setActiveTab('general')}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
-                  activeTab === 'general'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-                }`}
-              >
-                <Building2 className="w-4 h-4" />
-                <span>Identitas & Nama Workspace</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('general')}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                activeTab === 'general'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>Identitas & Nama Workspace</span>
+            </button>
+          )}
 
-              <button
-                type="button"
-                onClick={() => setActiveTab('danger')}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
-                  activeTab === 'danger'
-                    ? 'bg-rose-600 text-white shadow-xs'
-                    : 'text-rose-700 hover:text-rose-900 hover:bg-rose-50'
-                }`}
-              >
-                <AlertTriangle className="w-4 h-4" />
-                <span>Zona Bahaya</span>
-              </button>
-            </>
+          <button
+            type="button"
+            onClick={() => setActiveTab('data')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+              activeTab === 'data'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+            }`}
+          >
+            <Database className="w-4 h-4" />
+            <span>Data & Privasi</span>
+          </button>
+
+          {canManageAlerts && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('notifications')}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                activeTab === 'notifications'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+              }`}
+            >
+              <Bell className="w-4 h-4" />
+              <span>Notifikasi & Alarm</span>
+            </button>
+          )}
+
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('danger')}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+                activeTab === 'danger'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'text-rose-700 hover:text-rose-900 hover:bg-rose-50'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span>Zona Bahaya</span>
+            </button>
           )}
         </div>
       </div>
@@ -691,6 +744,270 @@ export const SettingsPage: React.FC = () => {
         </div>
       )}
 
+      {/* TAB: DATA & PRIVASI (EKSPOR DATA & RETENSI ADR-048) */}
+      {activeTab === 'data' && (
+        <div className="space-y-6 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-7 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">Kebijakan Retensi & Ekspor Data</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Transparansi masa simpan data dan unduhan arsip resmi untuk kepatuhan privasi (ADR-048).
+                  </p>
+                </div>
+              </div>
+
+              {exportPolicy?.enabled === false && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Ekspor Dinonaktifkan Operator
+                </span>
+              )}
+            </div>
+
+            {/* Retention Stat Cards (Visible for ALL roles: OWNER, ADMIN, MEMBER, VIEWER) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                  <span>Retensi Isi Pesan</span>
+                  <Clock className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="text-2xl font-bold text-slate-900">
+                  {exportPolicy ? exportPolicy.retention.content_days : '—'}{' '}
+                  <span className="text-xs font-semibold text-slate-500">Hari</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Isi teks pesan yang lebih tua dari periode ini dibersihkan otomatis demi privasi (kolom teks dikosongkan).
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                  <span>Retensi Baris Pesan & Chat</span>
+                  <History className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="text-2xl font-bold text-slate-900">
+                  {exportPolicy ? exportPolicy.retention.row_days : '—'}{' '}
+                  <span className="text-xs font-semibold text-slate-500">Hari</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Seluruh metadata baris pesan dan chat yang melampaui batas ini dihapus secara permanen dari basis data.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+                  <span>Retensi Log Audit</span>
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="text-2xl font-bold text-slate-900">
+                  {exportPolicy ? exportPolicy.retention.audit_days : '—'}{' '}
+                  <span className="text-xs font-semibold text-slate-500">Hari</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Rekaman jejak aktivitas, perubahan setelan, dan tindakan anggota tim disimpan untuk audit kepatuhan.
+                </p>
+              </div>
+            </div>
+
+            {/* Ekspor Bagian: OWNER / ADMIN */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">Katalog Ekspor Data Workspace</h4>
+                  <p className="text-xs text-slate-500">
+                    Pilih kategori data yang ingin diunduh dalam format CSV Spreadsheet atau NDJSON.
+                  </p>
+                </div>
+                {canExport && exportPolicy && (
+                  <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">
+                    Batas: <strong>{exportPolicy.per_hour}x</strong> ekspor / jam per pengguna
+                  </span>
+                )}
+              </div>
+
+              {canExport ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Messages Card */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900">Pesan Obrolan (Messages)</h5>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                        Riwayat pesan masuk (inbound) & keluar (outbound), waktu tiba, nomor pengirim, dan status.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 font-mono">{exportPolicy ? `Rentang s/d ${exportPolicy.max_span_days} hari` : '—'}</span>
+                      <button
+                        type="button"
+                        onClick={() => openExportDrawer('messages')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Ekspor</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Outbound Card */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-3">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900">Antrean Pesan Keluar (Outbox)</h5>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                        Log pengiriman pesan gateway, status antrean (SENT, DELIVERED, READ, FAILED), dan penerima.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 font-mono">{exportPolicy ? `Rentang s/d ${exportPolicy.max_span_days} hari` : '—'}</span>
+                      <button
+                        type="button"
+                        onClick={() => openExportDrawer('outbound')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Ekspor</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Chats Card */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900">Daftar Obrolan (Chats)</h5>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                        Daftar percakapan aktif per nomor kontak, sesi WhatsApp terkait, dan timestamp aktivitas terakhir.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 font-mono">Snapshot total chat</span>
+                      <button
+                        type="button"
+                        onClick={() => openExportDrawer('chats')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Ekspor</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Contacts Card */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+                        <Smartphone className="w-4 h-4" />
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900">Kontak Pelanggan (Contacts)</h5>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                        Daftar kontak pelanggan 1:1 unik lintas seluruh sesi WhatsApp dengan nama tampilan dan jumlah obrolan.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 font-mono">Unik per nomor</span>
+                      <button
+                        type="button"
+                        onClick={() => openExportDrawer('contacts')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Ekspor</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Audit Logs Card */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-3">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900">Log Audit Workspace</h5>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                        Catatan audit seluruh aktivitas workspace: login, perubahan setelan kuota, rotasi webhook/API key.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 font-mono">{exportPolicy ? `Rentang s/d ${exportPolicy.max_span_days} hari` : '—'}</span>
+                      <button
+                        type="button"
+                        onClick={() => openExportDrawer('audit-logs')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Ekspor</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Members Card */}
+                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <h5 className="text-xs font-bold text-slate-900">Anggota Tim & Hak Akses</h5>
+                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                        Daftar seluruh anggota workspace, email terdaftar, peran (OWNER, ADMIN, MEMBER, VIEWER), dan waktu bergabung.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 font-mono">Snapshot anggota tim</span>
+                      <button
+                        type="button"
+                        onClick={() => openExportDrawer('members')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Ekspor</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3 text-xs text-slate-600">
+                  <Info className="w-5 h-5 text-slate-400 shrink-0" />
+                  <span>
+                    Fitur pengunduhan ekspor data dibatasi hanya untuk <strong>Pemilik (OWNER)</strong> dan <strong>Administrator</strong> workspace.
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: NOTIFIKASI & ALARM (ADR-049) */}
+      {activeTab === 'notifications' && (
+        <div className="space-y-6 animate-in fade-in duration-150">
+          {canManageAlerts ? (
+            <AlertsTab />
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-12 text-center space-y-3 shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto">
+                <Lock className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Akses Dibatasi</h3>
+              <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+                Hanya pemilik workspace (OWNER) dan administrator (ADMIN) yang memiliki wewenang untuk mengelola kanal dan aturan notifikasi alarm.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* TAB 3: DANGER ZONE & WORKSPACE DELETION */}
       {activeTab === 'danger' && isOwner && (
         <div className="space-y-6 animate-in fade-in duration-150">
@@ -704,6 +1021,25 @@ export const SettingsPage: React.FC = () => {
                 <p className="text-xs text-rose-700 mt-0.5">
                   Tindakan penting yang memicu pencabutan seluruh sesi WhatsApp, API key, webhook, dan riwayat obrolan.
                 </p>
+              </div>
+            </div>
+
+            {/* Recommendation to export data first */}
+            <div className="p-4 bg-sky-50 border border-sky-200 rounded-2xl flex items-start gap-3">
+              <Download className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-sky-900 leading-relaxed flex-1">
+                <span className="font-bold block mb-0.5">Saran: Ekspor Data Anda Terlebih Dahulu</span>
+                Sebelum menghapus workspace, Anda sangat disarankan untuk mengunduh arsip pesan, kontak, antrean pengiriman, dan log audit workspace ini.
+                <div className="mt-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('data')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                  >
+                    <Database className="w-3.5 h-3.5" />
+                    <span>Buka Tab Data & Privasi</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -765,6 +1101,13 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Export Drawer */}
+      <ExportDrawer
+        isOpen={isExportDrawerOpen}
+        onClose={() => setIsExportDrawerOpen(false)}
+        initialType={exportDrawerType}
+      />
     </div>
   );
 };

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { ContactItem } from '../types';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
+import { ExportDrawer } from '../components/export/ExportDrawer';
 import {
   Users,
   Search,
@@ -14,13 +16,17 @@ import {
   MessageSquare,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const ContactsPage: React.FC = () => {
+  const { role } = useAuth();
+  const canExport = role === 'OWNER' || role === 'ADMIN';
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [isExportDrawerOpen, setIsExportDrawerOpen] = useState(false);
 
   const {
     data: contactsResult,
@@ -61,15 +67,29 @@ export const ContactsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="relative">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama atau nomor..."
-            className="pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none w-64 shadow-sm"
-          />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama atau nomor..."
+              className="pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none w-64 shadow-sm"
+            />
+          </div>
+
+          {canExport && (
+            <button
+              type="button"
+              onClick={() => setIsExportDrawerOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-semibold transition shadow-xs"
+              title="Ekspor seluruh daftar kontak pelanggan"
+            >
+              <Download className="w-4 h-4 text-slate-500" />
+              <span>Ekspor Kontak</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -180,6 +200,14 @@ export const ContactsPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Export Drawer */}
+      <ExportDrawer
+        isOpen={isExportDrawerOpen}
+        onClose={() => setIsExportDrawerOpen(false)}
+        initialType="contacts"
+        lockType={true}
+      />
     </div>
   );
 };

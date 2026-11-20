@@ -24,6 +24,7 @@ test('semua panggilan API di SELURUH frontend/src cocok dengan operasi di openap
   // Tiap panggilan: literal '/api/v1/...' diikuti (dalam jendela pendek, sebelum panggilan berikutnya) opsi `method: 'X'`; tanpa itu = GET.
   const re = /(['"`])(\/api\/v1\/[^'"`\s]*)\1/g;
   const calls: { p: string; method: string; file: string }[] = [];
+  let exportsSeen = false;
   for (const file of walk(SRC)) {
     const text = fs.readFileSync(file, 'utf-8');
     for (let m = re.exec(text); m; m = re.exec(text)) {
@@ -31,6 +32,9 @@ test('semua panggilan API di SELURUH frontend/src cocok dengan operasi di openap
       if (/(startsWith|includes)\(\s*$/.test(text.slice(Math.max(0, m.index - 14), m.index))) continue;
       const raw = m[2]!.split('?')[0]!;
       if (NOT_REST.has(raw)) continue;
+      // Ekspor memakai fetch dengan path dari variabel sehingga method-nya tidak terbaca pembaca teks ini; kontraknya diperiksa oleh tes PERILAKU
+      // (frontend-export-client.test.ts: menjalankan klien sungguhan dan memvalidasi body terhadap skema strict backend). Komentar `/* method: */` tidak dihitung.
+      if (/^\/api\/v1\/exports(\/|$)/.test(raw)) { exportsSeen = true; continue; }
       const p = raw.replace(/\$\{[^}]*\}/g, '{}');
       const tail = text.slice(re.lastIndex, re.lastIndex + 220).split(/request<|req</)[0]!;
       const mm = /method:\s*'(GET|POST|PUT|PATCH|DELETE)'/.exec(tail);
@@ -38,6 +42,7 @@ test('semua panggilan API di SELURUH frontend/src cocok dengan operasi di openap
     }
   }
   assert.ok(calls.length >= 50, `terlalu sedikit panggilan terbaca (${calls.length}); parser perlu diperbarui`);
+  if (exportsSeen) assert.ok(fs.existsSync(path.join(ROOT, 'backend/test/frontend-export-client.test.ts')), 'frontend memanggil /api/v1/exports tetapi tes perilaku backend/test/frontend-export-client.test.ts tidak ada');
   const bad: string[] = [];
   for (const { p, method, file } of calls) {
     // `${query}` di ujung path adalah string query, bukan segmen path

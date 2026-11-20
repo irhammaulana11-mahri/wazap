@@ -14,6 +14,8 @@ import { createRetention } from '../modules/engine/retention.js';
 import { createOutboxRelay } from '../modules/engine/outbox-relay.js';
 import { createWebhookDeliverer } from '../modules/engine/webhook-delivery.js';
 import { getCredentialCrypto, tryGetCredentialCrypto } from '../security/credential-crypto.js';
+import { createAlertEvaluator } from '../modules/engine/alert-evaluator.js';
+import { createAlertSender } from '../modules/engine/alert-sender.js';
 import { startPoller } from './poller.js';
 import { acquireEngineSingleton } from './engine-singleton.js';
 import { APP_VERSION } from '../version.js';
@@ -102,6 +104,13 @@ export async function startWorkers(o: StartWorkersOptions): Promise<{ engine?: E
       const deliverer = createWebhookDeliverer({ db, crypto, log });
       const p2 = startPoller('webhook-deliverer', () => deliverer.runOnce(), config.WEBHOOK_POLL_MS, log);
       sd.register('webhook-deliverer', () => p2.stop());
+      // Notifikasi alarm per workspace (ADR-049): evaluator menulis antrean, pengirim mengirimnya. Aman multi-instans (idempotensi di DB).
+      const evaluator = createAlertEvaluator({ db, log });
+      const pe = startPoller('alert-evaluator', () => evaluator.runOnce(), config.ALERTS_EVAL_INTERVAL_MS, log);
+      sd.register('alert-evaluator', () => pe.stop());
+      const sender = createAlertSender({ db, crypto, log });
+      const ps = startPoller('alert-sender', () => (config.ALERTS_ENABLED === 'true' ? sender.runOnce() : Promise.resolve(0)), config.ALERTS_SEND_POLL_MS, log);
+      sd.register('alert-sender', () => ps.stop());
     } else {
       log.warn({}, 'CREDENTIAL_ENCRYPTION_KEYS belum diset: pengiriman webhook dinonaktifkan.');
     }

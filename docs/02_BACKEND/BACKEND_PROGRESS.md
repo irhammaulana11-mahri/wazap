@@ -578,3 +578,7 @@ Bukti: tes CLI rotasi, tes dokumen, uji pagar skrip. **Latihan pemulihan penuh p
 ## Ekspor data workspace (2026-11-20) --- BACKEND DONE, frontend belum
 `DATA_EXPORT_DESIGN.md` (ADR-048): enam jenis ekspor, OWNER/ADMIN + konfirmasi kata sandi, streaming CSV/NDJSON dengan batas dan pra-hitung, RLS tenant, audit `data.exported`, saklar `EXPORT_ENABLED`, migrasi 0019, playbook RUNBOOK P15.
 Bukti: 18 tes fungsional + 3 tes perf (30 ribu baris: ~50 ribu baris/dtk, +30 MB, nol idle-in-tx; indeks 0019 dipakai) + kontrak OpenAPI (82 operasi) + uji mutasi pada tiap pengaman. **Belum:** frontend (lihat FRONTEND_HANDOFF), uji 200 ribu baris pada DB berjarak, ekspor asinkron/terjadwal, akses API key.
+
+## Notifikasi alarm per workspace (ADR-049) --- backend selesai (2026-11-20)
+
+Migrasi 0020, API `/alerts/*`, evaluator dan pengirim di worker, rotasi kunci dan retensi diperluas, 24 tes baru. Belum: UI, uji nyata dengan bot Telegram/Slack dan sesi WhatsApp staging. Lihat `docs/02_BACKEND/ALERT_NOTIFICATIONS_DESIGN.md` bagian 12.

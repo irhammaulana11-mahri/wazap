@@ -96,7 +96,11 @@ export function createRetention(db: GatewayDb, policy: () => RetentionPolicy = d
       const deliveriesDeleted = await sweep(
         `WITH c AS (SELECT id FROM webhook_deliveries WHERE status <> 'PENDING' AND created_at < now() - make_interval(days => $1)
                       ORDER BY created_at LIMIT $2 FOR UPDATE SKIP LOCKED)
-         DELETE FROM webhook_deliveries w USING c WHERE w.id = c.id`, [d(p.deliveryDays)], p.batch);
+         DELETE FROM webhook_deliveries w USING c WHERE w.id = c.id`, [d(p.deliveryDays)], p.batch)
+        + await sweep( // riwayat notifikasi alarm (ADR-049) mengikuti retensi pengiriman webhook
+        `WITH c AS (SELECT id FROM alert_deliveries WHERE status <> 'PENDING' AND created_at < now() - make_interval(days => $1)
+                      ORDER BY created_at LIMIT $2 FOR UPDATE SKIP LOCKED)
+         DELETE FROM alert_deliveries a USING c WHERE a.id = c.id`, [d(p.deliveryDays)], p.batch);
 
       // 5) Audit log: satu-satunya penghapusan yang diizinkan trigger append-only (hanya konteks platform). Tanpa FOR UPDATE:
       //    tabel ini sengaja tidak punya kebijakan UPDATE sehingga baris tidak dapat dikunci; dua penyapu bersamaan aman (DELETE idempoten).

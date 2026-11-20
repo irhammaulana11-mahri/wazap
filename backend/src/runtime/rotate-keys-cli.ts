@@ -14,7 +14,7 @@ async function main() {
   try {
     const rep = await createKeyRotator(db, getCredentialCrypto(config)).run({ dryRun });
     console.log(JSON.stringify(rep, null, 2));
-    const failed = rep.authState.failed + rep.webhookSecrets.failed;
+    const failed = rep.authState.failed + rep.webhookSecrets.failed + rep.alertTargets.failed;
     if (failed > 0 || (!dryRun && !rep.retireReady)) process.exitCode = 2;
   } finally {
     await db.close();

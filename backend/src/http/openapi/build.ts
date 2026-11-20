@@ -16,9 +16,10 @@ import { routeContracts as auditC } from '../../modules/audit/audit.routes.js';
 import { routeContracts as tenantC } from '../../modules/tenant/tenant.routes.js';
 import { routeContracts as settingsC } from '../../modules/tenant/settings.routes.js';
 import { routeContracts as exportC } from '../../modules/export/export.routes.js';
+import { routeContracts as alertsC } from '../../modules/alerts/alerts.routes.js';
 
 export const CONTRACTS: Record<string, RouteContract> = {
-  ...identityC, ...sessionsC, ...messagesC, ...chatsC, ...webhooksC, ...teamC, ...joinC, ...usageC, ...auditC, ...tenantC, ...settingsC, ...exportC,
+  ...identityC, ...sessionsC, ...messagesC, ...chatsC, ...webhooksC, ...teamC, ...joinC, ...usageC, ...auditC, ...tenantC, ...settingsC, ...exportC, ...alertsC,
 };
 
 export interface CollectedRoute { key: string; method: string; url: string; guards: GuardMeta[] }

@@ -1,4 +1,4 @@
-import type { ZodType } from 'zod';
+import { z, type ZodType } from 'zod';
 import * as S from './schemas.js';
 
 export interface Operation {
@@ -22,6 +22,7 @@ export interface Operation {
 const ok = S.okOf, list = S.listOf;
 const EXPORT_STREAM = { contentTypes: ['text/csv', 'application/x-ndjson'] };
 const EXPORT_NOTE = 'Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.';
+const ALERT_NOTE = 'Hanya OWNER/ADMIN pengguna dashboard (API key ditolak). Target kanal (token bot / URL webhook) dienkripsi dan tidak pernah dikembalikan. Notifikasi tidak memuat nomor telepon pelanggan akhir maupun isi pesan.';
 const O = (tag: string, summary: string, responses: Operation['responses'], extra: Partial<Operation> = {}): Operation => ({ tag, summary, responses, ...extra });
 
 /** Kunci: `METHOD /path` persis seperti didaftarkan di Fastify, tanpa awalan /api/v1 (kecuali /health*). Kelengkapan dijaga test/openapi.test.ts. */
@@ -123,6 +124,15 @@ export const OPERATIONS: Record<string, Operation> = {
   'POST /exports/contacts': O('Ekspor', 'Ekspor kontak (digabung per nomor) (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
   'POST /exports/audit-logs': O('Ekspor', 'Ekspor log audit (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
   'POST /exports/members': O('Ekspor', 'Ekspor anggota tim (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
+  'GET /alerts/catalog': O('Notifikasi', 'Daftar aturan alarm, batas, dan status fitur (untuk UI)', { 200: ok(S.AlertCatalog) }),
+  'GET /alerts/channels': O('Notifikasi', 'Daftar kanal notifikasi (target tidak pernah dikembalikan; hanya petunjuk 4 karakter)', { 200: ok(z.array(S.AlertChannel)) }),
+  'POST /alerts/channels': O('Notifikasi', 'Buat kanal Telegram atau Slack-compatible (memerlukan kata sandi)', { 201: ok(S.AlertChannel) }, { errors: [409, 422, 429, 503], description: ALERT_NOTE }),
+  'PATCH /alerts/channels/:channelId': O('Notifikasi', 'Ubah nama/aktif, atau ganti target (target memerlukan kata sandi)', { 200: ok(S.AlertChannel) }, { errors: [422, 429, 503], description: ALERT_NOTE }),
+  'DELETE /alerts/channels/:channelId': O('Notifikasi', 'Hapus kanal (memerlukan kata sandi)', { 200: ok(S.Deleted) }, { errors: [429], description: ALERT_NOTE }),
+  'POST /alerts/channels/:channelId/test': O('Notifikasi', 'Kirim pesan uji sinkron dan kembalikan hasilnya', { 200: ok(S.AlertTestResult) }, { errors: [429, 503], description: ALERT_NOTE }),
+  'GET /alerts/rules': O('Notifikasi', 'Daftar aturan alarm beserta pengaturannya', { 200: ok(z.array(S.AlertRule)) }),
+  'PUT /alerts/rules/:code': O('Notifikasi', 'Atur satu aturan alarm (aktif, ambang, jeda ulang, kanal)', { 200: ok(S.AlertRule) }, { errors: [503] }),
+  'GET /alerts/deliveries': O('Notifikasi', 'Riwayat pengiriman notifikasi terbaru', { 200: ok(z.array(S.AlertDelivery)) }),
   'GET /exports/policy': O('Ekspor', 'Batas ekspor dan retensi data (untuk UI)', { 200: ok(S.ExportPolicy) }),
 
   // ---- Penggunaan dan audit ----

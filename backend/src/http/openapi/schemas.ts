@@ -152,3 +152,21 @@ export const ExportPolicy = z.looseObject({
   retention: z.looseObject({ content_days: int, row_days: int, audit_days: int }),
 });
 
+
+const RuleCode = z.string();
+export const AlertChannel = named('AlertChannel', z.looseObject({
+  id: Uuid, type: z.enum(['TELEGRAM', 'SLACK']), name: str, target_hint: str, active: bool, consecutive_failures: int,
+  disabled_at: nl(Dt), disabled_reason: nl(str), created_at: Dt, updated_at: Dt,
+}));
+export const AlertRule = named('AlertRule', z.looseObject({
+  code: RuleCode, enabled: bool, threshold: nl(int), cooldown_minutes: int, channel_ids: z.array(Uuid), updated_at: nl(Dt),
+}));
+export const AlertCatalog = z.looseObject({
+  enabled: bool, max_channels: int, channel_types: z.array(str), cooldown: z.looseObject({ default: int, min: int, max: int }),
+  rules: z.array(z.looseObject({ code: RuleCode, label: str, description: str, threshold: nl(z.looseObject({ default: int, min: int, max: int, unit: str })), repeats: bool })),
+});
+export const AlertTestResult = z.looseObject({ ok: bool, status_code: nl(int), error_code: nl(str), duration_ms: int });
+export const AlertDelivery = named('AlertDelivery', z.looseObject({
+  id: Uuid, channel_id: Uuid, channel_name: str, rule_code: str, status: z.enum(['PENDING', 'SENT', 'DEAD']), attempts: int,
+  last_status_code: nl(int), last_error_code: nl(str), sent_at: nl(Dt), created_at: Dt,
+}));

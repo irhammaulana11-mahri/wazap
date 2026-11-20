@@ -135,6 +135,17 @@ const baseSchema = z.object({
   WORKER_HEALTH_HOST: z.string().min(1).default('127.0.0.1'),
   // Ekspor data workspace (ADR-048). Ekspor yang melebihi batas ditolak 422 SEBELUM data dikirim (tidak pernah memotong diam-diam).
   /** Saklar mati operator: false => semua ekspor 503 NOT_CONFIGURED (respons insiden tanpa deploy kode). */
+  ALERTS_ENABLED: z.enum(['true', 'false']).default('true'),
+  ALERTS_MAX_CHANNELS: z.coerce.number().int().min(1).max(5).default(5),
+  ALERTS_TEST_PER_HOUR: z.coerce.number().int().min(1).max(100).default(10),
+  ALERTS_EVAL_INTERVAL_MS: z.coerce.number().int().min(1000).default(60000),
+  ALERTS_LOOKBACK_MINUTES: z.coerce.number().int().min(2).max(240).default(15),
+  ALERTS_SEND_POLL_MS: z.coerce.number().int().min(100).default(2000),
+  ALERTS_TIMEOUT_MS: z.coerce.number().int().min(500).default(10000),
+  ALERTS_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
+  ALERTS_RETRY_BASE_MS: z.coerce.number().int().min(1).default(15000),
+  ALERTS_MAX_PER_CHANNEL_PER_HOUR: z.coerce.number().int().min(1).max(1000).default(30),
+  ALERTS_AUTO_DISABLE_AFTER: z.coerce.number().int().min(0).default(5),
   EXPORT_ENABLED: z.enum(['true', 'false']).default('true'),
   EXPORT_MAX_ROWS: z.coerce.number().int().min(1).max(5_000_000).default(200_000),
   EXPORT_MAX_SPAN_DAYS: z.coerce.number().int().min(1).max(3650).default(92),

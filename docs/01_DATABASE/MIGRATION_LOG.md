@@ -169,3 +169,7 @@ manual deployment action.
 ### 0019 --- `backend/src/database/migrations/0019_data_export.sql`
 
 -   Indeks `idx_wa_messages_tenant_time (tenant_id, occurred_at, id)` dan `idx_message_queue_tenant_time (tenant_id, created_at, id)` untuk ekspor keyset (indeks antrean lama berurutan `created_at DESC` sehingga tidak cocok). `audit_logs.target_type` menerima `export` (aksi `data.exported` sudah sesuai pola CHECK aksi). ADR-048. Tes: `test/export.test.ts`, `test/perf/export.perf.ts` (EXPLAIN memakai indeks; mutasi tanpa indeks gagal).
+
+## 0020_alerts (2026-11-20)
+
+`alert_channels` (target terenkripsi), `alert_rules`, `alert_deliveries` (UNIQUE idempotensi), semua RLS ENABLE+FORCE; indeks evaluator pada `wa_session_events` dan `message_queue`; `audit_logs.target_type` ditambah `alert_channel` dan `alert_rule`. Tidak mengubah migrasi lama.

@@ -517,3 +517,21 @@ Bila prosa di atas dan `openapi.json` berbeda, `openapi.json` yang benar (ia dip
 -   Kolom tiap jenis adalah bagian dari kontrak (penambahan hanya di akhir). Tidak pernah diekspor: kredensial/auth state WhatsApp, hash/kunci/secret, data tenant lain.
 `GET /api/v1/exports/policy` (semua pengguna dashboard): `{enabled, max_rows, max_span_days, per_hour, types, retention: {content_days, row_days, audit_days}}`.
 Batas: 5 ekspor per jam per pengguna (ditagih setelah pra-hitung lolos), 5 percobaan kata sandi salah per 15 menit, 1 ekspor per workspace, `EXPORT_MAX_CONCURRENT` per proses. Setiap ekspor tercatat audit `data.exported` (`outcome` = completed | aborted | failed, jumlah baris dan byte).
+
+## Notifikasi alarm (ADR-049)
+
+Hanya OWNER/ADMIN pengguna dashboard (API key 403); `GET /alerts/catalog` boleh semua pengguna dashboard. Target kanal (token bot / URL webhook) dienkripsi dan **tidak pernah dikembalikan** (hanya `target_hint` 4 karakter). Notifikasi tidak memuat nomor telepon pelanggan akhir maupun isi pesan.
+
+| Endpoint | Keterangan |
+|---|---|
+| `GET /alerts/catalog` | `{enabled, max_channels, channel_types, cooldown, rules[]}` (daftar aturan tetap, ambang dan batasnya, untuk UI) |
+| `GET /alerts/channels` | daftar kanal |
+| `POST /alerts/channels` | body strict: `{type:'TELEGRAM', name, token, chat_id, password}` atau `{type:'SLACK', name, url, password}` → 201; 422 `INVALID_ALERT_TARGET`; 409 `QUOTA_EXCEEDED`; 403 `INVALID_PASSWORD`; 429 |
+| `PATCH /alerts/channels/{id}` | `name`, `active` (tanpa kata sandi) atau target baru (`token`+`chat_id` / `url` + `password`); mengaktifkan ulang atau mengganti target mereset penghitung gagal |
+| `DELETE /alerts/channels/{id}` | body `{password}`; kanal dilepas dari aturan |
+| `POST /alerts/channels/{id}/test` | kirim pesan uji sinkron; `{ok, status_code, error_code, duration_ms}`; 10 per jam per workspace (429 + `Retry-After`) |
+| `GET /alerts/rules` | 8 aturan dengan nilai tersimpan atau bawaan |
+| `PUT /alerts/rules/{code}` | `{enabled, threshold?, cooldown_minutes?, channel_ids[]}`; aktif wajib minimal satu kanal; ambang dan jeda hanya untuk aturan yang mendukung |
+| `GET /alerts/deliveries?limit` | riwayat terbaru (1-100): `status` PENDING/SENT/DEAD, `last_error_code` (mis. `HTTP_401`, `RATE_CAPPED`, `CHANNEL_INACTIVE`) |
+
+`ALERTS_ENABLED=false` → semua operasi pengelolaan 503 `NOT_CONFIGURED` (kecuali baca); konfigurasi tetap tersimpan. Aturan: `session.logged_out`, `session.disconnected_long`, `session.reconnect_loop`, `webhook.endpoint_disabled`, `webhook.dead_burst`, `message.failed_burst`, `message.unknown`, `export.completed`.

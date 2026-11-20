@@ -1,6 +1,6 @@
 # Rancangan: notifikasi alarm per workspace
 
-> **STATUS (2026-11-20): RANCANGAN, belum diimplementasikan.** Menunggu keputusan bagian 11. Akan menjadi ADR-049 setelah disetujui.
+> **STATUS (2026-11-20): BACKEND DIIMPLEMENTASIKAN dan diuji (bagian 12); frontend dan uji nyata (bot Telegram, sesi WhatsApp staging) belum.** ADR-049. Keputusan bagian 11: memakai semua usulan bawaan.
 > Bukan alarm operator server (itu `docs/07_DEPLOYMENT/MONITORING_ALERTING.md`, dikelola lewat berkas env di host, sengaja di luar aplikasi).
 
 ## 1. Tujuan
@@ -78,3 +78,12 @@ Pengaturan → tab baru **"Notifikasi"** (OWNER/ADMIN; yang lain tidak melihat t
 2. Daftar aturan bagian 3 cukup? (usulan: ya; `export.completed` bisa dibuang bila dianggap berlebihan)
 3. Jeda ulang bawaan 60 mnt dan batas 5 kanal per workspace, setuju?
 4. Ketersediaan: fitur ini hanya di dashboard, tanpa akses API key (usulan), atau perlu API key juga?
+
+## 12. Hasil implementasi (2026-11-20) dan penyimpangan dari rancangan
+- Migrasi 0020; modul `modules/alerts/` (rules, service, routes), `modules/engine/alert-evaluator.ts` dan `alert-sender.ts` (konteks platform harus di engine/), `security/alert-target.ts`; poller `alert-evaluator` dan `alert-sender` di worker peran webhook; rotasi kunci dan retensi diperluas; tes `test/alerts.test.ts` (24).
+- **Penyimpangan 1 (bagian 4):** tidak ada kursor outbox; semua aturan (termasuk berbasis kejadian) dievaluasi seragam dari tabel sumbernya dalam jendela waktu terakhir (`ALERTS_LOOKBACK_MINUTES`, bawaan 15). Konsekuensi: kejadian saat worker mati lebih lama dari jendela itu tidak dikirim. Keuntungan: satu jalur kode, idempotensi dibuktikan tes (evaluator ganda bersamaan).
+- **Penyimpangan 2:** pesan "pulih" tidak dikirim pada v1.
+- **Penyimpangan 3:** `session.disconnected_long` memakai `wa_sessions.updated_at` sebagai penanda mulai terputus (perkiraan; perubahan baris lain pada sesi menggesernya).
+- Jeda ulang (`cooldown_minutes`) hanya berlaku untuk aturan berulang (terputus lama, putus-sambung, webhook DEAD berkelompok, pesan gagal berkelompok); aturan lain satu notifikasi per kejadian.
+- Pengiriman per kanal berurutan dalam satu batch agar batas kirim per jam tepat (ditemukan tes: paralel melewati batas).
+- **Belum:** UI (prompt agent frontend menyusul), uji dengan bot Telegram dan Slack sungguhan, uji sesi WhatsApp staging (putuskan perangkat -> notifikasi tiba), dan kolom `created_by` pada aturan diaudit tetapi belum ditampilkan.

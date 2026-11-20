@@ -1,6 +1,7 @@
 import type { GatewayDb } from '../database/gateway.js';
 import type { CredentialCrypto } from '../security/credential-crypto.js';
 import { webhookSecretAad } from '../security/webhook-signature.js';
+import { alertTargetAad } from '../security/alert-target.js';
 import { aadOf as authAad } from '../modules/engine/auth-store.js'; // satu-satunya definisi AAD auth state
 
 export interface RotateTarget { rotated: number; skipped: number; failed: number }
@@ -9,6 +10,7 @@ export interface RotateReport {
   dryRun: boolean;
   authState: RotateTarget;
   webhookSecrets: RotateTarget;
+  alertTargets: RotateTarget;
   /** Jumlah baris per versi kunci SETELAH operasi: kunci lama aman dipensiunkan hanya bila tidak ada versi selain aktif dan failed = 0. */
   versions: Record<string, Record<string, number>>;
   retireReady: boolean;
@@ -80,11 +82,38 @@ export function createKeyRotator(db: GatewayDb, crypto: CredentialCrypto) {
     return t;
   }
 
+  async function rotateAlertTargets(batch: number, dryRun: boolean): Promise<RotateTarget> {
+    const t: RotateTarget = { rotated: 0, skipped: 0, failed: 0 };
+    let lastId: string | undefined;
+    for (;;) {
+      const rows = await db.tx({ platform: true }, async (c) =>
+        (await c.query(
+          `SELECT id, tenant_id, target_ciphertext FROM alert_channels
+           WHERE target_key_version <> $1 AND ($2::uuid IS NULL OR id > $2) ORDER BY id LIMIT $3`, [active, lastId ?? null, batch])).rows as { id: string; tenant_id: string; target_ciphertext: Buffer }[]);
+      if (!rows.length) break;
+      for (const r of rows) {
+        lastId = r.id;
+        let blob: Buffer, keyVersion: number;
+        try {
+          const plain = crypto.decrypt(r.target_ciphertext, alertTargetAad(r.tenant_id, r.id));
+          ({ blob, keyVersion } = crypto.encrypt(plain, alertTargetAad(r.tenant_id, r.id)));
+        } catch { t.failed++; continue; }
+        if (dryRun) { t.rotated++; continue; }
+        const u = await db.tx({ platform: true }, (c) => c.query(
+          `UPDATE alert_channels SET target_ciphertext = $2, target_key_version = $3 WHERE id = $1 AND target_ciphertext = $4`, [r.id, blob, keyVersion, r.target_ciphertext]));
+        if (u.rowCount === 1) t.rotated++; else t.skipped++;
+      }
+      if (rows.length < batch) break;
+    }
+    return t;
+  }
+
   async function versions(): Promise<Record<string, Record<string, number>>> {
     return db.tx({ platform: true }, async (c) => {
       const a = (await c.query('SELECT encryption_key_version v, count(*)::int n FROM session_auth_state GROUP BY 1 ORDER BY 1')).rows;
       const w = (await c.query('SELECT secret_key_version v, count(*)::int n FROM webhook_endpoints GROUP BY 1 ORDER BY 1')).rows;
-      return { session_auth_state: Object.fromEntries(a.map((r: any) => [r.v, r.n])), webhook_secrets: Object.fromEntries(w.map((r: any) => [r.v, r.n])) };
+      const al = (await c.query('SELECT target_key_version v, count(*)::int n FROM alert_channels GROUP BY 1 ORDER BY 1')).rows;
+      return { session_auth_state: Object.fromEntries(a.map((r: any) => [r.v, r.n])), webhook_secrets: Object.fromEntries(w.map((r: any) => [r.v, r.n])), alert_targets: Object.fromEntries(al.map((r: any) => [r.v, r.n])) };
     });
   }
 
@@ -93,6 +122,7 @@ export function createKeyRotator(db: GatewayDb, crypto: CredentialCrypto) {
       const batch = o.batch ?? 200; const dryRun = o.dryRun ?? false;
       const authState = await rotateAuth(batch, dryRun);
       const webhookSecrets = await rotateWebhookSecrets(batch, dryRun);
+      const alertTargets = await rotateAlertTargets(batch, dryRun);
       if (!dryRun) {
         // Metadata versi pada session_credentials mengikuti auth state sesi tersebut.
         await db.tx({ platform: true }, (c) => c.query(
@@ -101,7 +131,7 @@ export function createKeyRotator(db: GatewayDb, crypto: CredentialCrypto) {
       }
       const v = await versions();
       const old = Object.values(v).some((m) => Object.keys(m).some((k) => Number(k) !== active));
-      return { activeVersion: active, dryRun, authState, webhookSecrets, versions: v, retireReady: !dryRun && !old && authState.failed === 0 && webhookSecrets.failed === 0 };
+      return { activeVersion: active, dryRun, authState, webhookSecrets, alertTargets, versions: v, retireReady: !dryRun && !old && authState.failed === 0 && webhookSecrets.failed === 0 && alertTargets.failed === 0 };
     },
   };
 }

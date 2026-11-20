@@ -32,7 +32,8 @@ import { getGatewayDb } from './database/gateway.js';
 import { AppError, installErrorHandling } from './http/errors.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 
-export const APP_VERSION = '1.0.0';
+import { APP_VERSION } from './version.js';
+export { APP_VERSION };
 
 const defaultCheckDb = async () => {
   try {

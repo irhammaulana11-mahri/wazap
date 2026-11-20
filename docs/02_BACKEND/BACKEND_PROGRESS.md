@@ -546,3 +546,10 @@ Bukti: `npm test` 270 lulus; staging: migrasi 0017 dari data 0016, `verify-db-ro
 crash saat koneksi DB diputus; (2) leader control-plane tidak menyadari koneksinya mati (potensi dua leader); (3) tanpa batas waktu
 koneksi permintaan menggantung saat DB hang, dan galat DB menjadi 500 (kini 503 + Retry-After). Konfigurasi baru `DB_CONNECT_TIMEOUT_MS`.
 Bukti: `npm test` 282 lulus; uji mutasi membuktikan tiap tes menangkap regresinya. Belum: WhatsApp sungguhan, disk penuh, uji beban.
+
+## Entrypoint proses pekerja terpisah (2026-11-20) --- DONE
+`src/worker.ts`, `runtime/workers.ts` (komposisi bersama dengan server.ts), `engine-singleton.ts`, `health-server.ts`, `db-guard.ts`; env `WORKER_ROLES`,
+`WORKER_HEALTH_PORT/HOST`; skrip `worker`, `dev:worker`, `start:worker`; contoh PM2. ADR-039. Menutup celah dua proses engine bernama sama (berbagi engine_id dan token).
+Bukti: `npm test` lulus, termasuk proses nyata (start, duplikat ditolak, SIGTERM rapi); `npm run build` menghasilkan `dist/worker.js`.
+Belum: uji dengan WhatsApp sungguhan di staging (API dan pekerja terpisah), multi-host, pemantauan/alarm atas keluar kode 1.
+

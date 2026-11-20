@@ -15,10 +15,11 @@ export function createShutdown(opts: {
       hooks.push({ name, fn });
     },
     isShuttingDown: () => started !== null,
-    run(reason: string): Promise<void> {
+    /** `fatal`: berhenti rapi tetapi keluar dengan kode 1 agar process manager (PM2) memulai ulang dan alarm menyala. */
+    run(reason: string, fatal = false): Promise<void> {
       if (started) return started;
       opts.log.info({ reason }, 'shutdown dimulai');
-      let failed = false;
+      let failed = fatal;
       const work = (async () => {
         for (const h of [...hooks].reverse()) {
           try {

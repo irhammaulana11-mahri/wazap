@@ -128,6 +128,11 @@ const baseSchema = z.object({
   LIMIT_CEIL_MESSAGES_PER_MINUTE: z.coerce.number().int().min(1).default(120),
   CORS_ORIGINS: z.string().default(''),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+  // Proses pekerja terpisah (src/worker.ts). Peran: engine, control-plane, webhook, retention (pisah koma).
+  WORKER_ROLES: z.string().default('engine,control-plane,webhook,retention'),
+  /** 0 = nonaktif. Default hanya loopback: health pekerja tidak untuk internet. */
+  WORKER_HEALTH_PORT: z.coerce.number().int().min(0).max(65535).default(8001),
+  WORKER_HEALTH_HOST: z.string().min(1).default('127.0.0.1'),
 });
 
 const schema = baseSchema.superRefine((c, ctx) => {

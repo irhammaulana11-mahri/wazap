@@ -33,6 +33,12 @@
 -   **Cadangan kunci:** simpan `CREDENTIAL_ENCRYPTION_KEYS` di secret manager/offline di luar repo dan di luar cadangan DB yang sama.
 -   **Validasi indeks:** `npm run test:perf` (butuh PostgreSQL dan hak CREATE SCHEMA; ~40 dtk).
 
+-   **Proses pekerja terpisah (ADR-039):** produksi menjalankan `wazap-api` dengan `ENABLE_EMBEDDED_*=false` dan satu/lebih `dist/worker.js`
+    (engine WhatsApp + control-plane + webhook + retensi). Urutan deploy: build -> `migrate:prod` -> restart pekerja -> restart API. Pekerja menolak
+    start bila schema belum dimigrasi. Contoh PM2 dan variabel: PM2_CONFIGURATION.md. Tiap engine butuh `ENGINE_NODE_NAME` unik.
+-   **Gangguan DB (ADR-038):** `DB_CONNECT_TIMEOUT_MS` (default 5000); DB tidak tersedia => API menjawab 503 `SERVICE_UNAVAILABLE` dan proses
+    tetap hidup. Pantau `/health/ready` (API) dan `/health/ready` pekerja (loopback); jangan mematikan proses karena `/health/ready` 503.
+
 ## Topologi, rahasia, dan perisai tepi (keputusan ADR-029)
 
 **Satu instans API.** Jangan memakai mode cluster PM2 untuk `wazap-api`: batas laju aplikasi in-memory per proses (N proses = N kali

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- Backend: entrypoint proses pekerja terpisah (2026-11-20)
+
+-   Baru: `npm run worker` / `node dist/worker.js` menjalankan engine WhatsApp, control-plane, webhook, dan retensi tanpa API (ADR-039). Produksi: API `ENABLE_EMBEDDED_*=false`.
+-   Keamanan operasional: satu proses per `ENGINE_NODE_NAME` (kunci singleton); proses kedua dengan nama sama ditolak start-nya.
+-   Konfigurasi baru: `WORKER_ROLES`, `WORKER_HEALTH_PORT`, `WORKER_HEALTH_HOST`. Tidak ada perubahan kontrak API. Tes: `worker.test.ts` 10 tes.
+
 ## Unreleased --- Backend: uji ketahanan dan perbaikan gangguan database (2026-11-20)
 
 -   Perbaikan (ADR-038): koneksi DB yang diputus tidak lagi mematikan proses (listener `error` pada pool); leader control-plane memeriksa koneksinya dan kunci per schema; batas waktu koneksi `DB_CONNECT_TIMEOUT_MS`.

@@ -87,3 +87,12 @@ Uji mutasi: mematikan tiap perbaikan (listener error pool, pengecekan koneksi le
 
 Belum diuji: pemutusan jaringan ke server WhatsApp pada Baileys sungguhan (hanya adapter palsu), penuhnya disk/WAL, kegagalan
 PostgreSQL berkepanjangan melebihi TTL lease (perilaku lease sudah diuji terpisah di engine.test.ts), dan beban tinggi (lihat LOAD_TEST_PLAN).
+
+## Proses pekerja terpisah (`backend/test/worker.test.ts`, 10 tes; ADR-039)
+
+`parseRoles`; shutdown fatal (kode 1) vs biasa (0); health server (live/ready/405/404); kunci singleton (nama sama ditolak, pulih setelah koneksi putus,
+`onFatal` bila pihak lain merebut kunci, deterministik dengan gerbang koneksi); `assertSchemaMigrated`; komposisi in-process (API hanya menulis DB,
+pekerja menempatkan sesi, menyambungkan, mengirim pesan, shutdown rapi mengembalikan sesi ke antrean dan melepas kunci; salah-start kedua ditolak);
+PROSES SUNGGUHAN `src/worker.ts` (siap lewat HTTP, proses kedua nama sama keluar kode 1, SIGTERM => kode 0 + engine STOPPED + log bersih; schema belum
+dimigrasi dan peran salah ketik => kode 1). Uji mutasi: tanpa kunci singleton, 3 tes gagal (satu menggantung karena proses kedua tak pernah keluar).
+

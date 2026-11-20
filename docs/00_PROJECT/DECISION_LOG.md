@@ -399,3 +399,22 @@ tanpa batas bila DB hang karena pool tidak punya batas waktu koneksi.
 
 **Dampak/risiko tersisa:** pemetaan 503 berbasis kode/pesan galat driver (daftar di `http/errors.ts`) dan perlu ditinjau bila driver
 berganti versi mayor. Ketahanan terhadap kegagalan jaringan ke WhatsApp (Baileys) belum diuji di luar adapter palsu.
+
+## ADR-039 --- Entrypoint proses pekerja terpisah dan kunci singleton engine (2026-11-20)
+
+**Konteks:** engine, control-plane, webhook, dan retensi hanya bisa berjalan embedded di proses API. Menyatukan beban jaringan WhatsApp
+dengan API membuat restart/deploy API memutus semua sesi, dan kegagalan satu sisi menjatuhkan sisi lain.
+
+**Keputusan:**
+-   `src/worker.ts` menjalankan peran terpilih (`WORKER_ROLES`) tanpa HTTP bisnis; komposisi dipakai bersama dengan mode embedded lewat `runtime/workers.ts`
+    (tidak ada dua jalur kode). Pekerja tidak pernah migrasi, menolak start bila schema belum dimigrasi / role DB tidak aman / DB mati (kode 1).
+-   **Kunci singleton per `ENGINE_NODE_NAME`** (advisory lock sesi). Alasan: `engines.register` meng-upsert berdasarkan nama; dua proses bernama sama
+    berbagi `engine_id` dan fencing token sehingga fencing tidak membedakannya dan satu sesi dapat dipegang dua socket. Proses kedua ditolak start.
+    Kunci hilang dan tak dapat direbut kembali => shutdown rapi dengan kode 1 (fail-stop, lebih baik daripada dua pemilik).
+-   Health HTTP minimal (loopback) untuk PM2/monitoring. Shutdown LIFO; `createShutdown.run(reason, fatal)` memberi kode 1 untuk kegagalan fatal.
+-   Mode embedded dipertahankan (dev/single-node, default `true`); produksi mematikannya.
+
+**Risiko tersisa:** jendela singkat (hingga ~5 dtk) saat kunci hilang dan belum terdeteksi dapat memuat dua proses bernama sama bila proses kedua
+sengaja dijalankan tepat di celah itu; fencing lease tetap melindungi tulis persisten tetapi bukan socket. Satu host: pekerja belum diuji lintas host.
+Pemisahan penuh API-engine belum diuji dengan WhatsApp sungguhan (hanya adapter palsu dan proses nyata tanpa sesi).
+

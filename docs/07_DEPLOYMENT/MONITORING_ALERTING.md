@@ -1,6 +1,6 @@
 # Rancangan pemantauan dan alarm
 
-Status: **rancangan** (belum diimplementasikan). Ambang bertanda *(sementara)* berasal dari satu sesi staging dan uji lama yang masih berjalan; finalisasi setelah uji lama selesai (lihat bagian 8). Kanal pengiriman alarm belum diputuskan, rancangan ini netral terhadap kanal.
+Status: **tahap 1 diimplementasikan** (`deploy/ops/notify.sh`, `deploy/ops/monitor-check.sh`; kanal Telegram; belum terpasang di server). Tahap 2-3 masih rancangan. Ambang bertanda *(sementara)* berasal dari satu sesi staging dan uji lama yang masih berjalan; finalisasi setelah uji lama selesai (lihat bagian 8). Kanal pengiriman alarm belum diputuskan, rancangan ini netral terhadap kanal.
 
 ## 1. Prinsip
 1. **Alarm = ada tindakan manusia yang harus diambil.** Metrik tanpa tindakan masuk dasbor, bukan alarm.
@@ -100,3 +100,17 @@ Baseline sementara (staging, satu sesi): sisa lease 20-30 dtk, heartbeat ≤ 10 
 - Layanan heartbeat luar (dead-man's switch).
 - Setuju opsi 3 untuk tahap 1 dan opsi 1 untuk tahap 2 (bagian 6).
 - Jam hening dan eskalasi bila PAGE tidak diakui.
+
+## 11. Pemasangan tahap 1 (Telegram)
+1. Telegram: chat dengan @BotFather, `/newbot`, simpan token. Kirim satu pesan ke bot Anda, lalu buka `https://api.telegram.org/bot<TOKEN>/getUpdates` dan salin `chat.id`.
+2. Berkas rahasia (mode **600**, di luar repo; `notify.sh` menolak mode lain):
+   ```bash
+   mkdir -p ~/.config/wazap-monitor && install -m 600 /dev/null ~/.config/wazap-monitor/monitor.env
+   # isi: TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=... MON_API_URL=http://127.0.0.1:3100 MON_PM2_API=wazap-stg-api MON_PM2_WORKER=wazap-stg-engine
+   #      MON_WORKER_URL=http://127.0.0.1:8101 MON_BACKUP_DIR=/var/backups/wazap MON_DISK_PATHS="/ /var/backups/wazap" MON_LOG_FILES="<log error PM2>" MON_HEARTBEAT_URL=<URL ping>
+   ```
+3. Uji kanal: `deploy/ops/notify.sh WARN "uji" "pesan percobaan"` harus tiba di Telegram.
+4. Jadwal tiap menit: `* * * * * /path/ke/deploy/ops/monitor-check.sh` (crontab pemilik proses).
+5. **Uji injeksi kegagalan sebelum dianggap terpasang** (alarm yang belum terbukti menyala = belum ada): hentikan API (A1 menyala setelah 2 mnt, pulih saat dijalankan), matikan worker (A3/A4), tulis baris `{"level":50}` > 20 ke log (A17), ubah umur berkas cadangan (A19/A20).
+
+Yang diverifikasi pada tahap ini (dry-run terhadap staging nyata): sehat tidak mengirim apa pun; API mati menyala hanya setelah tahan 120 dtk; pulih mengirim OK; lonjakan log; cadangan basi/checksum salah; tidak mengirim ulang di bawah jeda; berkas env bermode selain 600 ditolak; kegagalan Telegram (HTTP 401) dilaporkan dan token tidak masuk log. **Belum** diuji: pengiriman Telegram sungguhan (menunggu token), kegagalan worker/PM2 nyata dan disk (menunggu uji lama selesai agar tidak mengganggu), heartbeat luar.

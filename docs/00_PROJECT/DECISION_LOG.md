@@ -435,7 +435,7 @@ self-signed hanya untuk staging; `limit_req` lebih ketat pada rute kredensial; h
 **Terbukti (verify.sh):** TLS 1.2/1.3 saja, HSTS/nosniff, versi Nginx tidak bocor, cookie refresh Secure+HttpOnly+SameSite, Socket.IO via WebSocket
 lewat TLS, XFF palsu tidak menghindari throttling, API/worker hanya di loopback; restart API tidak menyentuh worker; restart worker berhenti rapi.
 
-**Risiko tersisa:** pemasangan ke Nginx SISTEM belum dijalankan (butuh sudo; skrip `install-nginx.sh` siap, `nginx -t` sebagai pagar); Let's Encrypt/domain
+**Risiko tersisa:** Nginx sistem sudah dipasang lewat `install-nginx.sh` dan `verify.sh` lulus penuh terhadapnya (2026-11-20; situs lain tidak terpengaruh); Let's Encrypt/domain
 publik belum diuji; belum ada CSP untuk dashboard (menunggu frontend); kunci master staging belum dicadangkan (wajib sebelum produksi); uji WhatsApp
 sungguhan dengan topologi ini belum dilakukan; pemantauan/alarm belum ada.
 

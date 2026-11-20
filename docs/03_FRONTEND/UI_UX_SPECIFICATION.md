@@ -1,54 +1,99 @@
 # UI/UX Specification
 
-## Visual direction
+## Visual Direction & Design System
 
-Professional SaaS dashboard, responsive desktop-first but usable on
-tablet/mobile. Clear status colors, compact data tables, accessible
-contrast, consistent spacing and typography.
+Aplikasi WhatsApp Gateway mengadopsi antarmuka SaaS modern profesional:
+- **Warna Identitas:** Emerald (`#059669` / `#10b981`) sebagai warna aksen utama WhatsApp Gateway, dipadukan dengan palet netral Slate (`#0f172a` sampai `#f8fafc`).
+- **Tipografi:** Font sistem sans-serif modern dengan kontras tinggi, font mono untuk ID, phone numbers, scopes, dan JID.
+- **Responsivitas:** Desktop-first dengan drawer sidebar fleksibel untuk layar tablet dan mobile.
+- **Status Badges Konsisten:**
+  - `CONNECTED` / `SENT` / `DELIVERED` / `READ`: Hijau (`emerald-50`, teks `emerald-700`).
+  - `QR_REQUIRED` / `PENDING_ASSIGNMENT`: Ungu/Kuning dengan animasi pulse (`animate-pulse`).
+  - `CONNECTING` / `RECONNECTING` / `INITIALIZING`: Biru/Sky dengan animasi spinner.
+  - `ERROR` / `FAILED` / `AUTO_CONSECUTIVE_FAILURES`: Merah (`rose-50`, teks `rose-700`).
+  - `DISCONNECTED` / `CANCELLED` / `LOGGED_OUT`: Abu-abu netral (`slate-100`, teks `slate-600`).
 
-## Navigation
+## Struktur Navigasi & Kontrol Header
 
-1.  Overview
-2.  WhatsApp Sessions
-3.  Messages
-4.  Contacts
-5.  Chat History
-6.  Templates
-7.  Webhooks
-8.  API Keys
-9.  Usage & Limits
-10. Team Members
-11. Settings
+1. **Header Workspace:**
+   - **Tenant Switcher Dropdown:** Muncul otomatis jika pengguna memiliki lebih dari 1 keanggotaan workspace. Mengganti workspace langsung mengosongkan query cache dan menyambung ulang Socket.IO.
+   - **System Health Indicator:** Menampilkan status realtime koneksi WebSocket (`ONLINE`/`OFFLINE`), status database PostgreSQL (`UP`/`DOWN`), dan status REST API (`OK`).
+   - **Profil Pengguna & Logout:** Menampilkan email aktif, badge peran (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`), dan tombol keluar yang membersihkan sesi HttpOnly.
+   - **Kontainer Proporsional:** Lebar header dibatasi secara elegan dengan `max-w-[1440px] mx-auto` agar sejajar dengan batas konten utama pada layar lebar.
+2. **Sidebar Menu Terpadu:**
+   - **Aktivitas Utama:**
+     - Ringkasan Dashboard (`/`)
+     - Pesan & Obrolan (`/chats`) — antarmuka terpadu WhatsApp Web (pengiriman pesan, antrean outbox, obrolan realtime).
+     - Kontak WhatsApp (`/contacts`)
+   - **Integrasi & Gateway:**
+     - Koneksi & API (`/connections`) — tab Sesi WhatsApp, Kunci API, dan Webhook.
+     - Penggunaan & Kuota (`/usage`)
+     - Anggota Tim (`/team`)
+   - **Konfigurasi & Kepatuhan:**
+     - Pengaturan Kuota (`/settings`)
+     - Log Audit (`/audit-logs`)
 
-Platform admin has a separate protected area.
+## Komponen Kunci UI/UX
 
-## Dashboard
+### 1. Antarmuka Terpadu Pesan & Obrolan WhatsApp Web (`/chats`)
+- **Desain 2-Kolom Sejati:**
+  - **Panel Kiri (Lebar 320px - 380px):**
+    - Selector dropdown Sesi WhatsApp aktif.
+    - Tombol Call-to-Action "Chat Baru" untuk membuka modal pengiriman pesan pertama ke nomor mana pun (auto +62).
+    - Bilah pencarian kontak & isi pesan.
+    - Tab Switcher: "Obrolan Aktif" vs "Log Antrean Gateway" (untuk monitoring pesan PENDING, RETRY, CANCELLED, FAILED).
+    - Daftar obrolan berpaginasi dengan avatar inisial berwarna, badge unread, snippet pesan terakhir, dan timestamp.
+  - **Panel Kanan (Area Percakapan Dinamis):**
+    - Header kontak aktif: Avatar, nama/nomor, status koneksi sesi pengirim, dan tombol refresh riwayat.
+    - Timeline percakapan berlatar belakang wallpaper doodle WhatsApp autentik.
+    - Bubble chat: Hijau `#DCF8C6` (outbound) dan putih (inbound) dengan rounded bubble dan bayangan halus.
+    - Indikator status centang WhatsApp: Centang ganda biru (`READ`), centang ganda abu (`DELIVERED`), centang tunggal abu (`SENT`), atau jam pasir (`PENDING`).
+    - Quick Formatting Bar: Tombol format cepat teks (*tebal*, _miring_, ~coret~) dan emoji picker instan.
+    - Composer terintegrasi: Input pesan responsif dengan dukungan tombol `Enter` untuk kirim langsung (atau `Shift+Enter` untuk baris baru) dan tombol kirim ikon pesawat kertas.
 
--   Active/disconnected sessions.
--   Message totals by status.
--   Queue depth and recent activity.
--   Session health.
--   Usage summary.
--   Avoid showing fabricated/demo values in production.
+### 2. Antarmuka Terpadu Koneksi & API (`/connections`)
+- Menyatukan manajemen koneksi teknis dalam 3 tab intuitif:
+  - **Tab Perangkat WhatsApp:** Monitoring 13 status sesi Baileys, kartu sesi dengan indikator baterai/status, kontrol hubungkan/putuskan/sambung ulang/hapus, dan modal Ephemeral QR Pairing.
+  - **Tab Kunci API:** Manajemen scoped API key granular, modal reveal-once kunci rahasia, dan pencabutan kunci.
+  - **Tab Webhooks:** Konfigurasi webhook endpoint, rotasi secret HMAC SHA-256, uji ping (test delivery), dan log pengiriman.
 
-## Session management
+### 3. Ephemeral QR Pairing Modal
+- Hanya dimunculkan saat sesi berstatus `QR_REQUIRED`.
+- Menggunakan `qr_data_url` beresolusi tinggi langsung di dalam modal terfokus dengan latar belakang blur.
+- Bersih seketika saat modal ditutup atau saat sesi berhasil `CONNECTED` (auto-close).
+- Bebas dari penyimpanan lokal (`localStorage`).
 
--   Add session.
--   Display QR/pairing flow.
--   Show lifecycle status and last connected time.
--   Disconnect/reconnect/delete with confirmation.
--   Do not display credentials or raw auth data.
+### 3. Reveal-Once Secret Dialog (Security Pattern)
+- Digunakan pada:
+  - Pembuatan API Key baru (`/api-keys`).
+  - Pembuatan dan rotasi Webhook Secret (`/webhooks`).
+  - Pembuatan tautan undangan tim (`/team`).
+- Desain: Box monospace dengan tombol copy sekali klik dan peringatan tegas bahwa kunci/secret tidak dapat ditampilkan ulang setelah dialog ditutup.
 
-## Messaging
+### 4. Zero-Email Team Invitation Sharing & Join Code (`/team` & `/join`)
+- Sesuai keputusan produk (tanpa pengiriman email otomatis), modal undangan dan kode pendaftaran workspace menyediakan 3 kanal instan:
+  1. **Salin Tautan:** URL lengkap `/invite#token=...` atau `/join#code=...` untuk dibagikan via chat.
+  2. **QR Code Klien:** Di-generate secara instan di peramban menggunakan pustaka `qrcode` agar calon anggota bisa langsung scan lewat kamera ponsel.
+  3. **Kirim WhatsApp:** Tombol tautan langsung ke `wa.me/?text=...` atau kirim pesan instan langsung dari nomor sesi gateway yang sedang aktif.
+  4. **Pendaftaran Mandiri & Persetujuan Berjenjang:** Calon anggota dapat mendaftar sendiri via `/join` dengan kode workspace dan kata sandi pilihannya, lalu diputuskan (setujui dengan peran / tolak) oleh OWNER atau ADMIN.
 
--   Send form with session selector.
--   Recipient validation.
--   Text/media modes.
--   Job status and message history.
--   Clearly distinguish accepted, sent, delivered, read, failed and
-    unknown.
+### 5. Dialog Reveal-Once & Pemulihan Akun Mandiri (`RecoveryCodeModal`)
+- Kode pemulihan (`RC-XXXXX-...`) diberikan kepada pengguna baru saat mendaftar (`/register` atau `/join`) serta saat reset password (`/forgot-password`).
+- Modal peringatan keamanan dengan tampilan kode mono tebal, tombol salin clipboard, tombol unduh berkas teks `.txt`, serta checkbox persetujuan wajib sebelum pengguna melanjutkan.
 
-## Required states
+### 6. Formulir Kuota Tenant Berbatas Aman & Siklus Hidup Workspace (`/settings`)
+- Khusus untuk peran `OWNER`.
+- Input field dibatasi secara ketat oleh nilai atribut `minimums` dan `ceilings` dari respon backend.
+- Menampilkan indikator jumlah sumber daya yang sedang aktif dipakai (`used`) agar pemilik workspace tidak menurunkan batas di bawah pemakaian riil.
+- Pengelolaan nama resmi workspace (`PATCH /tenant`) dan zona bahaya penghapusan permanen (`DELETE /tenant`) dengan konfirmasi nama persis dan kata sandi pemilik.
 
-Every page must implement loading, empty, error, permission denied, and
-success states.
+### 7. Transformasi Slide-Over Drawer
+- Seluruh dialog pop-up di tengah layar telah ditransformasikan menjadi panel **Slide-Over Drawer** dari sisi kanan layar (`animate-in slide-in-from-right`) dengan latar transparan gelap dan scroll terisolasi, menjaga kenyamanan workflow CRUD pengguna.
+
+### 8. Required State Handling
+Setiap halaman wajib mengimplementasikan 5 keadaan visual:
+1. **Loading State:** Spinner transparan dengan pesan kontekstual.
+2. **Empty State:** Ilustrasi ikon elegan dengan judul, deskripsi, dan tombol aksi pertama (Call-to-Action).
+3. **Error State:** Kotak peringatan jelas dengan kode error, deskripsi ramah, dan tombol "Coba Lagi" (Retry).
+4. **Unauthorized State:** Tampilan terisolasi khusus peran non-otoritas (misal saat non-admin mengakses `/audit-logs` atau `/settings`).
+5. **Success Feedback:** Alert banner hijau yang menghilang otomatis setelah 3-4 detik.

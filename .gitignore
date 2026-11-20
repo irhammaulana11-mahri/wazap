@@ -135,3 +135,7 @@ backend/data/
 
 # Build output backend (hasil tsc; jangan di-commit)
 backend/dist/
+
+# Frontend: hasil build tidak ikut repo; arsip alat (mis. agent kit) tidak dipublikasikan
+frontend/dist/
+whatsapp-gateway-agent-kit-*.zip

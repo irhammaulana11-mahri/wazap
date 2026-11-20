@@ -38,6 +38,38 @@
 -   Perbaikan (ADR-041, migrasi 0018): balasan WhatsApp datang dengan JID `@lid` sedangkan pesan keluar memakai JID nomor, sehingga satu kontak muncul sebagai dua obrolan. Kini satu fungsi `resolve_chat` menentukan chat untuk semua penulis; chat ganda yang sudah ada digabung otomatis (pesan utuh).
 -   Kontrak: `jid` pada `/chats` kini JID nomor bila nomor diketahui; `id` chat yang digabung tidak berlaku lagi. Tes: `chat-identity.test.ts` 8 baru, total 300 lulus.
 
+## Unreleased --- Frontend Perbaikan Tombol Putus Sesi WhatsApp & Penanganan Status Transisi (2026-11-20)
+
+- **Perbaikan Aksi Putuskan Sesi ([SessionsPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/SessionsPage.tsx)):**
+  - **Penanganan Status `DISCONNECTING` & State Race:** Memperbaiki bug di mana sesi yang sedang dalam transisi `DISCONNECTING` langsung jatuh ke kondisi *else* sehingga keliru menampilkan tombol hijau *"Hubungkan"*. Kini tombol merender status *"Memutuskan Sesi..."* dengan spinner aktif secara presisi.
+  - **Dukungan Pembatalan Koneksi:** Menambahkan tombol putus sesi sekunder pada status `QR_REQUIRED`, `CONNECTING`, `RECONNECTING`, dan `ERROR` sehingga pengguna dapat membatalkan atau mereset handshake koneksi yang macet tanpa harus menunggu timeout.
+  - **Konfirmasi & Umpan Balik Toast:** Menambahkan konfirmasi persetujuan pengguna sebelum memutuskan sesi, serta pesan toast notifikasi sukses dan penanganan galat `onError` yang transparan.
+  - **Opsi Putus Sesi di Drawer QR:** Menyediakan tombol pemutusan sesi langsung di dalam laci modal QR jika sesi terdeteksi telah `CONNECTED` atau gagal pairing.
+  - **Proteksi Akses Peran:** Menonaktifkan aksi pemutusan bagi peran `VIEWER` dengan atribut tooltip keterangan yang jelas.
+
+## Unreleased --- Frontend Redesign Pengaturan Kuota & Workspace: Slider Interaktif & Manajemen Modular (2026-11-20)
+
+- **Redesign Halaman Pengaturan Kuota & Workspace ([SettingsPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/SettingsPage.tsx)):**
+  - Mengubah antarmuka pengaturan kuota menjadi lebih profesional dan ramah pengguna dengan sistem **Tab Segmented**:
+    - **Tab 1: Alokasi Kuota Gateway (`?tab=quota`):**
+      - Input kuota interaktif menggabungkan **Slider Penggeser (*Range Slider*)** dan input angka stepper yang tersinkronisasi mulus secara *real-time*.
+      - Bilah progres (*Progress Bar*) pemakaian visual yang dinamis untuk Sesi WhatsApp, Throughput Rate Limit, Kunci REST API, dan Anggota Tim.
+      - Deteksi validasi *real-time* sebelum submit: mencegah input di bawah kapasitas yang sedang aktif digunakan (`used`) dengan peringatan visual jelas.
+      - Bilah aksi cerdas: tombol *"Terapkan Pengaturan Kuota"* dan *"Kembalikan Nilai"* yang otomatis aktif/nonaktif sesuai perubahan state form.
+    - **Tab 2: Identitas & Nama Workspace (`?tab=general`):**
+      - Formulir pembaruan nama resmi workspace yang langsung tersinkronisasi ke seluruh antarmuka dan navbar.
+    - **Tab 3: Zona Bahaya (`?tab=danger`):**
+      - Area terisolasi khusus Owner untuk penghapusan workspace permanen dengan ringkasan kebijakan masa tenggang pemulihan 30 hari (ADR-037), serta konfirmasi verifikasi ketik nama persis dan kata sandi pemilik.
+
+## Unreleased --- Frontend Redesign Halaman Profil: Navigasi Tab Segmented & UX Lebih Profesional (2026-11-20)
+
+- **Redesign Halaman Profil ([ProfilePage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/ProfilePage.tsx)):**
+  - Mengganti tata letak vertikal bertumpuk yang panjang menjadi antarmuka **Tab Segmented** modern (*enterprise-grade*) yang bersih dan mudah digunakan:
+    - **Tab 1: Profil & Identitas (`?tab=overview`):** Ringkasan kartu identitas akun, avatar inisial berstatus aktif, tombol salin instan *User ID* dan *Tenant ID*, informasi keamanan sesi (*In-Memory Token & HttpOnly Cookie*), daftar keanggotaan workspace, serta tabel matriks hak akses dan kewenangan peran aktif.
+    - **Tab 2: Keamanan & Kredensial (`?tab=security`):** Panel indikator status 8 kode pemulihan akun (status konfirmasi dan sisa kode aktif dengan tanda peringatan interaktif jika $\le 2$), formulir pembaruan kata sandi (dengan visibilitas sandi & validasi $\ge 10$ karakter), pembaruan alamat email, penerbitan himpunan 8 kode baru via dialog modal reveal-once, dan tombol keluar dari semua perangkat (*Logout All*).
+    - **Tab 3: Kuota Workspace (`?tab=quota`):** Status alokasi sumber daya gateway (Sesi WhatsApp, Throughput Rate Limit, Anggota Tim, Kunci API) dengan indikator progress visual yang proporsional, serta tombol navigasi langsung ke Pengaturan Kuota bagi Owner atau penjelas mode baca-saja bagi non-owner.
+  - Integrasi navigasi tautan cerdas berbasis parameter URL `?tab=` pada [Header.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/components/layout/Header.tsx) dan [SecurityBanners.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/components/layout/SecurityBanners.tsx) sehingga pengguna langsung diarahkan ke tab yang relevan dalam satu kali klik.
+
 ## Unreleased --- Backend: staging TLS dengan Nginx dan API/worker terpisah (2026-11-20)
 
 -   Baru: `deploy/staging/` (vhost Nginx TLS bertemplat, peluncur PM2, pembuat env acak, sertifikat staging, `verify.sh`). Tidak ada perubahan kode aplikasi atau kontrak API.
@@ -56,6 +88,42 @@
 -   Perilaku API: database tidak tersedia kini `503 SERVICE_UNAVAILABLE` + `Retry-After: 2` (sebelumnya 500 `INTERNAL_ERROR`). Frontend: tampilkan "layanan sedang sibuk" dan coba lagi dengan backoff; ulangi kirim pesan dengan `Idempotency-Key` yang sama.
 -   Tes: `resilience.test.ts` 12 tes baru; total 282 lulus.
 
+## Unreleased --- Frontend Fase H4 Lanjutan: Pemulihan Workspace, Banner Kode Pemulihan & Banner 2 OWNER (2026-11-20)
+
+- **Pemulihan Workspace Terhapus (`/restore-workspace` & `LoginPage.tsx` - ADR-037):**
+  - Implementasi halaman publik [RestoreWorkspacePage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/RestoreWorkspacePage.tsx):
+    - Formulir pencarian berbasis kredensial akun Pemilik (`POST /api/v1/auth/deleted-workspaces`).
+    - Penampilan daftar workspace dalam masa tenggang pemulihan 30 hari dengan tanggal kadaluwarsa (`restorable_until`) dan slug.
+    - Dialog konfirmasi pemulihan dengan peringatan keamanan tegas mengenai entitas yang harus dibuat ulang (`must_recreate`: sesi WhatsApp/scan QR, API key, webhook, undangan).
+    - Eksekusi pemulihan via `POST /api/v1/auth/restore-workspace` dengan umpan balik sukses serta arahan login kembali.
+  - Penanganan khusus error `403 NO_ACTIVE_TENANT` di [LoginPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/LoginPage.tsx) dengan tombol cepat menuju halaman pemulihan, serta tautan tambahan di footer form login.
+- **Banner Peringatan Keamanan & Anjuran 2 OWNER (`SecurityBanners.tsx`):**
+  - Implementasi komponen [SecurityBanners.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/components/layout/SecurityBanners.tsx) yang tersemat pada [MainLayout.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/components/layout/MainLayout.tsx):
+    - **Banner Kode Belum Dikonfirmasi:** Peringatan warna amber saat `recovery.confirmed === false` yang mengarahkan user ke pengaturan akun untuk menyimpan dan mengonfirmasi 8 kode pemulihan.
+    - **Banner Sisa Kode Rendah:** Peringatan warna rose saat `recovery.codes_remaining <= 2` untuk segera menerbitkan himpunan kode pemulihan baru.
+    - **Banner Anjuran Minimal 2 Owner:** Peringatan warna biru informatif jika workspace aktif hanya memiliki 1 Owner aktif, guna mencegah risiko workspace terkunci tanpa pengelola cadangan, lengkap dengan tombol navigasi instan ke halaman Manajemen Tim.
+
+## Unreleased --- Frontend Fase H3 & H4: Permintaan Bergabung, Kode Workspace, Pemulihan Mandiri & Keamanan Akun (2026-11-20)
+
+- **Permintaan Bergabung & Kode Workspace (`/join` & `TeamPage.tsx` - ADR-036):**
+  - Implementasi halaman publik [JoinPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/JoinPage.tsx): mengekstrak kode workspace dari fragment URL `#code=...`, langsung membersihkan fragment dari address bar (`history.replaceState`), dan menyimpannya murni di state memori komponen.
+  - Form permohonan mandiri: kode workspace, email, dan kata sandi pilihan pemohon (`POST /api/v1/auth/join-requests`).
+  - Penanganan status penolakan/antrean di login: pesan ramah untuk `403 JOIN_PENDING` dan `403 JOIN_REJECTED`.
+  - Tab *Kode & Permintaan Bergabung* di [TeamPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/TeamPage.tsx): manajemen kode workspace (`PUT /team/join-code` untuk rotasi reveal-once, `DELETE /team/join-code` untuk nonaktifkan) dan daftar permohonan (`GET /team/join-requests`) dengan dialog persetujuan pemilihan peran (`MEMBER`, `VIEWER`, `ADMIN`, `OWNER`) serta penolakan.
+- **Sistem Pemulihan Mandiri Tanpa Email & Reset Kata Sandi (`/forgot-password` - ADR-037):**
+  - Implementasi halaman publik [ForgotPasswordPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/ForgotPasswordPage.tsx) untuk reset kata sandi mandiri via kode pemulihan (`POST /api/v1/auth/reset-password`) dengan umpan balik sisa kode pemulihan yang tersisa.
+  - Komponen dialog reveal-once [RecoveryCodeModal.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/components/auth/RecoveryCodeModal.tsx): menampilkan 8 kode pemulihan rahasia dengan tombol salin clipboard, unduh berkas teks `.txt`, dan konfirmasi wajib bertanda centang sebelum melanjutkan.
+  - Terintegrasi pada [RegisterPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/RegisterPage.tsx), [JoinPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/JoinPage.tsx), dan penerbitan ulang di profil.
+- **Keamanan Akun & Kredensial Pengguna di Profil (`ProfilePage.tsx`):**
+  - Pembaruan kata sandi akun (`POST /auth/change-password`): merotasi access token di memori dan mencabut sesi di perangkat lain.
+  - Pembaruan alamat email akun (`POST /auth/change-email`) dengan konfirmasi kata sandi dan penanganan `409 EMAIL_TAKEN`.
+  - Penerbitan 8 kode pemulihan baru (`POST /auth/recovery-codes`) dengan konfirmasi penerimaan (`POST /auth/recovery-codes/confirm`).
+  - Logout dari seluruh perangkat (`POST /auth/logout-all`) yang seketika membersihkan sesi dan token aktif.
+- **Siklus Hidup Workspace & Pembaruan Entitas:**
+  - Pengubahan nama workspace (`PATCH /tenant`) dan zona bahaya penghapusan permanen (`DELETE /tenant`) dengan konfirmasi pengetikan nama persis dan kata sandi pemilik di [SettingsPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/SettingsPage.tsx).
+  - Pengubahan nama sesi WhatsApp (`PATCH /sessions/:id`) via drawer geser di [SessionsPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/SessionsPage.tsx).
+  - Pengubahan nama dan hak akses scopes API Key (`PATCH /api-keys/:id`) via drawer geser di [ApiKeysPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/ApiKeysPage.tsx).
+
 ## Unreleased --- Backend H4 lanjutan: 8 kode pemulihan, audit reset, pemulihan workspace (2026-11-20)
 
 -   Berubah (kontrak): `recovery_code` menjadi `recovery_codes` (8 kode sekali pakai) pada register/join-request; `POST /auth/recovery-code` menjadi `POST /auth/recovery-codes` (+ `/confirm`); `reset-password` mengembalikan `remaining_recovery_codes`; `GET /auth/me` memuat `recovery`.
@@ -67,10 +135,58 @@
 -   Keamanan: `token_version` mencabut access token seketika; kata sandi salah dijawab 403 (bukan 401); hapus workspace lunak lalu dihapus permanen setelah `RETENTION_TENANT_DAYS`. Hapus akun sendiri sengaja tidak ada. Migrasi 0016, ADR-037.
 -   Tes: 267 lulus (15 baru di `test/account.test.ts`).
 
+## Unreleased --- Frontend Logo Resmi Wazap & Redesign Halaman Login dan Register (2026-11-20)
+
+- **Logo Resmi WAZAP (`logo-wazap.jpeg`):**
+  - Mengintegrasikan logo resmi aplikasi dari [Logo Wazap.jpeg](file:///media/data/PROJECT/WAZAP/docs/Logo%20Wazap.jpeg) ke dalam aset frontend ([logo-wazap.jpeg](file:///media/data/PROJECT/WAZAP/frontend/public/logo-wazap.jpeg) dan [logo-wazap.jpeg](file:///media/data/PROJECT/WAZAP/frontend/src/assets/logo-wazap.jpeg)).
+  - Menerapkan logo resmi pada navigasi utama [Sidebar.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/components/layout/Sidebar.tsx), menggantikan placeholder inisial teks lama.
+  - Menerapkan logo pada form autentikasi ([LoginPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/LoginPage.tsx) dan [RegisterPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/RegisterPage.tsx)), serta kartu penerimaan undangan ([InviteAcceptPage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/InviteAcceptPage.tsx)).
+- **Redesign Halaman Login & Register (Split-Screen Enterprise Layout):**
+  - Mengadopsi tata letak modern *split-screen* responsive:
+    - **Kolom Kiri (Desktop Hero Branding):** Background gelap elegan (`bg-slate-950`) dengan efek ambient glow, tipografi modern, logo resmi beresolusi tajam, serta kartu nilai tambah keamanan (*Keamanan & Isolasi Tenant Ketat* dan *High Throughput & Anti-Ban Rate Limit*).
+    - **Kolom Kanan (Form Masuk / Daftar Modern):** Kartu form yang bersih dengan border halus, efek hover/focus interaktif pada input email, kata sandi, dan nama workspace.
+  - **Fitur Toggle Password Visibility:** Menambahkan tombol interaktif intip/sembunyikan kata sandi (`Eye` & `EyeOff`) pada kolom password di halaman login maupun registrasi.
+  - **Validasi & Penanganan Pesan Error Terstruktur:** Menampilkan banner error utama serta penanda pesan kesalahan per-field jika validasi gagal.
+
 ## Unreleased --- Backend H3 lanjutan: batas antrean dan retensi permintaan bergabung (2026-11-20)
 
 -   Baru: batas antrean `JOIN_MAX_PENDING` (default 50 per tenant; `409 JOIN_QUEUE_FULL`, akun tidak dibuat; batas eksak walau pengajuan serentak) dan retensi `RETENTION_JOIN_REQUEST_DAYS` (default 90). Migrasi 0015 (kebijakan RLS khusus hitung antrean, platform SELECT/DELETE, indeks).
 -   Tes: 252 lulus (4 baru).
+
+## Unreleased --- Frontend Transformasi Modal Dialog Menjadi Slide-Over Drawer Preview (2026-11-20)
+
+- **Transformasi Modal Menjadi Drawer Preview (`Drawer Slide-Over`):**
+  - Menggantikan dialog pop-up di tengah layar menjadi panel **Slide-Over Drawer** dari sisi kanan layar dengan animasi `slide-in-from-right` dan latar belakang transparan gelap (`backdrop-blur-xs`).
+  - Seluruh alur kerja dan fungsi CRUD (validasi, mutasi simpan, update realtime, reveal-once secret, pemindaian QR code) dipertahankan 100% konsisten.
+  - Modul yang diperbarui:
+    - **Sesi WhatsApp (`SessionsPage.tsx`):** Drawer *Tambah Sesi Baru* dan Drawer *Ephemeral QR Code Pairing*.
+    - **Pesan & Obrolan (`ChatsPage.tsx`):** Drawer *Mulai Chat Baru / Kirim Pesan* dan Drawer *Detail Teknis Pesan Gateway*.
+    - **Kunci Akses REST API (`ApiKeysPage.tsx`):** Drawer *Buat API Key Baru* dan Drawer *Simpan API Key (Reveal-Once)*.
+    - **Webhooks Event (`WebhooksPage.tsx`):** Drawer *Tambah Endpoint Webhook* dan Drawer *Simpan Webhook Secret*.
+    - **Manajemen Tim (`TeamPage.tsx`):** Drawer *Undang Anggota Tim* dan Drawer *Bagikan Tautan Undangan (Link, QR, WhatsApp)*.
+    - **Riwayat Pesan (`MessagesPage.tsx`):** Drawer *Detail Pesan Gateway*.
+
+## Unreleased --- Frontend Filter Jumlah Data per Halaman pada Seluruh Paginasi (2026-11-20)
+
+- **Filter Jumlah Data Dinamis (Page Size Selector):**
+  - Menambahkan pemilih jumlah data yang ditampilkan per halaman pada seluruh modul yang menggunakan paginasi:
+    - **Log Audit Keamanan (`AuditLogsPage.tsx`):** Opsi 10, 20, 50, dan 100 log per halaman.
+    - **Direktori Kontak WhatsApp (`ContactsPage.tsx`):** Opsi 10, 20, 50, dan 100 kontak per halaman.
+    - **Pesan & Obrolan WhatsApp Web (`ChatsPage.tsx`):** Opsi 10, 20, dan 50 data per halaman baik pada tab *Daftar Obrolan* maupun tab *Log Antrean Outbox Gateway*.
+    - **Riwayat Pesan Gateway (`MessagesPage.tsx`):** Opsi 10, 15, 25, 50, dan 100 pesan per halaman.
+    - **Manajemen Anggota Tim (`TeamPage.tsx`):** Opsi 10, 20, 50, dan 100 anggota per halaman.
+  - Setiap perubahan jumlah data per halaman secara otomatis me-reset navigasi ke halaman 1 (*page 1*) untuk menjamin konsistensi query dan data.
+
+## Unreleased --- Frontend Penyesuaian Margin Body Page & Responsivitas Mobile Penuh (2026-11-20)
+
+- **Optimasi Margin & Lebar Body Page (`MainLayout.tsx` & `Header.tsx`):**
+  - Menghilangkan pembatas `max-w-[1440px] mx-auto` yang menyisakan margin kosong canggung di batas kiri dan kanan layar lebar.
+  - Mengadopsi padding adaptif yang lebih mepet dan efisien: `px-3.5 sm:px-5 lg:px-6 py-5 sm:py-6`.
+  - Pada monitor desktop & laptop: Konten memanfaatkan lebar viewport secara luas dengan jarak batas tepi ke sidebar dan tepi kanan hanya 24px (`lg:px-6`), membuat workspace terasa lega dan nyaman.
+  - Pada layar mobile (< 640px): Margin aman sebesar 14px (`px-3.5`) memastikan konten tidak menempel ke tepi layar ponsel dan nyaman untuk jempol.
+- **Dukungan Responsif Mobile Drawer (`Sidebar.tsx`):**
+  - Pada layar mobile (< 1024px), sidebar desktop disembunyikan agar body page dapat memanfaatkan 100% lebar layar ponsel.
+  - Ditambahkan tombol *Hamburger Menu* di Header untuk membuka drawer navigasi geser (*slide-in drawer*) dengan latar belakang blur dan tombol tutup (*X*), yang otomatis menutup saat rute halaman diklik.
 
 ## Unreleased --- Backend Fase H3: permintaan bergabung dengan kode workspace (2026-11-20)
 
@@ -82,6 +198,63 @@
 
 -   Perbaikan: `npm run build` gagal dari checkout bersih (menyalin folder `legacy` yang tidak ada); migrator tidak lagi butuh hak CREATE pada database (cek `pg_namespace` sebelum `CREATE SCHEMA`).
 -   Dokumen: `DB_ROLES.md` berstatus TERUJI (migrasi, `verify-db-roles.sh` 15/15, start `DB_ROLE_CHECK=enforce`, smoke test dengan role `wazap_app`); langkah REVOKE `schema_migrations` (default privileges ikut memberi hak app pada tabel itu).
+
+## Unreleased --- Frontend Penyelarasan Lebar Kontainer Halaman Pengaturan Kuota & Profil (2026-11-20)
+
+- **Penyelarasan Lebar Halaman Penuh (`SettingsPage.tsx` & `ProfilePage.tsx`):**
+  - Menghilangkan pembatas sempit `max-w-4xl mx-auto` pada halaman *Pengaturan Kuota Workspace* dan *Profil Saya*.
+  - Kedua halaman kini menggunakan kontainer standar `<div className="space-y-6">` yang serasi dengan halaman lainnya (Dashboard, Koneksi & API, Obrolan, Penggunaan, Anggota Tim, Log Audit) dan memanfaatkan lebar kontainer responsif `max-w-[1440px]` secara proporsional.
+  - Grid identitas profil ditingkatkan menjadi 4 kolom adaptif (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`) agar nyaman dipandang pada layar lebar.
+
+## Unreleased --- Frontend Profil & Peningkatan Tampilan Pengaturan Kuota (2026-11-20)
+
+- **Sidebar Ramping & Menu Profil Baru (`Sidebar.tsx`):**
+  - Tombol logout di bagian bawah (footer) sidebar telah dihilangkan secara bersih karena fungsi logout terpusat di dropdown avatar header.
+  - Ditambahkan menu **Profil Saya** (`/profile`) di bagian kelompok menu *Konfigurasi & Akun*.
+  - Menu *Pengaturan Kuota* ditampilkan secara dinamis hanya untuk pengguna dengan wewenang `OWNER`.
+- **Desain Ulang Halaman Pengaturan Kuota Workspace (`SettingsPage.tsx`):**
+  - Tampilan form ditingkatkan menjadi kartu interaktif dengan badge indikator batas sistem (`min - maks`) dan status pemakaian saat ini (`used`).
+  - Dilengkapi tombol reset nilai (*Kembalikan Nilai*) dan proteksi validasi terhadap error `LIMIT_BELOW_USAGE`.
+  - Aksesibilitas visual untuk peran non-owner dengan peringatan wewenang *Read-Only*.
+- **Desain Halaman Profil & Status Kuota yang Komprehensif (`ProfilePage.tsx`):**
+  - Kartu identitas pengguna dengan avatar besar, email, User ID (copyable 1-klik), Tenant ID, dan status sesi in-memory yang aman.
+  - Kartu status kuota workspace yang menampilkan kapasitas pemakaian (Sesi WhatsApp, Rate limit, Anggota Tim, Kunci API) dengan progress bar dinamis.
+  - Banner penjelasan wewenang peran yang mendidik dan tabel matriks izin 4 peran (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`).
+
+## Unreleased --- Frontend Header Breadcrumbs & Minimalist 3-Menu Dropdown (2026-11-20)
+
+- **Header Breadcrumb Dinamis (`Header.tsx`):**
+  - Menggantikan tombol tenant dengan breadcrumb navigasi halaman yang bersih dan informatif (`Home / [Nama Halaman Aktif]`) menggunakan `useLocation()`.
+- **Avatar Inisial Minimalis:**
+  - Tombol profil pengguna di header disederhanakan: hanya menampilkan lingkaran inisial huruf pengguna (*user initial avatar*) dengan dot online tanpa teks email panjang.
+- **Header Dropdown Minimalis (Hanya 3 Menu):**
+  - **Profil (`/profile`):** Mengarahkan ke halaman profil baru yang menampilkan identitas pengguna, status sesi in-memory, serta status kuota & penggunaan alokasi workspace secara transparan.
+  - **Pengaturan:** 
+    - Untuk peran **`OWNER`**: Diarahkan langsung ke halaman *Pengaturan Kuota Workspace* (`/settings`) untuk mengelola limit alokasi.
+    - Untuk peran non-owner (**`ADMIN`**, **`MEMBER`**, **`VIEWER`**): Diarahkan ke `/profile` yang menampilkan status kuota dalam mode *Read-Only* dengan penjelasan wewenang peran.
+  - **Logout:** Tombol keluar yang aman membersihkan seluruh sesi dan cookie HttpOnly.
+- **Halaman Profil & Status Kuota (`ProfilePage.tsx`):**
+  - Menyajikan data identitas user (User ID copyable, Email, Workspace Aktif), ringkasan alokasi kuota pemakaian (Sesi WhatsApp, Rate Limit, Anggota Tim, API Key), dan penjelasan kewenangan peran aktif.
+
+## Unreleased --- Frontend Header Dropdown Profesional & Perbaikan Modal QR (2026-11-20)
+
+- **Perbaikan Ephemeral QR Pairing Modal (`SessionsPage.tsx`):**
+  - Mengatasi galat keliru `"QR tidak tersedia pada status CONNECTED"` saat ponsel berhasil memindai QR code atau ketika sesi WhatsApp telah tersambung.
+  - Alur status sesi kini diperiksa terlebih dahulu sebelum memanggil endpoint QR. Transisi status `CONNECTED` langsung menampilkan pesan sukses hijau (*"Perangkat WhatsApp Terhubung!"*) dengan animasi checklist, nama sesi, dan auto-close yang mulus.
+  - Status `CONNECTING`, `INITIALIZING`, dan `RECONNECTING` kini menampilkan indikator penyambungan ramah (*"Menghubungkan ke WhatsApp..."*) tanpa memunculkan kotak merah galat.
+- **Header Profesional & Dropdown Profil Pengguna (`Header.tsx`):**
+  - Desain topbar modern elegan dengan sentuhan *glassmorphism* (`backdrop-blur-md`), penataan proporsional, dan penyesuaian visual status diagnostik sistem (Socket.IO, Database PostgreSQL, REST API).
+  - Komponen Dropdown Profil Pengguna dengan avatar inisial, email aktif, User ID dengan tombol salin 1-klik, dan ringkasan status keamanan in-memory session.
+  - **Status Kewenangan Workspace:** Kartu identitas peran aktif pengguna (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`) lengkap dengan badge warna peran dan deskripsi wewenang operasionalnya di workspace tersebut.
+  - **Menu Navigasi Pengaturan Berbasis Role:**
+    - Tautan cepat ke *Pengaturan Kuota Workspace* (`/settings`) eksklusif untuk peran `OWNER`.
+    - Tautan cepat ke *Manajemen Tim & Anggota* (`/team`) serta *Kunci API & Webhooks* (`/connections?tab=apikeys`) untuk `OWNER` dan `ADMIN`.
+    - Tautan cepat ke *Perangkat WhatsApp* (`/connections?tab=sessions`) untuk semua peran operasional.
+    - Tautan cepat ke *Log Audit Aktivitas* (`/audit-logs`) untuk `OWNER` dan `ADMIN`.
+    - Tombol *Keluar dari Akun (Logout)* yang aman membersihkan sesi memori dan cookie HttpOnly.
+  - **Modal "Profil & Matriks Hak Akses" (Role Permissions Matrix):**
+    - Modal terfokus yang memvisualisasikan matriks hak akses 4 peran terhadap pengiriman pesan, pemindaian sesi QR, pembuatan API key & webhook, pengaturan kuota, dan audit log.
+    - Menjelaskan kebijakan kepatuhan keamanan *zero-leakage* (Access token murni di memori, refresh token di HttpOnly cookie).
 
 ## Unreleased --- Backend: perbaikan hasil code-review (2026-11-20)
 
@@ -169,6 +342,27 @@
 -   Kode galat baru: `INVALID_RANGE`, `CANNOT_MODIFY_SELF`, `INVALID_INVITATION`, `LAST_OWNER`, `ALREADY_MEMBER`, `INVITATION_EXISTS`. Env baru: `TEAM_INVITATION_TTL_HOURS`.
 -   Frontend: mock `team`/`usage` dapat diganti endpoint nyata; lihat `docs/04_INTEGRATION/FRONTEND_HANDOFF.md` dan `docs/08_AI_AGENTS/FRONTEND_AGENT_PROMPT.md` (diperbarui).
 -   Tes: 212 lulus (19 baru) + 8 validasi performa.
+
+## Unreleased --- Frontend Dashboard Enterprise (2026-11-19)
+
+- **Scaffold & Layout:** Implementasi dashboard React 19 + Vite + TypeScript + Tailwind CSS v4 sesuai spesifikasi `docs/03_FRONTEND/*`.
+- **Navigasi & Routing:** Integrasi React Router v7 untuk 10 halaman workspace:
+  - `Overview` (`/`): KPI aktif/terputus, metrik pesan hari ini, antrean, dan aktivitas terbaru.
+  - `WhatsApp Sessions` (`/sessions`): Manajemen sesi multi-device, ephemeral QR flow modal (auto-refresh 2.5s, tidak disimpan di localStorage), aksi connect/disconnect/delete.
+  - `Messages` (`/messages`): Composer pesan teks dengan validasi penerima, riwayat percakapan dengan filter arah (INBOUND/OUTBOUND), pencarian teks/nomor, dan status badge.
+  - `Webhooks` (`/webhooks`): Endpoint CRUD, HMAC secret reveal-once, status filter, tes ping.
+  - `API Keys` (`/api-keys`): Generator kredensial API key, reveal-once banner, penanda waktu terakhir digunakan, dan aksi pencabutan (revoke).
+  - `Contacts` (`/contacts`), `Chat History` (`/chats`), `Usage & Limits` (`/usage`), `Team Members` (`/team`), `Settings` (`/settings`): Dilengkapi dengan banner `MockNotice` penanda typed mock untuk endpoint yang belum dirilis backend.
+- **State & Realtime:**
+  - Integrasi TanStack Query v5 untuk server state management, caching, dan automatic refetch.
+  - Integrasi Socket.IO Client pada path `/api/v1/realtime` dengan automatic cache invalidation saat event `session.status` dan `message.incoming` diterima.
+  - Header global dengan status badge real-time: Database (PostgreSQL), API Gateway, dan Socket.IO connection indicator.
+- **Keamanan (Security):**
+  - Token login disimpan secara eksklusif di `sessionStorage` (tidak di `localStorage`).
+  - Halaman QR hanya tampil saat modal terbuka dan dibersihkan segera setelah sesi terhubung atau modal ditutup.
+  - Route guard `ProtectedRoute` mengalihkan pengguna yang belum login ke `/login`.
+- **Pengujian:** Kompilasi TypeScript strict dan production bundle Vite berhasil tanpa error (`npm run build`).
+
 
 ## Unreleased --- Backend Fase G (2026-11-19)
 

@@ -102,3 +102,7 @@ nosniff, versi Nginx tidak bocor), dashboard + fallback SPA, `/health/ready`, re
 IP klien tidak dapat dipalsukan lewat `X-Forwarded-For` (24 percobaan login berkecepatan di bawah `limit_req` => throttling aplikasi menolak), API/worker hanya di loopback,
 health worker tidak terekspos. Uji mutasi: `$proxy_add_x_forwarded_for` membuat pemeriksaan XFF GAGAL (0/24). Belum: Nginx sistem, domain publik, WhatsApp sungguhan.
 
+## Identitas chat (`backend/test/chat-identity.test.ts`, 8 tes; ADR-041)
+Keluar-lalu-LID, LID-lalu-keluar, LID tanpa nomor setelah pasangan dikenal, LID tanpa pasangan lalu digabung (pesan dipindah tanpa hilang), kontak/sesi berbeda tidak digabung,
+penulis paralel tidak menduplikasi, duplikat lama pulih (bentuk data staging), dan E2E lewat engine+API (`/chats` total 1). Uji mutasi: `inbox.ts` lama membuat E2E GAGAL (`expected 1, actual 2`).
+Bug ini hanya terlihat dengan WhatsApp sungguhan: adapter palsu tidak memakai LID. `npm test`: 300 lulus.

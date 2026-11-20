@@ -207,8 +207,9 @@ terakhir), `active`, timestamps. `UNIQUE(tenant_id,id)`.
 
 ### wa_chats (tenant_id) --- S
 `id`, `tenant_id`, `session_id` (FK komposit), `remote_jid` (<=96), `contact_phone`
-(5-20 digit, nullable untuk `@lid`), `display_name`, `last_message_at`, timestamps.
-`UNIQUE(session_id,remote_jid)`, `UNIQUE(tenant_id,id)`.
+(5-20 digit, nullable untuk `@lid` tanpa pasangan nomor), `lid_jid` (<=96, nullable; JID `@lid` kontak, 0018), `display_name`, `last_message_at`, timestamps.
+`UNIQUE(session_id,remote_jid)`, `UNIQUE(session_id,lid_jid) WHERE lid_jid IS NOT NULL`, `UNIQUE(tenant_id,id)`. Satu kontak = satu chat per sesi: `remote_jid` kanonik
+adalah JID nomor (`<nomor>@s.whatsapp.net`) bila nomor diketahui; semua penulis memakai fungsi `resolve_chat` (ADR-041).
 
 ### wa_messages (tenant_id) --- S
 `id`, `tenant_id`, `session_id`, `chat_id` (FK komposit cascade), `direction`

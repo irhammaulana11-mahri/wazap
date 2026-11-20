@@ -558,3 +558,8 @@ Belum: uji dengan WhatsApp sungguhan di staging (API dan pekerja terpisah), mult
 (XFF ditambah, bukan ditimpa; `env_file` PM2 tidak ada) dan membuktikan perbaikannya dengan uji mutasi. Kunci master dan JWT staging baru (acak, 0600, di luar repo).
 Terpasang di Nginx sistem dan `verify.sh` lulus. **Belum:** Let's Encrypt/domain publik, cadangan kunci master staging, CSP dashboard, uji WhatsApp sungguhan, pemantauan.
 
+## Uji WhatsApp sungguhan (staging, API + worker terpisah) (2026-11-20) --- SEBAGIAN
+Terbukti dengan nomor nyata: sesi dibuat -> QR (~6 dtk) -> CONNECTED; auth state terenkripsi (kunci v1); kirim teks, balasan masuk, receipt READ; restart API tidak menyentuh sesi;
+restart engine memulihkan sesi dari auth state dalam 11 dtk tanpa QR (fencing token naik). Menemukan 1 bug nyata: chat ganda per kontak (LID vs nomor) -> ADR-041/migrasi 0018, diperbaiki dan datanya digabung.
+**Catatan skala:** satu sesi sudah menyimpan 2.831 baris `session_auth_state` dalam beberapa menit (kunci Signal); tinjau ukuran/waktu start pada puluhan sesi.
+**Belum:** putus perangkat dari ponsel, media masuk/keluar nyata, webhook ke penerima nyata, uji lama (berjam-jam), banyak sesi, alarm.

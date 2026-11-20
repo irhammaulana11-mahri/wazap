@@ -160,3 +160,8 @@ manual deployment action.
 
 -   Kebijakan audit `audit_insert_reset` (reset kata sandi ke setiap workspace anggota) dan `audit_insert_join_request` (kode workspace valid). `tenants.deleted_at` (+ CHECK status DELETED) untuk masa tunggu pemulihan dan retensi.
 -   Tabel `user_recovery_codes` (8 kode sekali pakai per pengguna; RLS pemilik, tanpa platform); `users.recovery_hash` dipindahkan ke tabel itu lalu dihapus; `users.recovery_confirmed_at`. ADR-037 (addendum). Teruji di staging dengan data dari 0016. Tes: `test/account.test.ts`.
+
+### 0018 --- `backend/src/database/migrations/0018_chat_identity.sql`
+
+-   `wa_chats.lid_jid` + indeks unik parsial `(session_id, lid_jid)` dan indeks `(session_id, contact_phone)`. Fungsi `resolve_chat(tenant, session, jid, phone, name, at)`: satu aturan identitas chat (JID nomor vs `@lid`), menggabungkan chat ganda tanpa kehilangan pesan, diserialkan kunci advisory. Trigger `mirror_outbound_message` (versi 0007) kini memakai fungsi itu.
+-   Perbaikan data: blok `DO` menggabungkan duplikat yang sudah ada (konteks platform hanya di transaksi migrasi). Terbukti pada data staging: 2 chat (nomor dan LID) menjadi 1 dengan 4 pesan utuh. ADR-041. Tes: `test/chat-identity.test.ts`.

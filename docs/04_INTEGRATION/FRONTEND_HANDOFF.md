@@ -520,3 +520,7 @@ Bila database sementara tidak tersedia, API menjawab `503` dengan `error.code = 
 Klien: tampilkan "Layanan sedang sibuk, mencoba lagi...", ulangi permintaan GET dengan backoff (1-2-4 dtk, maksimal ~3 kali); untuk `POST /messages/send`
 ulangi dengan `Idempotency-Key` yang SAMA agar tidak terkirim ganda. Jangan menganggapnya sesi berakhir (bukan 401) dan jangan logout pengguna.
 
+## Perubahan: satu chat per kontak (2026-11-20, ADR-041)
+
+Satu nomor kini selalu satu chat per sesi (sebelumnya balasan masuk bisa membuat chat kedua karena WhatsApp memakai JID `@lid`). Chat ganda lama digabung otomatis; `id` chat yang digabung
+tidak ada lagi, jadi bila UI menyimpan `chat_id` terpilih (state/URL), tangani `404` pada `GET /chats/:id/messages` dengan memuat ulang daftar `GET /chats`. `jid` pada daftar chat adalah JID nomor bila nomor diketahui; tampilkan `phone`/`name`, bukan `jid`.

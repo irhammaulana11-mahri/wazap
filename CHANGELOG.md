@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased --- Backend: satu chat per kontak, JID nomor vs LID (2026-11-20)
+
+-   Perbaikan (ADR-041, migrasi 0018): balasan WhatsApp datang dengan JID `@lid` sedangkan pesan keluar memakai JID nomor, sehingga satu kontak muncul sebagai dua obrolan. Kini satu fungsi `resolve_chat` menentukan chat untuk semua penulis; chat ganda yang sudah ada digabung otomatis (pesan utuh).
+-   Kontrak: `jid` pada `/chats` kini JID nomor bila nomor diketahui; `id` chat yang digabung tidak berlaku lagi. Tes: `chat-identity.test.ts` 8 baru, total 300 lulus.
+
 ## Unreleased --- Backend: staging TLS dengan Nginx dan API/worker terpisah (2026-11-20)
 
 -   Baru: `deploy/staging/` (vhost Nginx TLS bertemplat, peluncur PM2, pembuat env acak, sertifikat staging, `verify.sh`). Tidak ada perubahan kode aplikasi atau kontrak API.

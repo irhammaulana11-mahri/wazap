@@ -439,3 +439,13 @@ lewat TLS, XFF palsu tidak menghindari throttling, API/worker hanya di loopback;
 publik belum diuji; belum ada CSP untuk dashboard (menunggu frontend); kunci master staging belum dicadangkan (wajib sebelum produksi); uji WhatsApp
 sungguhan dengan topologi ini belum dilakukan; pemantauan/alarm belum ada.
 
+## ADR-041 --- Satu chat per kontak: identitas JID nomor vs LID (2026-11-20)
+
+**Temuan (uji WhatsApp sungguhan di staging):** WhatsApp (Baileys 7) menyebut satu kontak dengan dua JID: nomor (`@s.whatsapp.net`) dan LID (`@lid`).
+Pesan keluar dicatat trigger DB dengan JID nomor; balasan masuk datang dengan LID (nomor dari `remoteJidAlt`) dan inbox membuat chat kedua. Dashboard menampilkan satu kontak sebagai dua obrolan.
+Adapter palsu pada tes lama selalu memakai JID nomor, sehingga tidak pernah mereproduksinya.
+**Keputusan:** satu fungsi SQL `resolve_chat` (0018) untuk SEMUA penulis chat (trigger keluar dan `inbox.record`): kecocokan lewat `remote_jid`, `lid_jid`, atau nomor yang sama;
+kanonik = chat ber-JID nomor lalu yang tertua; chat lain dari kontak yang sama digabung (pesan dipindah); `lid_jid` disimpan agar pesan LID tanpa nomor tetap dikenali.
+Kunci advisory (JID lalu nomor, urutan tetap) mencegah duplikat dari penulis paralel. Duplikat yang sudah ada diperbaiki oleh migrasi.
+**Dampak kontrak:** `jid` pada `/chats` kini JID nomor bila nomor diketahui; `id` chat yang digabung hilang (klien tidak boleh menyimpan `id` chat jangka panjang di luar sesi UI). Tidak ada perubahan bentuk respons.
+**Risiko tersisa:** kontak yang hanya pernah muncul sebagai LID tanpa nomor tetap chat tersendiri sampai nomornya diketahui (lalu digabung otomatis); grup dan status tidak ditangani (diabaikan sejak awal).

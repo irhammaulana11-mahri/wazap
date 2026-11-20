@@ -524,3 +524,8 @@ ulangi dengan `Idempotency-Key` yang SAMA agar tidak terkirim ganda. Jangan meng
 
 Satu nomor kini selalu satu chat per sesi (sebelumnya balasan masuk bisa membuat chat kedua karena WhatsApp memakai JID `@lid`). Chat ganda lama digabung otomatis; `id` chat yang digabung
 tidak ada lagi, jadi bila UI menyimpan `chat_id` terpilih (state/URL), tangani `404` pada `GET /chats/:id/messages` dengan memuat ulang daftar `GET /chats`. `jid` pada daftar chat adalah JID nomor bila nomor diketahui; tampilkan `phone`/`name`, bukan `jid`.
+
+## Perubahan: POST tanpa body kini diterima (2026-11-20, ADR-042)
+
+Sebelumnya `POST` dengan `Content-Type: application/json` dan body kosong dijawab `400 BAD_REQUEST`. Kini diterima (mis. `confirm`, `logout`, `connect`, `disconnect`, `reconnect`). Tidak perlu mengubah frontend; boleh tetap mengirim header itu.
+Rute yang butuh body tetap `400 VALIDATION_ERROR` bila body kosong.

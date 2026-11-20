@@ -449,3 +449,11 @@ kanonik = chat ber-JID nomor lalu yang tertua; chat lain dari kontak yang sama d
 Kunci advisory (JID lalu nomor, urutan tetap) mencegah duplikat dari penulis paralel. Duplikat yang sudah ada diperbaiki oleh migrasi.
 **Dampak kontrak:** `jid` pada `/chats` kini JID nomor bila nomor diketahui; `id` chat yang digabung hilang (klien tidak boleh menyimpan `id` chat jangka panjang di luar sesi UI). Tidak ada perubahan bentuk respons.
 **Risiko tersisa:** kontak yang hanya pernah muncul sebagai LID tanpa nomor tetap chat tersendiri sampai nomornya diketahui (lalu digabung otomatis); grup dan status tidak ditangani (diabaikan sejak awal).
+
+## ADR-042 --- Body JSON kosong diterima; uji staging tidak boleh memakai IP browser (2026-11-20)
+
+**Temuan (uji WhatsApp sungguhan):** (1) Fastify menjawab 400 untuk `content-type: application/json` dengan body kosong. Helper `request` frontend memasang header itu pada SEMUA permintaan, jadi setiap POST tanpa body
+(konfirmasi kode pemulihan, logout, `connect`/`disconnect`/`reconnect` sesi) gagal 400 dari browser. Banner "kode pemulihan belum dikonfirmasi" tidak pernah hilang, dan sesi `LOGGED_OUT` tidak dapat dihubungkan ulang dari dashboard.
+Tes memakai `inject` tanpa header itu, sehingga tidak terlihat. (2) `verify.sh` mengirim puluhan login salah dari `127.0.0.1`, IP yang sama dengan browser pengguna di loopback, dan menghabiskan kuota login per-IP ("Terlalu banyak percobaan").
+**Keputusan:** parser JSON kustom menerima body kosong/spasi sebagai "tanpa body" dan mendelegasikan sisanya ke parser bawaan Fastify (JSON rusak 400, prototype poisoning ditolak, batas ukuran 413 tetap). Rute yang butuh body tetap 400 `VALIDATION_ERROR` lewat skema.
+`verify.sh` memakai sumber `127.0.0.2` (`VERIFY_SOURCE_IP`) agar tidak memakai kuota IP browser. **Risiko tersisa:** `verify.sh` membuat akun uji dan dibatasi register 5/jam/IP; pembatas laju masih in-memory (restart API mereset).

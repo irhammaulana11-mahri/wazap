@@ -92,6 +92,15 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
 
   // CORS: dashboard memakai proxy same-origin, jadi default menolak origin lain.
   // Isi CORS_ORIGINS (pisah koma) bila frontend di-host di domain berbeda.
+  // Body JSON kosong diterima sebagai "tanpa body". Fastify menolak `content-type: application/json` + body kosong dengan 400, padahal
+  // klien browser (fetch/axios) umumnya memasang header itu pada SEMUA permintaan, termasuk POST tanpa body (konfirmasi kode pemulihan,
+  // logout, connect/disconnect sesi). Rute yang butuh body tetap menolak lewat validasi skema (400 VALIDATION_ERROR). JSON rusak dan
+  // prototype poisoning tetap ditolak: memakai parser bawaan Fastify.
+  const parseJson = app.getDefaultJsonParser('error', 'error');
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+    if (typeof body === 'string' && body.trim() === '') return done(null, undefined);
+    parseJson(req, body as string, done);
+  });
   app.register(cors, {
     origin: config.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

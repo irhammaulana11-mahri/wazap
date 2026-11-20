@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased --- Backend: body JSON kosong diterima (2026-11-20)
+
+-   Perbaikan (ADR-042): POST tanpa body dengan `content-type: application/json` (cara browser/fetch) tidak lagi 400. Memulihkan konfirmasi kode pemulihan, logout, dan `connect`/`disconnect`/`reconnect` sesi dari dashboard. JSON rusak, prototype poisoning, dan batas ukuran tetap ditolak. Tes: `empty-body.test.ts` 4 baru, total 304 lulus.
+-   Staging: `verify.sh` memakai sumber 127.0.0.2 agar tidak menghabiskan kuota login per-IP milik browser.
+
 ## Unreleased --- Backend: satu chat per kontak, JID nomor vs LID (2026-11-20)
 
 -   Perbaikan (ADR-041, migrasi 0018): balasan WhatsApp datang dengan JID `@lid` sedangkan pesan keluar memakai JID nomor, sehingga satu kontak muncul sebagai dua obrolan. Kini satu fungsi `resolve_chat` menentukan chat untuk semua penulis; chat ganda yang sudah ada digabung otomatis (pesan utuh).

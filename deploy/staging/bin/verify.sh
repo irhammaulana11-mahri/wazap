@@ -5,7 +5,10 @@ set -u
 D="$(cd "$(dirname "$0")/.." && pwd)"; ROOT="$(cd "$D/../.." && pwd)"
 NAME="${SERVER_NAME:-staging.wazap.test}"; PORT="${TLS_PORT:-8443}"; ENVDIR="${WAZAP_ENV_DIR:-$HOME/.config/wazap-staging}"
 CERT="$ENVDIR/tls/fullchain.pem"; BASE="https://$NAME:$PORT"; WP="${WORKER_HEALTH_PORT:-8101}"; AP="${API_PORT:-3100}"
-C=(curl -sS --max-time 15 --resolve "$NAME:$PORT:127.0.0.1" --cacert "$CERT")
+# Sumber 127.0.0.2 (bukan 127.0.0.1): uji sengaja mengirim puluhan login SALAH untuk membuktikan IP tidak dapat dipalsukan. Dari 127.0.0.1 itu
+# menghabiskan kuota login per-IP milik browser pengguna yang sama-sama di loopback (terjadi saat uji WhatsApp: "Terlalu banyak percobaan").
+SRC="${VERIFY_SOURCE_IP:-127.0.0.2}"
+C=(curl -sS --max-time 15 --interface "$SRC" --resolve "$NAME:$PORT:127.0.0.1" --cacert "$CERT")
 fail=0; ok(){ printf '  LULUS   %s\n' "$1"; }; bad(){ printf '  GAGAL   %s\n' "$1"; fail=1; }
 chk(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 (didapat: $2, diharapkan: $3)"; fi; }
 code(){ "${C[@]}" -o /dev/null -w '%{http_code}' "$@"; }

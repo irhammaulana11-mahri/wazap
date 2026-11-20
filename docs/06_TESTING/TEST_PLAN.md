@@ -106,3 +106,7 @@ health worker tidak terekspos. Uji mutasi: `$proxy_add_x_forwarded_for` membuat 
 Keluar-lalu-LID, LID-lalu-keluar, LID tanpa nomor setelah pasangan dikenal, LID tanpa pasangan lalu digabung (pesan dipindah tanpa hilang), kontak/sesi berbeda tidak digabung,
 penulis paralel tidak menduplikasi, duplikat lama pulih (bentuk data staging), dan E2E lewat engine+API (`/chats` total 1). Uji mutasi: `inbox.ts` lama membuat E2E GAGAL (`expected 1, actual 2`).
 Bug ini hanya terlihat dengan WhatsApp sungguhan: adapter palsu tidak memakai LID. `npm test`: 300 lulus.
+
+## Body JSON kosong (`backend/test/empty-body.test.ts`, 4 tes; ADR-042)
+Konfirmasi kode pemulihan dan logout dengan `content-type: application/json` tanpa body => bukan 400; rute berbody tetap 400 `VALIDATION_ERROR`; JSON rusak, `__proto__`/`constructor` ditolak 400; batas ukuran 413 utuh.
+Bug hanya muncul dari browser asli (header selalu ada), tidak dari `inject`. `npm test`: 304 lulus.

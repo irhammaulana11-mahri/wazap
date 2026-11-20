@@ -8,6 +8,7 @@ import { requireRole } from './guard.js';
 import { RateLimiter } from './rate-limit.js';
 import { API_KEY_SCOPES } from './principal.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 export const REFRESH_COOKIE = 'wzp_rt';
 const COOKIE_PATH = '/api/v1/auth';
 
@@ -216,3 +217,18 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
     return ok(await identity.revokeApiKey(req.auth!.tenantId, keyId));
   });
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'POST /auth/register': { body: RegisterSchema },
+  'POST /auth/login': { body: LoginSchema },
+  'POST /auth/switch-tenant': { body: SwitchSchema },
+  'POST /auth/change-password': { body: ChangePasswordSchema },
+  'POST /auth/recovery-codes': { body: RecoveryCodeSchema },
+  'POST /auth/reset-password': { body: ResetPasswordSchema },
+  'POST /auth/change-email': { body: ChangeEmailSchema },
+  'GET /api-keys': { query: PageSchema },
+  'POST /api-keys': { body: CreateKeySchema },
+  'PATCH /api-keys/:keyId': { params: IdParam, body: PatchKeySchema },
+  'DELETE /api-keys/:keyId': { params: IdParam },
+};

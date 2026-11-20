@@ -500,3 +500,10 @@ Aksi audit baru: `account.password_changed|email_changed|recovery_code_created|s
 **Pemulihan workspace terhapus (publik, dalam masa tunggu `RETENTION_TENANT_DAYS`=30 hari):** `POST /auth/deleted-workspaces` `{email,password}` -> daftar `{tenant_id,name,slug,deleted_at,restorable_until}` (hanya yang pengguna itu OWNER-nya);
 `POST /auth/restore-workspace` `{email,password,tenant_id}` -> `{restored:true, tenant, must_recreate:['whatsapp_sessions','webhooks','api_keys','invitations']}` (diaudit `tenant.restored`). Kembali: workspace, anggota, riwayat, pengaturan, audit. Tidak kembali: koneksi WhatsApp, webhook, API key, undangan.
 `401 INVALID_CREDENTIALS` (kredensial salah), `404 NOT_FOUND` (bukan OWNER/di luar masa tunggu/sudah aktif); dibatasi seperti login. Audit baru: `join_request.created` (tercatat ke workspace tujuan), `account.password_reset` (ke SETIAP workspace tempat pengguna menjadi anggota), `tenant.restored`.
+
+
+## Spesifikasi OpenAPI (dihasilkan dari kode)
+
+`docs/02_BACKEND/openapi.json` (OpenAPI 3.1, 75 operasi) adalah rujukan mesin-terbaca untuk kontrak ini; dihasilkan oleh `cd backend && npm run openapi` dan dijaga mutakhir oleh tes (ADR-045). Jangan diedit tangan.
+Skema request berasal dari validasi yang sama dengan server; keamanan per operasi (`x-roles`, `x-required-scope`, `x-user-only`) dibaca dari guard nyata. Contoh membuat klien bertipe: `npx openapi-typescript docs/02_BACKEND/openapi.json -o client.d.ts`.
+Bila prosa di atas dan `openapi.json` berbeda, `openapi.json` yang benar (ia diperiksa terhadap response asli oleh `npm run test:contract`).

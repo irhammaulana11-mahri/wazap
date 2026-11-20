@@ -4,6 +4,7 @@ import { ok } from '../../http/errors.js';
 import { requireRole } from '../identity/guard.js';
 import type { AuditService } from './audit.service.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 const Iso = z.iso.datetime({ offset: true });
 const ListQ = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -32,3 +33,8 @@ export async function auditRoutes(app: FastifyInstance, { audit, authenticate }:
     return ok(rows, { page: q.page, page_size: q.page_size, total, ...(capped ? { total_capped: true } : {}) });
   });
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'GET /audit-logs': { query: ListQ },
+};

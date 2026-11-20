@@ -16,7 +16,9 @@
     "keys:rotate": "tsx src/runtime/rotate-keys-cli.ts",
     "admin:recovery-code": "tsx src/runtime/recovery-code-cli.ts",
     "typecheck": "tsc --noEmit",
+    "openapi": "tsx src/http/openapi/generate-cli.ts",
     "test": "node --import tsx --test test/*.test.ts",
+    "test:contract": "WAZAP_CONTRACT_CHECK=1 node --import tsx --test test/*.test.ts",
     "test:perf": "node --import tsx --test --test-timeout=900000 test/perf/*.perf.ts"
   },
   "keywords": [],

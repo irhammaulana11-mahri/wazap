@@ -129,3 +129,9 @@ Pagar: tes dilewati/dibatalkan/kurang dari `MIN_TESTS` (280) = gagal. Naikkan `M
 
 ## Perf auth state (`backend/test/perf/auth-store.perf.ts`, 2 tes; ADR-044)
 Bukan bagian `npm test` (jalankan lewat `npm run test:perf` atau langsung). Menegaskan `open()` konstan pada 30 ribu baris, `get`/`set`/erase cepat, dan 50 sesi bersamaan >1.000 op/dtk tanpa galat. Uji mutasi: `open()` yang memuat semua baris membuat tes gagal (p95 130 ms).
+
+## Kontrak OpenAPI (`test/openapi.test.ts` 6 tes, `test/contract.test.ts` 2 tes, mode kontrak; ADR-045)
+-   `npm run test:contract` (dipakai CI): seluruh suite dengan `WAZAP_CONTRACT_CHECK=1`; tiap response asli divalidasi terhadap skema terbit, pelanggaran membuat proses keluar kode 1. 313 tes, 0 pelanggaran.
+-   `openapi.test.ts`: route <-> dokumen lengkap dua arah, `$ref` terselesaikan, parameter path cocok, keamanan turunan guard, skema request strict, dan `openapi.json` mutakhir (`npm run openapi` bila gagal).
+-   `contract.test.ts`: siklus webhook penuh (9 operasi), logout/logout-all, health, dan galat standar.
+-   Uji mutasi: field wajib diganti nama, tipe diubah (`attempts` string), `secret` diganti nama, dokumen satu route dihapus: semuanya gagal dengan pesan yang menunjuk operasinya.

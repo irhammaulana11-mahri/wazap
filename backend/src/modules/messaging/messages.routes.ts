@@ -5,6 +5,7 @@ import { ok } from '../../http/errors.js';
 import { requireAccess } from '../identity/guard.js';
 import type { MessageService } from './messages.service.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 /** Format internasional tanpa kode negara implisit: 8-15 digit; spasi, tanda hubung, titik, kurung, dan '+' awal diabaikan. */
 const To = z.string().max(32).transform((v) => v.trim().replace(/^\+/, '').replace(/[\s\-().]/g, '')).pipe(
   z.string().regex(/^[1-9][0-9]{7,14}$/, 'nomor harus format internasional (8-15 digit, tanpa 0 di depan), mis. 6281234567890'));
@@ -110,3 +111,15 @@ export async function messageRoutes(app: FastifyInstance, { messages, authentica
     return reply.code(202).send(ok(await messages.retry(req.auth!, id(req), b.confirm_duplicate_risk)));
   });
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'POST /messages/send': { body: SendSchema },
+  'POST /messages/send-media': { body: MediaSchema },
+  'POST /messages/bulk': { body: BulkSchema },
+  'GET /messages': { query: ListSchema },
+  'GET /messages/:messageId': { params: IdParam },
+  'GET /messages/:messageId/status': { params: IdParam },
+  'POST /messages/:messageId/cancel': { params: IdParam },
+  'POST /messages/:messageId/retry': { params: IdParam, body: RetrySchema, bodyOptional: true },
+};

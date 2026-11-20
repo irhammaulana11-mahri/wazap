@@ -536,3 +536,8 @@ Rute yang butuh body tetap `400 VALIDATION_ERROR` bila body kosong.
 2.  Tidak ada cara mengonfirmasi di luar modal penerbitan kode; pengguna yang sudah menyimpan kode tetapi gagal mengonfirmasi harus menerbitkan kode baru. Pertimbangkan tombol "Saya sudah menyimpan" pada kartu status.
 3.  Pesan media masuk hanya membawa tipe dan caption (`text` dapat `null`); tampilkan "[Gambar]"/"[Dokumen]" bukan pesan kosong. Isi media belum diunduh backend.
 4.  Dashboard belum dapat mengirim media; backend menyediakan `POST /messages/send-media` (URL https publik; URL internal ditolak 422 `INVALID_MEDIA_URL`).
+
+## Spesifikasi OpenAPI tersedia (2026-11-20, ADR-045)
+
+`docs/02_BACKEND/openapi.json` memuat seluruh 75 operasi: skema request (strict, wajib/opsional, batas), skema response, scope/peran per operasi, dan galat standar. Frontend dapat menghasilkan tipe TypeScript darinya
+(`npx openapi-typescript docs/02_BACKEND/openapi.json -o src/api-types.d.ts`) alih-alih menulis tipe tangan; diperiksa terhadap response asli oleh tes backend sehingga tidak menyimpang dari server. Abaikan field baru yang tidak dikenal (penambahan field kompatibel).

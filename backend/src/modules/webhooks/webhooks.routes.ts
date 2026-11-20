@@ -4,6 +4,7 @@ import { ok } from '../../http/errors.js';
 import { requireAccess } from '../identity/guard.js';
 import { WEBHOOK_EVENTS, type WebhookService } from './webhooks.service.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 const Events = z.array(z.enum(WEBHOOK_EVENTS)).min(1).max(WEBHOOK_EVENTS.length);
 const CreateSchema = z.strictObject({
   url: z.string().max(2048),
@@ -62,3 +63,16 @@ export async function webhookRoutes(app: FastifyInstance, { webhooks, authentica
     return reply.code(202).send(ok(await webhooks.replay(req.auth!.tenantId, p.webhookId, p.deliveryId)));
   });
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'POST /webhooks': { body: CreateSchema },
+  'GET /webhooks': { query: PageSchema },
+  'PATCH /webhooks/:webhookId': { params: IdParam, body: PatchSchema },
+  'DELETE /webhooks/:webhookId': { params: IdParam },
+  'POST /webhooks/:webhookId/rotate-secret': { params: IdParam },
+  'POST /webhooks/:webhookId/test': { params: IdParam },
+  'GET /webhooks/:webhookId/deliveries': { params: IdParam, query: DeliveriesQuery },
+  'GET /webhooks/:webhookId/deliveries/:deliveryId': { params: DeliveryParam },
+  'POST /webhooks/:webhookId/deliveries/:deliveryId/replay': { params: DeliveryParam },
+};

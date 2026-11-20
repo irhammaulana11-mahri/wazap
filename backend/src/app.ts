@@ -29,6 +29,7 @@ import { identityRoutes } from './modules/identity/identity.routes.js';
 import { RateLimiter } from './modules/identity/rate-limit.js';
 import { tryGetCredentialCrypto } from './security/credential-crypto.js';
 import { getGatewayDb } from './database/gateway.js';
+import { installContractCheck } from './http/openapi/conformance.js';
 import { AppError, installErrorHandling } from './http/errors.js';
 import { healthRoutes } from './modules/health/health.routes.js';
 
@@ -167,6 +168,9 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
     },
     { prefix: '/api/v1' }
   );
+
+  // Mode kontrak (tes/CI): periksa tiap response terhadap skema OpenAPI. Tidak aktif tanpa env.
+  if (process.env.WAZAP_CONTRACT_CHECK === '1') installContractCheck(app);
 
   return app;
 }

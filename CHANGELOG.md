@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- Backend: spesifikasi OpenAPI dari kode dan mode kontrak (2026-11-20)
+
+-   Baru (ADR-045): `docs/02_BACKEND/openapi.json` (OpenAPI 3.1, 75 operasi) dihasilkan dari skema Zod yang dipakai route dan metadata guard (`npm run openapi`). Tidak ada perubahan perilaku API.
+-   Baru: mode kontrak `WAZAP_CONTRACT_CHECK=1` / `npm run test:contract`: setiap response asli di seluruh suite divalidasi terhadap skema terbit (dipakai CI). Tes: `openapi.test.ts` dan `contract.test.ts`, total 313 lulus.
+-   Kode: tiap file route mengekspor `routeContracts`; guard ditempeli metadata (tanpa mengubah perilaku).
+
 ## Unreleased --- Backend: analisis dan tes perf auth state (2026-11-20)
 
 -   Analisis (ADR-044): kekhawatiran skala `session_auth_state` (2,8 ribu baris per sesi) dibantah dengan pengukuran; penyimpanan malas, `open` konstan, 50 sesi bersamaan 6.900+ op/dtk tanpa galat. Tidak ada perubahan kode aplikasi.

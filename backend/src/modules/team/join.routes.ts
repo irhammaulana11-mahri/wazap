@@ -6,6 +6,7 @@ import { RateLimiter } from '../identity/rate-limit.js';
 import type { JoinService } from './join.service.js';
 import type { TeamActor } from './team.service.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 const Role = z.enum(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']);
 const RequestSchema = z.strictObject({ join_code: z.string().min(10).max(40), email: z.email().max(254), password: z.string().min(10, 'minimal 10 karakter').max(128) });
 const ApproveSchema = z.strictObject({ role: Role.default('MEMBER') });
@@ -57,3 +58,11 @@ export async function joinRoutes(app: FastifyInstance, { join, authenticate, lim
   app.post('/team/join-requests/:requestId/reject', { preHandler: manage }, async (req) =>
     ok(await join.reject(actor(req), IdParam.parse(req.params).requestId)));
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'POST /auth/join-requests': { body: RequestSchema },
+  'GET /team/join-requests': { query: ListSchema },
+  'POST /team/join-requests/:requestId/approve': { params: IdParam, body: ApproveSchema, bodyOptional: true },
+  'POST /team/join-requests/:requestId/reject': { params: IdParam },
+};

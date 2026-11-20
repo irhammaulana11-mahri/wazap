@@ -6,6 +6,7 @@ import type { RateLimiter } from '../identity/rate-limit.js';
 import { RateLimiter as Limiter } from '../identity/rate-limit.js';
 import type { TeamActor, TeamService } from './team.service.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 const Role = z.enum(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']);
 const PageSchema = z.object({ page: z.coerce.number().int().min(1).default(1), page_size: z.coerce.number().int().min(1).max(100).default(20) });
 const PatchSchema = z.strictObject({ role: Role.optional(), status: z.enum(['ACTIVE', 'SUSPENDED']).optional() })
@@ -69,3 +70,15 @@ export async function teamRoutes(app: FastifyInstance, { team, authenticate, lim
     return ok(await team.acceptInvitation(a.userId, AcceptSchema.parse(req.body).token, { ip: req.ip, requestId: req.id }));
   });
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'GET /team/members': { query: PageSchema },
+  'PATCH /team/members/:userId': { params: UserParam, body: PatchSchema },
+  'DELETE /team/members/:userId': { params: UserParam },
+  'POST /team/invitations': { body: InviteSchema },
+  'GET /team/invitations': { query: InvList },
+  'DELETE /team/invitations/:invitationId': { params: IdParam },
+  'POST /team/invitations/:invitationId/reissue': { params: IdParam },
+  'POST /team/invitations/accept': { body: AcceptSchema },
+};

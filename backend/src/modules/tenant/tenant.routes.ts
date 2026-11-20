@@ -6,6 +6,7 @@ import { requireRole } from '../identity/guard.js';
 import { RateLimiter } from '../identity/rate-limit.js';
 import type { TenantActor, TenantService } from './tenant.service.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 const RenameSchema = z.strictObject({ name: z.string().trim().min(2).max(100) });
 const DeleteSchema = z.strictObject({ password: z.string().min(1).max(128), confirm_name: z.string().min(1).max(255) });
 
@@ -54,3 +55,11 @@ export async function tenantRoutes(app: FastifyInstance, { tenant, authenticate,
     return ok(await tenant.remove(a, { password: b.password, confirmName: b.confirm_name }));
   });
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'POST /auth/deleted-workspaces': { body: CredSchema },
+  'POST /auth/restore-workspace': { body: RestoreSchema },
+  'PATCH /tenant': { body: RenameSchema },
+  'DELETE /tenant': { body: DeleteSchema },
+};

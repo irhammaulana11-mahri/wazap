@@ -4,6 +4,7 @@ import { AppError, ok } from '../../http/errors.js';
 import { requireAccess } from '../identity/guard.js';
 import { resolveRange, validTimeZone, type UsageService } from './usage.service.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 const Iso = z.iso.datetime({ offset: true });
 const RangeQ = z.object({ from: Iso.optional(), to: Iso.optional() });
 const SeriesQ = RangeQ.extend({
@@ -32,3 +33,10 @@ export async function usageRoutes(app: FastifyInstance, { usage, authenticate }:
 
   app.get('/usage/sessions', { preHandler: read }, async (req) => ok(await usage.sessions(req.auth!.tenantId, resolveRange(RangeQ.parse(req.query)))));
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'GET /usage/summary': { query: RangeQ },
+  'GET /usage/messages': { query: SeriesQ },
+  'GET /usage/sessions': { query: RangeQ },
+};

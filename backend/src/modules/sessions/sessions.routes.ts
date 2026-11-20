@@ -6,6 +6,7 @@ import { requireAccess } from '../identity/guard.js';
 import { SESSION_STATES } from './lifecycle.js';
 import type { SessionService } from './sessions.service.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 const Name = z.string().trim().min(2).max(50).regex(/^[\p{L}\p{N} _.\-]+$/u, 'hanya huruf, angka, spasi, titik, garis bawah, strip');
 const CreateSchema = z.strictObject({ session_name: Name, auto_connect: z.boolean().default(true) });
 const RenameSchema = z.strictObject({ session_name: Name });
@@ -66,3 +67,18 @@ export async function sessionRoutes(app: FastifyInstance, { sessions, authentica
   app.delete('/sessions/:sessionId', { preHandler: write }, async (req, reply) =>
     reply.code(202).send(ok(await sessions.remove(req.auth!, id(req)))));
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'POST /sessions': { body: CreateSchema },
+  'GET /sessions': { query: ListSchema },
+  'PATCH /sessions/:sessionId': { params: IdParam, body: RenameSchema },
+  'GET /sessions/:sessionId': { params: IdParam },
+  'GET /sessions/:sessionId/status': { params: IdParam },
+  'GET /sessions/:sessionId/events': { params: IdParam, query: PageSchema },
+  'GET /sessions/:sessionId/qr': { params: IdParam },
+  'POST /sessions/:sessionId/connect': { params: IdParam },
+  'POST /sessions/:sessionId/disconnect': { params: IdParam },
+  'POST /sessions/:sessionId/reconnect': { params: IdParam },
+  'DELETE /sessions/:sessionId': { params: IdParam },
+};

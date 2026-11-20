@@ -73,8 +73,11 @@ jobs:
         working-directory: backend
         run: npm run build
 
-      - name: Tes (tes dilewati/dibatalkan dianggap gagal)
+      - name: Tes dalam mode kontrak (tes dilewati/dibatalkan = gagal; tiap response asli divalidasi terhadap skema OpenAPI)
         working-directory: backend
+        env:
+          WAZAP_CONTRACT_CHECK: '1'
+          MIN_TESTS: '300'
         run: scripts/ci-test.sh
 
   deploy-config:

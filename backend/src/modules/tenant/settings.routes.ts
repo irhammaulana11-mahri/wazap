@@ -4,6 +4,7 @@ import { AppError, ok } from '../../http/errors.js';
 import { requireAccess, requireRole } from '../identity/guard.js';
 import type { SettingsService } from './settings.service.js';
 
+import type { RouteContract } from '../../http/openapi/types.js';
 const PatchSchema = z.strictObject({
   max_sessions: z.number().int().optional(),
   max_api_keys: z.number().int().optional(),
@@ -25,3 +26,8 @@ export async function settingsRoutes(app: FastifyInstance, { settings, authentic
     return ok(await settings.update({ userId: a.userId, tenantId: a.tenantId, ip: req.ip, requestId: req.id }, PatchSchema.parse(req.body)));
   });
 }
+
+/** Skema request tiap route (sumber OpenAPI; skema yang sama dipakai handler di atas). */
+export const routeContracts: Record<string, RouteContract> = {
+  'PATCH /tenant/settings': { body: PatchSchema },
+};

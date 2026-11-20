@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- Backend: staging TLS dengan Nginx dan API/worker terpisah (2026-11-20)
+
+-   Baru: `deploy/staging/` (vhost Nginx TLS bertemplat, peluncur PM2, pembuat env acak, sertifikat staging, `verify.sh`). Tidak ada perubahan kode aplikasi atau kontrak API.
+-   Perbaikan dokumentasi (keamanan, ADR-040): `X-Forwarded-For` di Nginx harus DITIMPA (`$remote_addr`), bukan ditambah; dengan `TRUST_PROXY=true` penambahan memungkinkan pemalsuan IP dan menghindari throttling login (terbukti 0/24 vs 24/24). PM2 tidak mendukung `env_file` (contoh lama dikoreksi).
+-   Terbukti di staging lokal: TLS 1.2/1.3, cookie Secure/HttpOnly/SameSite, Socket.IO via WebSocket di balik TLS, restart API tidak menyentuh worker, restart worker rapi.
+
 ## Unreleased --- Backend: entrypoint proses pekerja terpisah (2026-11-20)
 
 -   Baru: `npm run worker` / `node dist/worker.js` menjalankan engine WhatsApp, control-plane, webhook, dan retensi tanpa API (ADR-039). Produksi: API `ENABLE_EMBEDDED_*=false`.

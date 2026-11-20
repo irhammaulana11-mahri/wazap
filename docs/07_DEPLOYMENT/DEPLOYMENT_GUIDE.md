@@ -44,7 +44,7 @@
 **Satu instans API.** Jangan memakai mode cluster PM2 untuk `wazap-api`: batas laju aplikasi in-memory per proses (N proses = N kali
 batas). Engine boleh lebih dari satu proses (dibatasi lease), tetapi satu pemilik per sesi.
 
-**Nginx** (snippet BELUM diuji; sesuaikan). `limit_req` per IP sebagai perisai pertama (lebih longgar daripada batas aplikasi 600/menit),
+**Nginx** (vhost lengkap TERUJI di `deploy/staging/nginx/wazap-staging.conf.tpl`; potongan di bawah hanya ringkasan). `limit_req` per IP sebagai perisai pertama (lebih longgar daripada batas aplikasi 600/menit),
 serta proxy WebSocket untuk Socket.IO. Set `TRUST_PROXY=true` di aplikasi HANYA setelah ini terpasang:
 
 ```nginx
@@ -58,7 +58,7 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;   # TIMPA, jangan tambah (lihat peringatan)
         proxy_read_timeout 3600s;
     }
     location /api/ {
@@ -66,11 +66,17 @@ server {
         limit_req_status 429;
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;   # TIMPA, jangan tambah (lihat peringatan)
         client_max_body_size 1m;
     }
 }
 ```
+
+**PERINGATAN (ditemukan dan dibuktikan di staging, ADR-040):** `X-Forwarded-For` HARUS ditimpa (`$remote_addr`), BUKAN ditambah
+(`$proxy_add_x_forwarded_for`). Dengan `TRUST_PROXY=true` aplikasi memakai nilai terkiri; bila Nginx hanya menambahkan, klien mengirim
+`X-Forwarded-For: <IP acak>` dan menghindari throttling login/register per-IP serta memalsukan IP di audit (uji: 0 dari 24 percobaan login
+ditolak dengan `$proxy_add_x_forwarded_for`, 24 dari 24 dengan `$remote_addr`). API juga WAJIB `HOST=127.0.0.1`; bila port API terjangkau langsung,
+header palsu bekerja walau Nginx benar. `deploy/staging/bin/verify.sh` memeriksa keduanya.
 
 **Berkas rahasia (tanpa Vault/KMS).** Simpan `CREDENTIAL_ENCRYPTION_KEYS`, `JWT_SECRET`, dan kata sandi DB di satu berkas di luar repo,
 bukan di berkas ecosystem PM2 yang di-commit:

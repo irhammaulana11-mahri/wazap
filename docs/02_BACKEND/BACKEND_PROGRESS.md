@@ -553,3 +553,8 @@ Bukti: `npm test` 282 lulus; uji mutasi membuktikan tiap tes menangkap regresiny
 Bukti: `npm test` lulus, termasuk proses nyata (start, duplikat ditolak, SIGTERM rapi); `npm run build` menghasilkan `dist/worker.js`.
 Belum: uji dengan WhatsApp sungguhan di staging (API dan pekerja terpisah), multi-host, pemantauan/alarm atas keluar kode 1.
 
+## Staging TLS (Nginx) dengan API dan worker terpisah (2026-11-20) --- SEBAGIAN
+`deploy/staging/` (ADR-040). `verify.sh` lulus semua (TLS, cookie, WebSocket, XFF palsu, loopback). Menemukan dua kekeliruan di dokumen sendiri
+(XFF ditambah, bukan ditimpa; `env_file` PM2 tidak ada) dan membuktikan perbaikannya dengan uji mutasi. Kunci master dan JWT staging baru (acak, 0600, di luar repo).
+**Belum:** pemasangan ke Nginx sistem (butuh sudo, skrip siap), Let's Encrypt/domain publik, cadangan kunci master staging, CSP dashboard, uji WhatsApp sungguhan, pemantauan.
+

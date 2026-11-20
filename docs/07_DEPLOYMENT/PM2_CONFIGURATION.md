@@ -21,6 +21,10 @@ duplicate engine owners for the same session.
 -   Health and heartbeat reporting.
 -   Do not store secrets in committed ecosystem files.
 
+> **KOREKSI (2026-11-20):** contoh di bawah semula memakai `env_file`. PM2 6.0.14 TIDAK mendukungnya (opsi diabaikan diam-diam: proses
+> start tanpa rahasia). Contoh yang TERUJI memakai peluncur `deploy/staging/bin/run.sh` (memuat berkas 0600 lalu `exec node`) dan
+> `deploy/staging/ecosystem.config.cjs`. Ganti `env_file: ...` di bawah dengan pola itu.
+
 ## Contoh `ecosystem.config.cjs` (ADR-039; tanpa rahasia: nilai rahasia dari berkas env di luar repo)
 
 ```js

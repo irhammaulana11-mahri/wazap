@@ -96,3 +96,9 @@ pekerja menempatkan sesi, menyambungkan, mengirim pesan, shutdown rapi mengembal
 PROSES SUNGGUHAN `src/worker.ts` (siap lewat HTTP, proses kedua nama sama keluar kode 1, SIGTERM => kode 0 + engine STOPPED + log bersih; schema belum
 dimigrasi dan peran salah ketik => kode 1). Uji mutasi: tanpa kunci singleton, 3 tes gagal (satu menggantung karena proses kedua tak pernah keluar).
 
+## Gerbang staging (`deploy/staging/bin/verify.sh`; ADR-040)
+Dijalankan dari luar lewat TLS Nginx terhadap `NODE_ENV=production`, role DB terpisah, API dan worker proses PM2 berbeda: TLS (1.1 ditolak, 1.3 ada, HSTS,
+nosniff, versi Nginx tidak bocor), dashboard + fallback SPA, `/health/ready`, register/login/`/auth/me`, atribut cookie refresh, Socket.IO via WebSocket di balik TLS,
+IP klien tidak dapat dipalsukan lewat `X-Forwarded-For` (24 percobaan login berkecepatan di bawah `limit_req` => throttling aplikasi menolak), API/worker hanya di loopback,
+health worker tidak terekspos. Uji mutasi: `$proxy_add_x_forwarded_for` membuat pemeriksaan XFF GAGAL (0/24). Belum: Nginx sistem, domain publik, WhatsApp sungguhan.
+

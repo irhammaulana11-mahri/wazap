@@ -418,3 +418,24 @@ dengan API membuat restart/deploy API memutus semua sesi, dan kegagalan satu sis
 sengaja dijalankan tepat di celah itu; fencing lease tetap melindungi tulis persisten tetapi bukan socket. Satu host: pekerja belum diuji lintas host.
 Pemisahan penuh API-engine belum diuji dengan WhatsApp sungguhan (hanya adapter palsu dan proses nyata tanpa sesi).
 
+## ADR-040 --- Staging berlapis TLS: Nginx, TRUST_PROXY, dan pemisahan API-worker (2026-11-20)
+
+**Konteks:** semua uji sebelumnya berjalan tanpa proxy dan TLS. Staging lokal (PostgreSQL `wazap_staging`, role `wazap_app`/`wazap_migrator`,
+`NODE_ENV=production`, `DB_ROLE_CHECK=enforce`) kini dilayani lewat Nginx TLS dengan API dan worker sebagai dua proses PM2.
+
+**Temuan (dibuktikan dengan uji mutasi):**
+1.  Snippet Nginx di panduan memakai `$proxy_add_x_forwarded_for`. Dengan `TRUST_PROXY=true` klien dapat memalsukan IP-nya lewat header itu:
+    throttling login per-IP tidak berlaku (0/24 ditolak) dan IP di audit dapat dipalsukan. Perbaikan: Nginx menimpa (`$remote_addr`), API hanya di loopback.
+2.  Contoh PM2 memakai `env_file`, yang tidak ada di PM2 6.0.14 (diabaikan diam-diam, proses start tanpa rahasia). Diganti peluncur `run.sh`.
+
+**Keputusan:** vhost sebagai templat terversi (`deploy/staging/nginx/`), dirender oleh skrip yang sama untuk Nginx sistem dan uji tanpa-root; rahasia
+(JWT, kunci master BARU, kredensial DB) dibuat acak oleh `make-env.sh` ke `~/.config/wazap-staging` (0600, di luar repo, tidak dicetak); sertifikat
+self-signed hanya untuk staging; `limit_req` lebih ketat pada rute kredensial; health pekerja tidak diproksikan; `verify.sh` menjadi gerbang staging.
+
+**Terbukti (verify.sh):** TLS 1.2/1.3 saja, HSTS/nosniff, versi Nginx tidak bocor, cookie refresh Secure+HttpOnly+SameSite, Socket.IO via WebSocket
+lewat TLS, XFF palsu tidak menghindari throttling, API/worker hanya di loopback; restart API tidak menyentuh worker; restart worker berhenti rapi.
+
+**Risiko tersisa:** pemasangan ke Nginx SISTEM belum dijalankan (butuh sudo; skrip `install-nginx.sh` siap, `nginx -t` sebagai pagar); Let's Encrypt/domain
+publik belum diuji; belum ada CSP untuk dashboard (menunggu frontend); kunci master staging belum dicadangkan (wajib sebelum produksi); uji WhatsApp
+sungguhan dengan topologi ini belum dilakukan; pemantauan/alarm belum ada.
+

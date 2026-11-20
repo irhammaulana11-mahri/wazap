@@ -125,6 +125,13 @@ jobs:
           if [ -n "$bad" ]; then echo "GAGAL: skrip tanpa bit executable di git:"; echo "$bad"; exit 1; fi
           echo "semua skrip *.sh executable"
 
+      - name: Tidak ada symlink atau node_modules ter-commit
+        # Symlink mode 120000 menunjuk path lokal (mis. /home/.../node_modules) dan merusak npm ci di CI; pola .gitignore `node_modules/` tidak mengabaikan symlink.
+        run: |
+          bad="$(git ls-files -s | awk '$1 == "120000" {print $4}'; git ls-files | grep -E '(^|/)node_modules(/|$)' || true)"
+          if [ -n "$bad" ]; then echo "GAGAL: symlink/node_modules ter-commit:"; echo "$bad"; exit 1; fi
+          echo "tidak ada symlink atau node_modules ter-commit"
+
       - name: Tidak ada berkas env/rahasia yang ter-commit
         run: |
           set -u; bad=0

@@ -6,7 +6,7 @@ Semua aturan umum di `docs/08_AI_AGENTS/FRONTEND_AGENT_PROMPT.md` (bagian Aturan
 ## Prasyarat lingkungan (periksa DULU; berhenti dan lapor bila tidak terpenuhi)
 
 1.  `ls backend/src/modules/export/export.routes.ts` HARUS ada. Bila tidak ada, salinan kerja ini ketinggalan (backend ekspor belum ada) dan semua panggilan `/api/v1/exports/...` akan 404.
-    **Jangan menebak atau membuat mock**; minta pemilik repo memperbarui folder ke `clean/backend-v1` / `origin/main` (commit `8f3d513` atau lebih baru).
+    **Jangan menebak atau membuat mock**; minta pemilik repo memperbarui folder ke `origin/main` (commit `8f3d513` atau lebih baru).
 2.  Database dev sudah di migrasi 0019 (server dev `cd backend && npm run dev` menerapkannya otomatis karena `AUTO_MIGRATE` bawaan dev). Periksa: `GET /api/v1/exports/policy` dengan token OWNER menjawab 200.
 3.  Jalankan backend dev dan frontend (`cd frontend && npm run dev`; proxy Vite meneruskan `/api` ke `127.0.0.1:3000`). Uji terhadap backend NYATA, bukan mock.
 

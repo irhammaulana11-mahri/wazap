@@ -5,7 +5,7 @@ Semua aturan umum di `docs/08_AI_AGENTS/FRONTEND_AGENT_PROMPT.md` dan pelajaran 
 
 ## Prasyarat lingkungan (periksa DULU; berhenti dan lapor bila tidak terpenuhi)
 
-1.  `ls backend/src/modules/alerts/alerts.routes.ts` HARUS ada (commit `3cdbfcf` atau lebih baru). Bila tidak, salinan kerja ketinggalan; **jangan membuat mock**, minta pemilik repo memperbarui ke `clean/backend-v1`.
+1.  `ls backend/src/modules/alerts/alerts.routes.ts` HARUS ada (commit `3cdbfcf` atau lebih baru). Bila tidak, salinan kerja ketinggalan; **jangan membuat mock**, minta pemilik repo memperbarui ke `origin/main`.
 2.  Backend dev berjalan (`cd backend && npm run dev`, migrasi 0020 diterapkan otomatis). Periksa: `GET /api/v1/alerts/catalog` dengan token pengguna dashboard menjawab 200. Frontend: `cd frontend && npm run dev` (proxy Vite ke `127.0.0.1:3000`). Uji terhadap backend NYATA.
 3.  Untuk uji kirim sungguhan butuh `CREDENTIAL_ENCRYPTION_KEYS` di `backend/.env` (tanpa itu, membuat kanal menjawab 503 `NOT_CONFIGURED`: tampilkan pesannya dan lapor). Dev memakai `WEBHOOK_ALLOW_PRIVATE_TARGETS` yang TIDAK berlaku untuk alarm: kanal Slack hanya host publik tertentu.
 

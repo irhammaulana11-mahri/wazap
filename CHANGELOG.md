@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased --- Prompt agent frontend untuk UI ekspor data (2026-11-20)
+
+-   Baru: `docs/08_AI_AGENTS/FRONTEND_EXPORT_AGENT_PROMPT.md`: tugas, kontrak, penempatan UI, penanganan galat, cara verifikasi (build, tes kontrak frontend, uji manual), dan aturan agar agent frontend mengerjakan UI ekspor tanpa mengubah backend. Tidak ada perubahan kode.
+
 ## Unreleased --- Backend: ekspor data workspace (2026-11-20)
 
 -   Baru (ADR-048): `POST /api/v1/exports/{messages|outbound|chats|contacts|audit-logs|members}` (CSV aman dari injeksi formula atau NDJSON dengan manifest, streaming berbatas) dan `GET /api/v1/exports/policy`. Hanya OWNER/ADMIN pengguna dashboard dengan konfirmasi kata sandi; 422 sebelum data bila melebihi batas; audit `data.exported`; saklar `EXPORT_ENABLED`. Konfigurasi baru `EXPORT_*`.

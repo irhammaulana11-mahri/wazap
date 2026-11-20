@@ -63,3 +63,27 @@ ganti email lintas tenant dan penjaga RLS/trigger keanggotaan; keluar dari semua
 
 Tambahan H4 lanjutan (`account.test.ts` kini 18 tes): 8 kode pemulihan (tiap kode sekali pakai, sisa tetap berlaku, himpunan baru menghanguskan yang lama, status `me.recovery`, konfirmasi), audit reset ke semua workspace anggota dan audit `join_request.created` dengan pemalsuan SQL ditolak,
 RLS `user_recovery_codes`, dan pemulihan workspace terhapus (hanya OWNER, masa tunggu, yang kembali dan tidak kembali). Total 270 tes.
+
+## Uji ketahanan (`backend/test/resilience.test.ts`, 12 tes; 2026-11-20)
+
+Gangguan yang disimulasikan dan yang ditegaskan (data tidak rusak DAN sistem pulih tanpa restart):
+
+| Gangguan | Yang dibuktikan |
+|---|---|
+| Koneksi idle diputus server (`pg_terminate_backend`) | proses tidak crash; query berikutnya memakai koneksi baru |
+| Koneksi putus di tengah transaksi | tx menolak; konteks RLS tidak bocor ke koneksi berikutnya; tanpa konteks data tenant tidak terlihat |
+| DB tidak terjangkau (port tertutup) | `503 SERVICE_UNAVAILABLE` < 3 dtk, `Retry-After`, tanpa bocor host/port/stack; `/health/live` 200, `/health/ready` 503 |
+| Engine kehilangan seluruh koneksi DB | tick berikutnya pulih, sesi tetap CONNECTED, pesan terkirim tepat sekali (tanpa ganda/hilang) |
+| Engine di-stop saat pesan sedang dikirim | pesan selesai SENT (bukan UNKNOWN); sesi kembali PENDING_ASSIGNMENT; lease lepas |
+| Leader control-plane diputus | tepat satu leader sepanjang waktu (sampel `pg_locks`); leader baru terpilih; rekonsiliasi lanjut |
+| Tiga control-plane merekonsiliasi paralel | 12 sesi ditempatkan tepat sekali (fencing token = 1), kapasitas tidak terlampaui |
+| Relay outbox mati sebelum commit | event tetap PENDING, tanpa delivery setengah jadi dan tanpa NOTIFY; relay berikutnya mengirim tepat sekali |
+| Pengirim webhook mati setelah kirim, sebelum catat hasil | dikirim ulang setelah klaim habis; `event_id` dan `delivery_id` stabil (penerima dapat dedup) |
+| Koneksi LISTEN realtime diputus | sambung ulang, klien menerima `realtime.resync`, event berikutnya sampai |
+| Poller menemui galat | loop lanjut; `stop()` menunggu iterasi berjalan |
+
+Uji mutasi: mematikan tiap perbaikan (listener error pool, pengecekan koneksi leader, pemetaan 503) membuat tes terkait GAGAL
+(termasuk `uncaughtException` nyata pada pool tanpa listener). `npm test`: 282 lulus.
+
+Belum diuji: pemutusan jaringan ke server WhatsApp pada Baileys sungguhan (hanya adapter palsu), penuhnya disk/WAL, kegagalan
+PostgreSQL berkepanjangan melebihi TTL lease (perilaku lease sudah diuji terpisah di engine.test.ts), dan beban tinggi (lihat LOAD_TEST_PLAN).

@@ -379,3 +379,23 @@ Retensi menghapus baris tenant (FK cascade) setelah `RETENTION_TENANT_DAYS` (30)
 -   **Pemulihan workspace terhapus** (`POST /auth/deleted-workspaces`, `POST /auth/restore-workspace`, publik dengan email + kata sandi karena setelah hapus tidak ada workspace aktif untuk login): hanya OWNER, dalam `RETENTION_TENANT_DAYS` sejak `tenants.deleted_at`. Kembali: workspace, anggota, riwayat, pengaturan, audit.
     TIDAK kembali (sudah dihapus saat hapus): koneksi WhatsApp (kredensial dihapus; pairing ulang), webhook, API key, undangan. Alternatif "penghapusan terjadwal 7 hari" ditolak: butuh job lintas tenant yang menurunkan sesi dan mencabut integrasi.
 -   **Risiko tersisa (menggantikan daftar ADR-037):** semua kode hilang tetap bergantung operator (SOP: pastikan peminta pemilik akun); email tidak terverifikasi; pemulihan tidak mengembalikan koneksi WhatsApp.
+
+## ADR-038 --- Ketahanan terhadap gangguan database dan proses (uji ketahanan, 2026-11-20)
+
+**Temuan (terbukti dengan probe, bukan dugaan):** `pg.Pool` tanpa listener `error` membuat koneksi idle yang diputus server
+(restart/failover PostgreSQL, jaringan putus, `pg_terminate_backend`) memicu `uncaughtException`: proses API dan engine mati.
+Klien yang sedang dipegang (leader control-plane) berperilaku sama. Selain itu leader control-plane yang koneksinya mati diam-diam
+tidak menyadarinya (rekonsiliasi memakai koneksi lain) sehingga dua instans dapat memimpin bersamaan, dan permintaan menggantung
+tanpa batas bila DB hang karena pool tidak punya batas waktu koneksi.
+
+**Keputusan:**
+-   `guardPool` (database/gateway.ts) memasang listener `error` pada pool dan setiap klien baru: hanya mencatat pesan galat
+    (tanpa teks query/parameter); klien rusak dibuang pool, query berikutnya memakai koneksi baru.
+-   Leader control-plane memeriksa koneksinya (`SELECT 1`) sebelum tiap rekonsiliasi dan melepas peran + membuang koneksi bila putus;
+    kunci advisory dibatasi per schema (`wazap:control-plane:<schema>`).
+-   `DB_CONNECT_TIMEOUT_MS` (default 5000) dan TCP keep-alive pada pool.
+-   Galat ketersediaan DB dipetakan ke `503 SERVICE_UNAVAILABLE` + `Retry-After` (bukan 500 `INTERNAL_ERROR`); `/health/live` tetap 200
+    (proses sehat; jangan restart karena DB mati), `/health/ready` 503.
+
+**Dampak/risiko tersisa:** pemetaan 503 berbasis kode/pesan galat driver (daftar di `http/errors.ts`) dan perlu ditinjau bila driver
+berganti versi mayor. Ketahanan terhadap kegagalan jaringan ke WhatsApp (Baileys) belum diuji di luar adapter palsu.

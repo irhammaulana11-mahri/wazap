@@ -540,3 +540,9 @@ Belum: uji manual di staging (migrasi 0016 dengan role terbatas); UI frontend; a
 ### H4 lanjutan --- kode cadangan, audit reset, pemulihan workspace (2026-11-20) --- DONE (teruji di staging, role wazap_app)
 Migrasi 0017; 8 kode pemulihan + `me.recovery` + konfirmasi; audit `account.password_reset` (semua workspace anggota) dan `join_request.created`; `POST /auth/deleted-workspaces` dan `/auth/restore-workspace`; `tenants.deleted_at`.
 Bukti: `npm test` 270 lulus; staging: migrasi 0017 dari data 0016, `verify-db-roles.sh` lulus, alur register, reset, audit, hapus, pulihkan, login berhasil, log bersih. Sisa risiko: semua kode hilang bergantung operator; email tidak terverifikasi.
+
+## Uji ketahanan (2026-11-20) --- DONE
+`test/resilience.test.ts` (12 tes). Menemukan dan memperbaiki 3 celah nyata (ADR-038): (1) pool tanpa listener `error` membuat proses
+crash saat koneksi DB diputus; (2) leader control-plane tidak menyadari koneksinya mati (potensi dua leader); (3) tanpa batas waktu
+koneksi permintaan menggantung saat DB hang, dan galat DB menjadi 500 (kini 503 + Retry-After). Konfigurasi baru `DB_CONNECT_TIMEOUT_MS`.
+Bukti: `npm test` 282 lulus; uji mutasi membuktikan tiap tes menangkap regresinya. Belum: WhatsApp sungguhan, disk penuh, uji beban.

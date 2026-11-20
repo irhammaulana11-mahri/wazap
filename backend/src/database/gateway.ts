@@ -34,9 +34,25 @@ export interface GatewayDb {
   close(): Promise<void>;
 }
 
+/**
+ * Koneksi yang diputus server (restart/failover PostgreSQL, jaringan putus, pg_terminate_backend) memancarkan event 'error'
+ * pada klien (dan pada pool bila sedang idle). Tanpa listener, Node melempar uncaughtException dan SELURUH proses mati.
+ * Listener ini hanya mencatat: klien yang rusak dibuang pool, query berikutnya memakai koneksi baru.
+ */
+export function guardPool(pool: pg.Pool, onError: (err: Error) => void = defaultDbError): pg.Pool {
+  pool.on('error', onError);
+  pool.on('connect', (client) => { client.on('error', onError); });
+  return pool;
+}
+const defaultDbError = (err: Error) => {
+  if (config.LOG_LEVEL === 'silent') return;
+  // Hanya pesan galat (tanpa teks query/parameter) agar tidak membocorkan data.
+  console.error(JSON.stringify({ level: 'error', msg: 'pg: koneksi database bermasalah (akan dipulihkan otomatis)', err: err.message }));
+};
+
 export function createGatewayDb(schema: string, opts: { pool?: pg.Pool } = {}): GatewayDb {
   if (!/^[a-z_][a-z0-9_]{0,62}$/.test(schema)) throw new Error('Nama schema tidak valid');
-  const pool =
+  const pool = guardPool(
     opts.pool ??
     new pg.Pool({
       ...(config.DATABASE_URL
@@ -49,8 +65,11 @@ export function createGatewayDb(schema: string, opts: { pool?: pg.Pool } = {}): 
             password: config.DB_PASSWORD || undefined,
           }),
       max: config.DB_POOL_MAX,
+      // Tanpa batas ini, permintaan menggantung selamanya saat DB hang/penuh. Setelah batas => galat => 503 (lihat http/errors.ts).
+      connectionTimeoutMillis: config.DB_CONNECT_TIMEOUT_MS,
+      keepAlive: true, // deteksi koneksi mati diam-diam (firewall/failover) lebih cepat
       options: `-c search_path=${schema}`,
-    });
+    }));
 
   return {
     pool,
@@ -87,7 +106,7 @@ export function getGatewayDb(): GatewayDb {
 /** Pool khusus migrasi (pemilik schema) bila DB_MIGRATE_USERNAME diisi; undefined bila tidak (migrasi memakai pool runtime). */
 export function createMigratePool(): pg.Pool | undefined {
   if (!config.DB_MIGRATE_USERNAME) return undefined;
-  return new pg.Pool({
+  return guardPool(new pg.Pool({
     ...(config.DATABASE_URL
       ? { connectionString: config.DATABASE_URL, user: config.DB_MIGRATE_USERNAME, password: config.DB_MIGRATE_PASSWORD || undefined }
       : {
@@ -95,5 +114,5 @@ export function createMigratePool(): pg.Pool | undefined {
           user: config.DB_MIGRATE_USERNAME, password: config.DB_MIGRATE_PASSWORD || undefined,
         }),
     max: 2,
-  });
+  }));
 }

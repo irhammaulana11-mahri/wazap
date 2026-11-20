@@ -191,8 +191,12 @@ POST /api/v1/auth/register
 `INVALID_REFRESH_TOKEN` 401, `FORBIDDEN` 403, `NO_ACTIVE_TENANT` 403,
 `NOT_FOUND` 404, `EMAIL_TAKEN` 409, `QUOTA_EXCEEDED` 409,
 `PAYLOAD_TOO_LARGE` 413, `RATE_LIMITED` 429 (+ `Retry-After`),
-`NOT_IMPLEMENTED` 501, `INTERNAL_ERROR` 500. Setiap respons membawa header
+`NOT_IMPLEMENTED` 501, `INTERNAL_ERROR` 500, `SERVICE_UNAVAILABLE` 503 (+ `Retry-After: 2`). Setiap respons membawa header
 `X-Request-Id` yang sama dengan `request_id` di body error.
+
+`SERVICE_UNAVAILABLE` (503): database tidak terjangkau / koneksi terputus / pool habis melewati `DB_CONNECT_TIMEOUT_MS`.
+Sementara dan aman diulang (klien: backoff, mis. 1-2-4 dtk). Isi galat tidak memuat host, port, atau detail internal.
+Untuk `POST /messages/send` dan penulisan lain yang idempoten, ulangi dengan `Idempotency-Key` yang sama.
 
 ### Kompatibilitas prototipe (sementara, dihapus Fase C)
 -   `POST /auth/login` dengan `{username, password}` tetap memakai admin

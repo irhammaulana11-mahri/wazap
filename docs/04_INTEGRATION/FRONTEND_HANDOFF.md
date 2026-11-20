@@ -513,3 +513,10 @@ Bila produk membutuhkan salah satu di atas, ajukan lewat `INTEGRATION_CONTRACT.m
     memakai endpoint NYATA, tanpa mock. Tambahkan: dialog undangan (salin/QR/WhatsApp, buat ulang tautan), halaman Audit log (OWNER/ADMIN, filter aksi dan tanggal), dan form Pengaturan kuota (OWNER;
     batas dari `minimums`/`ceilings`). Gap yang tersisa (bagian 6) tercatat di `INTEGRATION_CONTRACT.md`.
 9.  Tes dan hasilnya dicatat di `FRONTEND_PROGRESS.md`; endpoint/event yang dipakai dan asumsi terdaftar (aturan serah-terima `FRONTEND_AGENT_PROMPT.md`).
+
+## Perilaku baru: 503 `SERVICE_UNAVAILABLE` (2026-11-20, ADR-038)
+
+Bila database sementara tidak tersedia, API menjawab `503` dengan `error.code = "SERVICE_UNAVAILABLE"` dan header `Retry-After: 2` (sebelumnya `500 INTERNAL_ERROR`).
+Klien: tampilkan "Layanan sedang sibuk, mencoba lagi...", ulangi permintaan GET dengan backoff (1-2-4 dtk, maksimal ~3 kali); untuk `POST /messages/send`
+ulangi dengan `Idempotency-Key` yang SAMA agar tidak terkirim ganda. Jangan menganggapnya sesi berakhir (bukan 401) dan jangan logout pengguna.
+

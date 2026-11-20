@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased --- Backend: uji ketahanan dan perbaikan gangguan database (2026-11-20)
+
+-   Perbaikan (ADR-038): koneksi DB yang diputus tidak lagi mematikan proses (listener `error` pada pool); leader control-plane memeriksa koneksinya dan kunci per schema; batas waktu koneksi `DB_CONNECT_TIMEOUT_MS`.
+-   Perilaku API: database tidak tersedia kini `503 SERVICE_UNAVAILABLE` + `Retry-After: 2` (sebelumnya 500 `INTERNAL_ERROR`). Frontend: tampilkan "layanan sedang sibuk" dan coba lagi dengan backoff; ulangi kirim pesan dengan `Idempotency-Key` yang sama.
+-   Tes: `resilience.test.ts` 12 tes baru; total 282 lulus.
+
 ## Unreleased --- Backend H4 lanjutan: 8 kode pemulihan, audit reset, pemulihan workspace (2026-11-20)
 
 -   Berubah (kontrak): `recovery_code` menjadi `recovery_codes` (8 kode sekali pakai) pada register/join-request; `POST /auth/recovery-code` menjadi `POST /auth/recovery-codes` (+ `/confirm`); `reset-password` mengembalikan `remaining_recovery_codes`; `GET /auth/me` memuat `recovery`.

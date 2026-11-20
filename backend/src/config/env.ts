@@ -14,6 +14,8 @@ const baseSchema = z.object({
   DB_USERNAME: z.string().default('postgres'),
   DB_PASSWORD: z.string().default(''),
   DB_POOL_MAX: z.coerce.number().int().min(1).max(200).default(10),
+  /** Batas menunggu koneksi dari pool/DB sebelum galat (ms). */
+  DB_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).default(5000),
   DB_SCHEMA: z.string().regex(/^[a-z_][a-z0-9_]{0,62}$/).default('gateway'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET wajib diisi (minimal 32 karakter)'),
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),

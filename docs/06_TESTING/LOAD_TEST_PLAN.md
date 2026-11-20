@@ -49,3 +49,8 @@ Record exact software versions and test data.
 Lihat DATABASE_DESIGN §13. Throughput dasar satu proses/satu koneksi: enqueue ~7 ms/pesan (~140/dtk), relay outbox ~1,8 ms/event
 (~555/dtk) pada ~1,3 juta baris, PostgreSQL 18 default di mesin dev. Belum ada uji beban multi-koneksi; target dan batas
 sebenarnya (sesi per engine, pesan/dtk per sesi) HARUS diukur di infrastruktur target, bukan diasumsikan dari angka ini.
+
+## Hasil uji ketahanan (2026-11-20)
+Langkah 6 (restart worker) dan 7 (gangguan database/jaringan) metode di atas kini punya uji otomatis di `backend/test/resilience.test.ts`
+(lihat TEST_PLAN). Ini membuktikan kebenaran saat gangguan, BUKAN kapasitas: uji beban multi-sesi tetap harus dijalankan di infrastruktur target.
+

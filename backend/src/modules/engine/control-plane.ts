@@ -150,17 +150,36 @@ export type ControlPlane = ReturnType<typeof createControlPlane>;
  * Lock dipegang di koneksi khusus; bila koneksi mati, lock lepas otomatis dan instans lain mengambil alih.
  */
 export function startControlPlaneLoop(db: GatewayDb, cp: ControlPlane, log: ControlPlaneLog, intervalMs = config.CONTROL_PLANE_INTERVAL_MS) {
+  // Kunci advisory berlaku se-database: dibatasi per schema agar instans schema lain (mis. tes, staging) tidak saling memblokir.
+  const lockKey = `wazap:control-plane:${db.schema}`;
   let stopped = false;
   let timer: NodeJS.Timeout | undefined;
   let leader: import('pg').PoolClient | undefined;
   let running: Promise<void> = Promise.resolve();
 
+  /** Lepas peran leader dan kembalikan (buang) koneksinya ke pool tepat sekali; aman dipanggil dari event maupun tick. */
+  const dropLeader = (c: import('pg').PoolClient | undefined, why: string) => {
+    if (!c || leader !== c) return;
+    leader = undefined;
+    try { c.release(true); } catch { /* sudah dilepas */ }
+    log.warn({}, `control-plane: ${why}, memilih ulang`);
+  };
   const tick = async () => {
     try {
+      if (leader) {
+        // Lock bertahan selama koneksi ini hidup. Bila koneksi mati diam-diam (restart DB), lock sudah lepas dan instans lain
+        // dapat menjadi leader: berhenti memimpin sebelum rekonsiliasi supaya tidak pernah ada dua leader aktif.
+        const cur = leader;
+        try { await cur.query('SELECT 1'); } catch { dropLeader(cur, 'koneksi leader putus'); return; }
+      }
       if (!leader) {
         const c = await db.pool.connect();
-        const got = (await c.query('SELECT pg_try_advisory_lock(hashtext($1)) AS ok', ['wazap:control-plane'])).rows[0].ok;
-        if (!got) { c.release(); return; }
+        const onDead = () => dropLeader(c, 'koneksi leader putus');
+        c.on('error', onDead); c.on('end', onDead);
+        let got = false;
+        try { got = (await c.query('SELECT pg_try_advisory_lock(hashtext($1)) AS ok', [lockKey])).rows[0].ok; }
+        catch (err) { c.removeListener('error', onDead); c.removeListener('end', onDead); c.release(true); throw err; }
+        if (!got) { c.removeListener('error', onDead); c.removeListener('end', onDead); c.release(); return; }
         leader = c;
         log.info({}, 'control-plane: menjadi leader');
       }
@@ -168,7 +187,7 @@ export function startControlPlaneLoop(db: GatewayDb, cp: ControlPlane, log: Cont
       if (rep.assigned || rep.leasesExpired || rep.finalized.deleted || rep.finalized.disconnected || rep.engines.unhealthy || rep.messages.abandoned || rep.messages.expired) log.info(rep, 'control-plane reconcile');
     } catch (err) {
       log.error({ err }, 'control-plane tick gagal');
-      if (leader) { leader.release(true); leader = undefined; } // buang koneksi => lock lepas
+      dropLeader(leader, 'tick gagal'); // buang koneksi => lock lepas
     }
   };
   const schedule = () => {
@@ -182,7 +201,7 @@ export function startControlPlaneLoop(db: GatewayDb, cp: ControlPlane, log: Cont
       stopped = true;
       if (timer) clearTimeout(timer);
       await running;
-      if (leader) { await leader.query('SELECT pg_advisory_unlock(hashtext($1))', ['wazap:control-plane']).catch(() => {}); leader.release(); leader = undefined; }
+      if (leader) { await leader.query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]).catch(() => {}); leader.release(); leader = undefined; }
     },
   };
 }

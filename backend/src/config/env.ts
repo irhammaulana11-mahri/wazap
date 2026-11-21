@@ -146,6 +146,14 @@ const baseSchema = z.object({
   ALERTS_RETRY_BASE_MS: z.coerce.number().int().min(1).default(15000),
   ALERTS_MAX_PER_CHANNEL_PER_HOUR: z.coerce.number().int().min(1).max(1000).default(30),
   ALERTS_AUTO_DISABLE_AFTER: z.coerce.number().int().min(0).default(5),
+  // Platform admin (ADR-054). PLATFORM_ENABLED=false mematikan seluruh /platform/* (404) tanpa deploy kode. Token platform berumur pendek tanpa refresh.
+  PLATFORM_ENABLED: z.enum(['true', 'false']).default('true'),
+  PLATFORM_TOKEN_TTL_SECONDS: z.coerce.number().int().min(300).max(3600).default(1800),
+  PLATFORM_MFA_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(600).default(300),
+  PLATFORM_MAX_FAILED_OTP: z.coerce.number().int().min(3).max(20).default(5),
+  PLATFORM_LOCK_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
+  /** Berkas status cadangan (JSON) yang ditulis backup-run.sh; dibaca HANYA-BACA oleh konsol platform. Kosong = fitur status cadangan mati. */
+  PLATFORM_BACKUP_STATUS_FILE: z.string().max(500).optional(),
   EXPORT_ENABLED: z.enum(['true', 'false']).default('true'),
   EXPORT_MAX_ROWS: z.coerce.number().int().min(1).max(5_000_000).default(200_000),
   EXPORT_MAX_SPAN_DAYS: z.coerce.number().int().min(1).max(3650).default(92),

@@ -17,9 +17,10 @@ import { routeContracts as tenantC } from '../../modules/tenant/tenant.routes.js
 import { routeContracts as settingsC } from '../../modules/tenant/settings.routes.js';
 import { routeContracts as exportC } from '../../modules/export/export.routes.js';
 import { routeContracts as alertsC } from '../../modules/alerts/alerts.routes.js';
+import { routeContracts as platformC } from '../../modules/platform/platform.routes.js';
 
 export const CONTRACTS: Record<string, RouteContract> = {
-  ...identityC, ...sessionsC, ...messagesC, ...chatsC, ...webhooksC, ...teamC, ...joinC, ...usageC, ...auditC, ...tenantC, ...settingsC, ...exportC, ...alertsC,
+  ...identityC, ...sessionsC, ...messagesC, ...chatsC, ...webhooksC, ...teamC, ...joinC, ...usageC, ...auditC, ...tenantC, ...settingsC, ...exportC, ...alertsC, ...platformC,
 };
 
 export interface CollectedRoute { key: string; method: string; url: string; guards: GuardMeta[] }
@@ -77,6 +78,7 @@ const ERR_TEXT: Record<number, string> = {
 const STATUS_TEXT: Record<number, string> = { 200: 'Berhasil', 201: 'Dibuat', 202: 'Diterima (diproses asinkron)', 204: 'Berhasil tanpa isi' };
 
 function securityOf(op: Operation, guards: GuardMeta[]) {
+  if (guards.some((g) => g.kind === 'platform')) return { security: [{ platformAuth: [] }] as Json[], extra: { 'x-platform-only': true } as Json };   // token platform (ADR-054), bukan token workspace/API key
   const auth = guards.some((g) => g.kind === 'authenticate');
   if (!auth) return { security: [] as Json[], extra: { 'x-auth': 'publik' } as Json };
   const access = guards.find((g) => g.kind === 'access') as Extract<GuardMeta, { kind: 'access' }> | undefined;
@@ -161,6 +163,7 @@ export function generateOpenApi(routes: CollectedRoute[]): Json {
     components: {
       securitySchemes: {
         bearerAuth: { type: 'http', scheme: 'bearer', description: 'Access token (login/register) pengguna dashboard.' },
+        platformAuth: { type: 'http', scheme: 'bearer', description: 'Token platform admin (POST /platform/auth/verify). BUKAN token workspace dan bukan API key; berumur pendek tanpa refresh. Hanya untuk /platform/*.' },
         apiKeyAuth: { type: 'apiKey', in: 'header', name: 'X-API-Key', description: 'API key (gwk_...). Scope yang dibutuhkan tercantum per operasi; juga diterima sebagai Authorization: Bearer gwk_...' },
       },
       schemas: Object.fromEntries(Object.entries(defs).sort(([a], [b]) => a.localeCompare(b))),

@@ -42,6 +42,9 @@
       "name": "Ekspor"
     },
     {
+      "name": "Platform"
+    },
+    {
       "name": "Notifikasi"
     },
     {
@@ -8890,6 +8893,280 @@
         }
       }
     },
+    "/api/v1/platform/auth/login": {
+      "post": {
+        "operationId": "post_platform_auth_login",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Platform admin langkah 1: email dan kata sandi -> token MFA berumur pendek",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache.",
+        "security": [],
+        "x-auth": "publik",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 254
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "mfa_token": {
+                          "type": "string"
+                        },
+                        "expires_in": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "mfa_token",
+                        "expires_in"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/auth/verify": {
+      "post": {
+        "operationId": "post_platform_auth_verify",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Platform admin langkah 2: kode TOTP atau kode pemulihan -> token platform",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache.",
+        "security": [],
+        "x-auth": "publik",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mfa_token": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 2048
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 32
+                  }
+                },
+                "required": [
+                  "mfa_token",
+                  "code"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "access_token": {
+                          "type": "string"
+                        },
+                        "expires_in": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "admin": {
+                          "type": "object",
+                          "properties": {
+                            "user_id": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "user_id",
+                            "email"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "recovery_remaining": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "access_token",
+                        "expires_in",
+                        "admin",
+                        "recovery_remaining"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/me": {
+      "get": {
+        "operationId": "get_platform_me",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Identitas platform admin yang sedang masuk",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache.",
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user_id": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "user_id",
+                        "email"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
     "/api/v1/alerts/catalog": {
       "get": {
         "operationId": "get_alerts_catalog",
@@ -10951,6 +11228,11 @@
         "type": "http",
         "scheme": "bearer",
         "description": "Access token (login/register) pengguna dashboard."
+      },
+      "platformAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token platform admin (POST /platform/auth/verify). BUKAN token workspace dan bukan API key; berumur pendek tanpa refresh. Hanya untuk /platform/*."
       },
       "apiKeyAuth": {
         "type": "apiKey",

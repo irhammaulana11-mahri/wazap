@@ -33,6 +33,8 @@ import { installContractCheck } from './http/openapi/conformance.js';
 import { createExportService, type ExportService } from './modules/export/export.service.js';
 import { alertRoutes } from './modules/alerts/alerts.routes.js';
 import { createAlertService, type AlertService } from './modules/alerts/alerts.service.js';
+import { platformRoutes } from './modules/platform/platform.routes.js';
+import { createPlatformService, type PlatformService } from './modules/platform/platform.service.js';
 import { exportRoutes } from './modules/export/export.routes.js';
 import { AppError, installErrorHandling } from './http/errors.js';
 import { healthRoutes } from './modules/health/health.routes.js';
@@ -64,6 +66,7 @@ export interface AppDeps {
   settings?: SettingsService;
   exports?: ExportService;
   alerts?: AlertService;
+  platform?: PlatformService;
   limiter?: RateLimiter;
   /** Pembatas laju API umum (IP + tenant). Default: instans baru dengan batas dari env. */
   apiLimiter?: RateLimiter;
@@ -147,6 +150,7 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
   const settings = deps.settings ?? createSettingsService(getGatewayDb());
   const dataExport = deps.exports ?? createExportService(getGatewayDb());
   const alerts = deps.alerts ?? createAlertService(getGatewayDb(), { crypto: tryGetCredentialCrypto(config) });
+  const platform = deps.platform ?? createPlatformService(getGatewayDb(), { crypto: tryGetCredentialCrypto(config) });
   const sessions = deps.sessions ?? createSessionService(getGatewayDb(), { crypto: tryGetCredentialCrypto(config) });
 
   // Health (publik, tanpa detail internal)
@@ -174,6 +178,7 @@ export function buildApp(deps: AppDeps = {}): FastifyInstance {
       await scope.register(settingsRoutes, { settings, authenticate });
       await scope.register(exportRoutes, { exports: dataExport, identity, authenticate, limiter: deps.limiter });
       await scope.register(alertRoutes, { alerts, identity, authenticate, limiter: deps.limiter });
+      await scope.register(platformRoutes, { platform, limiter: deps.limiter });
       await scope.register(tenantRoutes, { tenant, authenticate, limiter: deps.limiter });
     },
     { prefix: '/api/v1' }

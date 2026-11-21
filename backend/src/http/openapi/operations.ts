@@ -20,6 +20,7 @@ export interface Operation {
 }
 
 const ok = S.okOf, list = S.listOf;
+const PLATFORM_NOTE = 'Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache.';
 const EXPORT_STREAM = { contentTypes: ['text/csv', 'application/x-ndjson'] };
 const EXPORT_NOTE = 'Hanya OWNER pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.';
 const ALERT_NOTE = 'Hanya OWNER pengguna dashboard (API key ditolak). Target kanal (token bot / URL webhook) dienkripsi dan tidak pernah dikembalikan. Notifikasi tidak memuat nomor telepon pelanggan akhir maupun isi pesan.';
@@ -124,6 +125,9 @@ export const OPERATIONS: Record<string, Operation> = {
   'POST /exports/contacts': O('Ekspor', 'Ekspor kontak (digabung per nomor) (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
   'POST /exports/audit-logs': O('Ekspor', 'Ekspor log audit (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
   'POST /exports/members': O('Ekspor', 'Ekspor anggota tim (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
+  'POST /platform/auth/login': O('Platform', 'Platform admin langkah 1: email dan kata sandi -> token MFA berumur pendek', { 200: ok(S.PlatformMfaChallenge) }, { errors: [429], description: PLATFORM_NOTE }),
+  'POST /platform/auth/verify': O('Platform', 'Platform admin langkah 2: kode TOTP atau kode pemulihan -> token platform', { 200: ok(S.PlatformSession) }, { errors: [429], description: PLATFORM_NOTE }),
+  'GET /platform/me': O('Platform', 'Identitas platform admin yang sedang masuk', { 200: ok(S.PlatformMe) }, { description: PLATFORM_NOTE }),
   'GET /alerts/catalog': O('Notifikasi', 'Daftar aturan alarm, batas, dan status fitur (untuk UI)', { 200: ok(S.AlertCatalog) }),
   'GET /alerts/channels': O('Notifikasi', 'Daftar kanal notifikasi (target tidak pernah dikembalikan; hanya petunjuk 4 karakter)', { 200: ok(z.array(S.AlertChannel)) }),
   'POST /alerts/channels': O('Notifikasi', 'Buat kanal Telegram atau Slack-compatible (memerlukan kata sandi)', { 201: ok(S.AlertChannel) }, { errors: [409, 422, 429, 503], description: ALERT_NOTE }),

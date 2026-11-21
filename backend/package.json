@@ -15,6 +15,7 @@
     "migrate:prod": "node dist/database/migrate-cli.js",
     "keys:rotate": "tsx src/runtime/rotate-keys-cli.ts",
     "admin:recovery-code": "tsx src/runtime/recovery-code-cli.ts",
+    "admin:platform-admin": "tsx src/runtime/platform-admin-cli.ts",
     "typecheck": "tsc --noEmit",
     "openapi": "tsx src/http/openapi/generate-cli.ts",
     "test": "node --import tsx --test test/*.test.ts",

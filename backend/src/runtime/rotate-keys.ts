@@ -2,6 +2,7 @@ import type { GatewayDb } from '../database/gateway.js';
 import type { CredentialCrypto } from '../security/credential-crypto.js';
 import { webhookSecretAad } from '../security/webhook-signature.js';
 import { alertTargetAad } from '../security/alert-target.js';
+import { totpAad } from '../security/totp.js';
 import { aadOf as authAad } from '../modules/engine/auth-store.js'; // satu-satunya definisi AAD auth state
 
 export interface RotateTarget { rotated: number; skipped: number; failed: number }
@@ -11,6 +12,8 @@ export interface RotateReport {
   authState: RotateTarget;
   webhookSecrets: RotateTarget;
   alertTargets: RotateTarget;
+  /** Rahasia TOTP platform admin (ADR-054): tanpa rotasi, pensiun kunci lama mengunci SEMUA platform admin. */
+  platformTotp: RotateTarget;
   /** Jumlah baris per versi kunci SETELAH operasi: kunci lama aman dipensiunkan hanya bila tidak ada versi selain aktif dan failed = 0. */
   versions: Record<string, Record<string, number>>;
   retireReady: boolean;
@@ -108,12 +111,39 @@ export function createKeyRotator(db: GatewayDb, crypto: CredentialCrypto) {
     return t;
   }
 
+  async function rotatePlatformTotp(batch: number, dryRun: boolean): Promise<RotateTarget> {
+    const t: RotateTarget = { rotated: 0, skipped: 0, failed: 0 };
+    let lastId: string | undefined;
+    for (;;) {
+      const rows = await db.tx({ platform: true }, async (c) =>
+        (await c.query(
+          `SELECT user_id, totp_cipher FROM platform_admins
+           WHERE totp_key_version <> $1 AND ($2::uuid IS NULL OR user_id > $2) ORDER BY user_id LIMIT $3`, [active, lastId ?? null, batch])).rows as { user_id: string; totp_cipher: Buffer }[]);
+      if (!rows.length) break;
+      for (const r of rows) {
+        lastId = r.user_id;
+        let blob: Buffer, keyVersion: number;
+        try {
+          const plain = crypto.decrypt(r.totp_cipher, totpAad(r.user_id));
+          ({ blob, keyVersion } = crypto.encrypt(plain, totpAad(r.user_id)));
+        } catch { t.failed++; continue; }
+        if (dryRun) { t.rotated++; continue; }
+        const u = await db.tx({ platform: true }, (c) => c.query(
+          `UPDATE platform_admins SET totp_cipher = $2, totp_key_version = $3 WHERE user_id = $1 AND totp_cipher = $4`, [r.user_id, blob, keyVersion, r.totp_cipher]));
+        if (u.rowCount === 1) t.rotated++; else t.skipped++;
+      }
+      if (rows.length < batch) break;
+    }
+    return t;
+  }
+
   async function versions(): Promise<Record<string, Record<string, number>>> {
     return db.tx({ platform: true }, async (c) => {
       const a = (await c.query('SELECT encryption_key_version v, count(*)::int n FROM session_auth_state GROUP BY 1 ORDER BY 1')).rows;
       const w = (await c.query('SELECT secret_key_version v, count(*)::int n FROM webhook_endpoints GROUP BY 1 ORDER BY 1')).rows;
       const al = (await c.query('SELECT target_key_version v, count(*)::int n FROM alert_channels GROUP BY 1 ORDER BY 1')).rows;
-      return { session_auth_state: Object.fromEntries(a.map((r: any) => [r.v, r.n])), webhook_secrets: Object.fromEntries(w.map((r: any) => [r.v, r.n])), alert_targets: Object.fromEntries(al.map((r: any) => [r.v, r.n])) };
+      const pt = (await c.query('SELECT totp_key_version v, count(*)::int n FROM platform_admins GROUP BY 1 ORDER BY 1')).rows;
+      return { session_auth_state: Object.fromEntries(a.map((r: any) => [r.v, r.n])), webhook_secrets: Object.fromEntries(w.map((r: any) => [r.v, r.n])), alert_targets: Object.fromEntries(al.map((r: any) => [r.v, r.n])), platform_totp: Object.fromEntries(pt.map((r: any) => [r.v, r.n])) };
     });
   }
 
@@ -123,6 +153,7 @@ export function createKeyRotator(db: GatewayDb, crypto: CredentialCrypto) {
       const authState = await rotateAuth(batch, dryRun);
       const webhookSecrets = await rotateWebhookSecrets(batch, dryRun);
       const alertTargets = await rotateAlertTargets(batch, dryRun);
+      const platformTotp = await rotatePlatformTotp(batch, dryRun);
       if (!dryRun) {
         // Metadata versi pada session_credentials mengikuti auth state sesi tersebut.
         await db.tx({ platform: true }, (c) => c.query(
@@ -131,7 +162,7 @@ export function createKeyRotator(db: GatewayDb, crypto: CredentialCrypto) {
       }
       const v = await versions();
       const old = Object.values(v).some((m) => Object.keys(m).some((k) => Number(k) !== active));
-      return { activeVersion: active, dryRun, authState, webhookSecrets, alertTargets, versions: v, retireReady: !dryRun && !old && authState.failed === 0 && webhookSecrets.failed === 0 && alertTargets.failed === 0 };
+      return { activeVersion: active, dryRun, authState, webhookSecrets, alertTargets, platformTotp, versions: v, retireReady: !dryRun && !old && authState.failed === 0 && webhookSecrets.failed === 0 && alertTargets.failed === 0 && platformTotp.failed === 0 };
     },
   };
 }

@@ -14,4 +14,6 @@ export type GuardMeta =
   | { kind: 'authenticate' }
   | { kind: 'role'; roles: string[] }
   | { kind: 'scope'; scope: string }
-  | { kind: 'access'; scope: string; roles: string[] };
+  | { kind: 'access'; scope: string; roles: string[] }
+  /** Token platform admin (ADR-054): bukan token workspace dan bukan API key. */
+  | { kind: 'platform' };

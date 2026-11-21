@@ -170,3 +170,13 @@ export const AlertDelivery = named('AlertDelivery', z.looseObject({
   id: Uuid, channel_id: Uuid, channel_name: str, rule_code: str, status: z.enum(['PENDING', 'SENT', 'DEAD']), attempts: int,
   last_status_code: nl(int), last_error_code: nl(str), sent_at: nl(Dt), created_at: Dt,
 }));
+
+// ---------- Platform admin (ADR-054) ----------
+export const PlatformMfaChallenge = z.looseObject({ mfa_token: z.string(), expires_in: z.number().int() });
+export const PlatformSession = z.looseObject({
+  access_token: z.string(), expires_in: z.number().int(),
+  admin: z.looseObject({ user_id: z.string(), email: z.string() }),
+  recovery_remaining: z.number().int(),
+});
+export const PlatformMe = z.looseObject({ user_id: z.string(), email: z.string() });
+

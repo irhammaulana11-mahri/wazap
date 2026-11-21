@@ -37,7 +37,7 @@ test('sanitizePayload membuang QR/kredensial/token dan membatasi ukuran', () => 
   assert.deepEqual(L.sanitizePayload('str'), {});
 });
 
-test('konteks platform hanya dipakai di modul istimewa (engine/runtime/database)', () => {
+test('konteks platform hanya dipakai di modul istimewa (engine/runtime/database/platform)', () => {
   const root = path.resolve(import.meta.dirname, '../src');
   const bad: string[] = [];
   const walk = (d: string) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
@@ -45,7 +45,7 @@ test('konteks platform hanya dipakai di modul istimewa (engine/runtime/database)
     if (e.isDirectory()) walk(p);
     else if (p.endsWith('.ts') && /platform:\s*true/.test(fs.readFileSync(p, 'utf8'))) {
       const rel = path.relative(root, p);
-      if (!/^(modules\/engine\/|runtime\/|database\/)/.test(rel)) bad.push(rel);
+      if (!/^(modules\/engine\/|modules\/platform\/|runtime\/|database\/)/.test(rel)) bad.push(rel);
     } } };
   walk(root);
   assert.deepEqual(bad, [], 'jalur tenant tidak boleh memakai platform scope');

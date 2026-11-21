@@ -5,6 +5,7 @@ import { WebhookItem } from '../types';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
+import { useConfirm } from '../context/ConfirmContext';
 import {
   Webhook,
   Plus,
@@ -34,6 +35,7 @@ const AVAILABLE_EVENTS = [
 
 export const WebhooksPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
 
   // Create form state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -282,8 +284,15 @@ export const WebhooksPage: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => {
-                        if (confirm('Rotasi secret akan mengganti signing secret lama segera. Lanjutkan?')) {
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Rotasi Secret Webhook',
+                          message:
+                            'Rotasi secret akan mengganti signing secret lama segera. Server penerima Anda harus diperbarui dengan secret baru agar validasi tanda tangan HMAC tetap valid. Lanjutkan?',
+                          confirmLabel: 'Rotasi Secret',
+                          variant: 'warning',
+                        });
+                        if (ok) {
                           rotateMutation.mutate(item.id);
                         }
                       }}
@@ -309,8 +318,15 @@ export const WebhooksPage: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => {
-                        if (confirm('Yakin ingin menghapus webhook ini beserta delivery log-nya?')) {
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Hapus Endpoint Webhook',
+                          message:
+                            'Yakin ingin menghapus endpoint webhook ini beserta seluruh riwayat pengiriman (delivery log)-nya?',
+                          confirmLabel: 'Hapus Webhook',
+                          variant: 'danger',
+                        });
+                        if (ok) {
                           deleteMutation.mutate(item.id);
                         }
                       }}

@@ -5,6 +5,7 @@ import { ApiKeyScope, VALID_API_KEY_SCOPES } from '../types';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
+import { useConfirm } from '../context/ConfirmContext';
 import {
   Key,
   Plus,
@@ -58,6 +59,7 @@ export const ApiKeysPage: React.FC = () => {
   const [editKeyName, setEditKeyName] = useState('');
   const [editSelectedScopes, setEditSelectedScopes] = useState<ApiKeyScope[]>([]);
   const [editFormError, setEditFormError] = useState('');
+  const { confirm } = useConfirm();
 
   // Fetch API keys
   const {
@@ -292,8 +294,14 @@ print(response.json())`;
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm(`Yakin ingin mencabut API Key "${item.name}"? Akses API akan langsung terhenti.`)) {
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Cabut Kunci API',
+                          message: `Yakin ingin mencabut API Key "${item.name}"? Akses integrasi API yang menggunakan kunci ini akan langsung terhenti.`,
+                          confirmLabel: 'Cabut Kunci API',
+                          variant: 'danger',
+                        });
+                        if (ok) {
                           revokeMutation.mutate(item.id);
                         }
                       }}

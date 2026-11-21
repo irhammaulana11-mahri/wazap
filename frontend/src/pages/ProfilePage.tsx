@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { RecoveryCodeModal } from '../components/auth/RecoveryCodeModal';
 import {
   User,
@@ -39,6 +40,7 @@ import {
 export const ProfilePage: React.FC = () => {
   const { user, tenant, role, memberships, recovery, refetchUser, logout } = useAuth();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -147,13 +149,20 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleLogoutAll = async () => {
-    if (confirm('Yakin ingin keluar dari semua perangkat? Anda dan seluruh sesi aktif di perangkat lain akan diarahkan ke login.')) {
+    const ok = await confirm({
+      title: 'Logout Semua Perangkat',
+      message:
+        'Yakin ingin keluar dari semua perangkat? Token autentikasi di seluruh peramban dan perangkat aktif lain akan dicabut seketika.',
+      confirmLabel: 'Logout Semua Perangkat',
+      variant: 'danger',
+    });
+    if (ok) {
       try {
         setLogoutAllLoading(true);
         await api.logoutAll();
         navigate('/login');
       } catch (err: any) {
-        alert(`Gagal logout all: ${err.message}`);
+        showToast('error', `Gagal logout semua perangkat: ${err.message || 'Terjadi galat.'}`);
       } finally {
         setLogoutAllLoading(false);
       }
@@ -775,7 +784,7 @@ export const ProfilePage: React.FC = () => {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
                 >
                   <Sliders className="w-3.5 h-3.5" />
-                  <span>Buka Pengaturan Kuota</span>
+                  <span>Buka Pengaturan</span>
                 </Link>
               ) : (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
@@ -804,7 +813,7 @@ export const ProfilePage: React.FC = () => {
                   <p className="text-amber-800 mt-0.5 leading-relaxed">
                     Anda memiliki hak penuh untuk mengubah dan mengalokasikan batas kuota kapan saja melalui menu{' '}
                     <Link to="/settings" className="font-bold underline hover:text-amber-950">
-                      Pengaturan Kuota
+                      Pengaturan
                     </Link>
                     .
                   </p>

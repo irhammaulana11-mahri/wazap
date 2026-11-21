@@ -20,7 +20,7 @@ import {
   AlertChannelItem,
   AlertTestResult,
 } from '../../types';
-import { AlertChannelModal, ChannelModalMode } from './AlertChannelModal';
+import { AlertChannelDrawer, ChannelModalMode } from './AlertChannelDrawer';
 import { useToast } from '../../context/ToastContext';
 
 interface AlertChannelsSectionProps {
@@ -418,8 +418,8 @@ export const AlertChannelsSection: React.FC<AlertChannelsSectionProps> = ({
         </div>
       )}
 
-      {/* Modal Dialog */}
-      <AlertChannelModal
+      {/* Channel Slide-Over Drawer with Live Preview */}
+      <AlertChannelDrawer
         isOpen={isModalOpen}
         mode={modalMode}
         channel={selectedChannel}

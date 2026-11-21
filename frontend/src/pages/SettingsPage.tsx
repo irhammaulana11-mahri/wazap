@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
 import {
@@ -42,6 +44,7 @@ export const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { role, tenant, refetchUser } = useAuth();
+  const { showToast } = useToast();
   const isOwner = role === 'OWNER';
   const canExport = role === 'OWNER' || role === 'ADMIN';
   const canManageAlerts = role === 'OWNER' || role === 'ADMIN';
@@ -199,9 +202,14 @@ export const SettingsPage: React.FC = () => {
 
     try {
       const res = await api.deleteTenant(deletePassword, deleteConfirmName.trim());
-      alert(`Workspace "${res.name}" berhasil dihapus dan dijadwalkan untuk dibersihkan setelah ${res.purged_after_days} hari.`);
-      queryClient.clear();
-      window.location.href = '/login';
+      showToast(
+        'success',
+        `Workspace "${res.name}" berhasil dihapus dan dijadwalkan untuk dibersihkan setelah ${res.purged_after_days} hari.`
+      );
+      setTimeout(() => {
+        queryClient.clear();
+        window.location.href = '/login';
+      }, 1200);
     } catch (err: any) {
       if (err.status === 403 || err.code === 'INVALID_PASSWORD') {
         setDeleteError('Kata sandi pemilik salah.');
@@ -231,15 +239,15 @@ export const SettingsPage: React.FC = () => {
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-                Pengaturan Kuota & Workspace
+                Pengaturan
               </h1>
               <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300">
                 <Crown className="w-3.5 h-3.5 text-amber-600" />
-                <span>Kewenangan Owner</span>
+                <span>{isOwner ? 'Kewenangan Owner' : 'Kewenangan Admin'}</span>
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500">
-              Kelola batas kapasitas infrastruktur gateway, nama organisasi, serta tata kelola workspace <span className="font-semibold text-slate-700">{tenant?.name}</span>.
+              Kelola alokasi kuota gateway, kanal notifikasi alarm, data & privasi, serta identitas workspace <span className="font-semibold text-slate-700">{tenant?.name}</span>.
             </p>
           </div>
 

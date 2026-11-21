@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
     if (pathname.startsWith('/connections')) return 'Koneksi & API Gateway';
     if (pathname.startsWith('/usage')) return 'Penggunaan & Kuota';
     if (pathname.startsWith('/team')) return 'Anggota Tim';
-    if (pathname.startsWith('/settings')) return 'Pengaturan Kuota Workspace';
+    if (pathname.startsWith('/settings')) return 'Pengaturan';
     if (pathname.startsWith('/audit-logs')) return 'Log Audit Keamanan';
     if (pathname.startsWith('/profile')) return 'Profil & Status Kuota';
     return 'Dashboard';

@@ -5,6 +5,7 @@ import { MessageItem, MessageStatus } from '../types';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
+import { useConfirm } from '../context/ConfirmContext';
 import {
   Send,
   Inbox,
@@ -89,6 +90,7 @@ const formatWhatsAppText = (text: string) => {
 
 export const MessagesPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const { confirm } = useConfirm();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Send message form state
@@ -244,15 +246,16 @@ export const MessagesPage: React.FC = () => {
     sendMutation.mutate();
   };
 
-  const handleRetry = (msg: MessageItem) => {
+  const handleRetry = async (msg: MessageItem) => {
     if (msg.status === 'UNKNOWN' || msg.status === 'RECONCILIATION_REQUIRED') {
-      if (
-        !confirm(
-          'Status pesan ini belum dapat dipastikan. Mengirim ulang berpotensi mengirim pesan ganda ke penerima. Lanjutkan?'
-        )
-      ) {
-        return;
-      }
+      const ok = await confirm({
+        title: 'Konfirmasi Pengiriman Ulang',
+        message:
+          'Status pesan ini belum dapat dipastikan di gateway WhatsApp. Mengirim ulang berpotensi mengirim pesan ganda ke penerima. Lanjutkan pengiriman ulang?',
+        confirmLabel: 'Kirim Ulang Pesan',
+        variant: 'warning',
+      });
+      if (!ok) return;
     }
     retryMutation.mutate(msg.id);
   };

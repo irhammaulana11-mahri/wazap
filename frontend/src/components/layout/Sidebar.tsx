@@ -8,6 +8,7 @@ import {
   BarChart3,
   ShieldCheck,
   Sliders,
+  Settings,
   ClipboardList,
   User,
   X,
@@ -41,8 +42,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     ...(isOwnerOrAdmin
       ? [{ to: '/audit-logs', label: 'Log Audit', icon: <ClipboardList className="w-4 h-4" /> }]
       : []),
-    ...(isOwner
-      ? [{ to: '/settings', label: 'Pengaturan Kuota', icon: <Sliders className="w-4 h-4" /> }]
+    ...(isOwnerOrAdmin
+      ? [{ to: '/settings', label: 'Pengaturan', icon: <Settings className="w-4 h-4" /> }]
       : []),
   ];
 

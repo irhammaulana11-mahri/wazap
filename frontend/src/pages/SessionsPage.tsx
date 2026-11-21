@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { Session, SessionStatus, QrResponse } from '../types';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
@@ -108,6 +109,7 @@ export const SessionsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { role } = useAuth();
   const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const isViewer = role === 'VIEWER';
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -344,24 +346,36 @@ export const SessionsPage: React.FC = () => {
     createMutation.mutate(alias.trim());
   };
 
-  const handleDisconnect = (s: Session) => {
+  const handleDisconnect = async (s: Session) => {
     if (isViewer) {
       showToast('error', 'Akses Viewer hanya baca-saja dan tidak dapat memutuskan sesi.');
       return;
     }
     const label = s.session_name || (s.phone_number ? `+${s.phone_number}` : s.id.slice(0, 8));
-    if (confirm(`Yakin ingin memutuskan koneksi WhatsApp untuk sesi "${label}"?`)) {
+    const ok = await confirm({
+      title: 'Putuskan Koneksi Sesi WhatsApp',
+      message: `Yakin ingin memutuskan koneksi WhatsApp untuk sesi "${label}"? Sesi akan terputus dari server WhatsApp.`,
+      confirmLabel: 'Putuskan Sesi',
+      variant: 'warning',
+    });
+    if (ok) {
       disconnectMutation.mutate(s.id);
     }
   };
 
-  const handleDelete = (s: Session) => {
+  const handleDelete = async (s: Session) => {
     if (isViewer) {
       showToast('error', 'Akses Viewer hanya baca-saja dan tidak dapat menghapus sesi.');
       return;
     }
     const label = s.session_name || s.phone_number || s.id;
-    if (confirm(`Yakin ingin menghapus sesi "${label}"? Sesi WhatsApp akan diputus permanen.`)) {
+    const ok = await confirm({
+      title: 'Hapus Sesi WhatsApp',
+      message: `Yakin ingin menghapus sesi "${label}"? Sesi WhatsApp dan data kredensialnya akan diputus serta dihapus permanen.`,
+      confirmLabel: 'Hapus Sesi Permanen',
+      variant: 'danger',
+    });
+    if (ok) {
       deleteMutation.mutate(s.id);
     }
   };

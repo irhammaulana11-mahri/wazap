@@ -30,7 +30,7 @@ Aplikasi WhatsApp Gateway mengadopsi antarmuka SaaS modern profesional:
      - Penggunaan & Kuota (`/usage`)
      - Anggota Tim (`/team`)
    - **Konfigurasi & Kepatuhan:**
-     - Pengaturan Kuota (`/settings`)
+     - Pengaturan (`/settings`)
      - Log Audit (`/audit-logs`)
 
 ## Komponen Kunci UI/UX

@@ -4,6 +4,8 @@ import QRCode from 'qrcode';
 import { api } from '../services/api';
 import { TeamMemberItem, TeamInvitationItem, TeamJoinRequestItem, Role } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
 import {
@@ -37,6 +39,8 @@ import { ExportDrawer } from '../components/export/ExportDrawer';
 export const TeamPage: React.FC = () => {
   const queryClient = useQueryClient();
   const { user, role } = useAuth();
+  const { showToast } = useToast();
+  const { confirm } = useConfirm();
   const isOwnerOrAdmin = role === 'OWNER' || role === 'ADMIN';
 
   // Navigation tab: 'members' | 'invitations' | 'join-requests'
@@ -236,7 +240,7 @@ export const TeamPage: React.FC = () => {
       setTimeout(() => setActionSuccess(''), 3000);
     },
     onError: (err: any) => {
-      alert(`Gagal membuat/memutar kode: ${err.message}`);
+      showToast('error', `Gagal membuat/memutar kode: ${err.message || 'Terjadi galat.'}`);
     },
   });
 
@@ -248,7 +252,7 @@ export const TeamPage: React.FC = () => {
       setTimeout(() => setActionSuccess(''), 3000);
     },
     onError: (err: any) => {
-      alert(`Gagal menonaktifkan kode: ${err.message}`);
+      showToast('error', `Gagal menonaktifkan kode: ${err.message || 'Terjadi galat.'}`);
     },
   });
 
@@ -264,7 +268,7 @@ export const TeamPage: React.FC = () => {
       setTimeout(() => setActionSuccess(''), 3000);
     },
     onError: (err: any) => {
-      alert(`Gagal menyetujui permintaan: ${err.message}`);
+      showToast('error', `Gagal menyetujui permintaan: ${err.message || 'Terjadi galat.'}`);
     },
   });
 
@@ -276,7 +280,7 @@ export const TeamPage: React.FC = () => {
       setTimeout(() => setActionSuccess(''), 3000);
     },
     onError: (err: any) => {
-      alert(`Gagal menolak permintaan: ${err.message}`);
+      showToast('error', `Gagal menolak permintaan: ${err.message || 'Terjadi galat.'}`);
     },
   });
 
@@ -311,7 +315,7 @@ export const TeamPage: React.FC = () => {
       setWaSentSuccess(true);
       setTimeout(() => setWaSentSuccess(false), 4000);
     } catch (err: any) {
-      alert(`Gagal mengirim WA: ${err.message}`);
+      showToast('error', `Gagal mengirim undangan via WhatsApp: ${err.message || 'Terjadi galat.'}`);
     } finally {
       setSendingWa(false);
     }
@@ -505,12 +509,14 @@ export const TeamPage: React.FC = () => {
 
                     {canModify && !isSelf && (
                       <button
-                        onClick={() => {
-                          if (
-                            confirm(
-                              `Yakin ingin mengeluarkan ${m.email || m.user_id} dari workspace? Seluruh API key yang dibuatnya akan dicabut seketika.`
-                            )
-                          ) {
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: 'Hapus Anggota Workspace',
+                            message: `Yakin ingin mengeluarkan ${m.email || m.user_id} dari workspace? Seluruh API key dan hak akses administratif yang dibuatnya akan dicabut seketika.`,
+                            confirmLabel: 'Hapus Anggota',
+                            variant: 'danger',
+                          });
+                          if (ok) {
                             removeMemberMutation.mutate(m.user_id);
                           }
                         }}
@@ -676,8 +682,15 @@ export const TeamPage: React.FC = () => {
                 {joinCodeData?.enabled ? (
                   <>
                     <button
-                      onClick={() => {
-                        if (confirm('Memutar kode akan membatalkan kode pendaftaran lama. Lanjutkan?')) {
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Putar Kode Pendaftaran Baru',
+                          message:
+                            'Memutar kode akan membatalkan kode pendaftaran lama segera. Calon anggota harus menggunakan kode pendaftaran baru untuk mendaftar. Lanjutkan?',
+                          confirmLabel: 'Putar Kode Baru',
+                          variant: 'warning',
+                        });
+                        if (ok) {
                           rotateJoinCodeMutation.mutate();
                         }
                       }}
@@ -688,8 +701,15 @@ export const TeamPage: React.FC = () => {
                       <span>Putar Kode Baru</span>
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm('Yakin ingin menonaktifkan kode pendaftaran workspace ini?')) {
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Nonaktifkan Kode Pendaftaran',
+                          message:
+                            'Yakin ingin menonaktifkan kode pendaftaran workspace ini? Calon anggota tidak lagi dapat mendaftar mandiri via /join sampai kode diaktifkan kembali.',
+                          confirmLabel: 'Nonaktifkan Kode',
+                          variant: 'danger',
+                        });
+                        if (ok) {
                           disableJoinCodeMutation.mutate();
                         }
                       }}
@@ -832,8 +852,14 @@ export const TeamPage: React.FC = () => {
                           <span>Setujui</span>
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`Yakin ingin menolak permintaan dari ${req.email}?`)) {
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: 'Tolak Permintaan Bergabung',
+                              message: `Yakin ingin menolak permohonan bergabung dari ${req.email}?`,
+                              confirmLabel: 'Tolak Permintaan',
+                              variant: 'danger',
+                            });
+                            if (ok) {
                               rejectJoinRequestMutation.mutate(req.id);
                             }
                           }}

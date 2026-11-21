@@ -27,6 +27,7 @@ after(async () => { await app?.close(); await t?.drop(); });
 let n = 0;
 const PW = 'kata-sandi-panjang-1';
 const tq = (tenantId: string, sql: string, args: any[] = []) => db.tx({ tenantId }, async (c: any) => (await c.query(sql, args)).rows);
+const setMembers = (o: { tenantId: string }, n: number) => tq(o.tenantId, `UPDATE tenant_settings SET max_members = $2 WHERE tenant_id = $1`, [o.tenantId, n]);
 const call = async (method: string, url: string, tok?: string, payload?: any, headers: any = {}) => {
   const r = await app.inject({ method, url: `/api/v1${url}`, headers: { ...(tok ? { authorization: `Bearer ${tok}` } : {}), ...headers }, payload });
   let body: any; try { body = r.json(); } catch { body = null; }
@@ -57,18 +58,13 @@ test('#1 filter rahasia audit memakai batas kata: max_api_keys tercatat, kunci r
   for (const k of ['api_key', 'x-api-key', 'apikey', 'api-key', 'token', 'invitation_token', 'token_hash', 'secret', 'webhook_secret', 'password', 'password_hash', 'authorization', 'cookie', 'key', 'access_token']) assert.equal(isSecretKey(k), true, k);
 });
 
-test('#1 perubahan max_api_keys muncul di jejak settings.updated (sebelumnya terbuang diam-diam)', { skip }, async () => {
-  const o = await reg();
-  assert.equal((await call('PATCH', '/tenant/settings', o.tok, { max_api_keys: 7, max_sessions: 4 })).status, 200);
-  const a = (await auditOf(o, '&action=settings.updated'))[0];
-  assert.deepEqual(a.details.changes, { max_api_keys: { from: 20, to: 7 }, max_sessions: { from: 3, to: 4 } });
-});
+// (#1 perilaku: perubahan max_api_keys muncul di jejak, kini diubah platform: lihat platform-workspaces.test.ts; uji unit isSecretKey di atas tetap.)
 
 // ---------- #2 reissue tidak boleh melewati kuota anggota ----------
 
 test('#2 menghidupkan undangan kedaluwarsa dengan reissue tunduk pada kuota anggota', { skip }, async () => {
   const o = await reg();
-  assert.equal((await call('PATCH', '/tenant/settings', o.tok, { max_members: 2 })).status, 200);
+  await setMembers(o, 2);
   const x = await call('POST', '/team/invitations', o.tok, { email: 'kedaluwarsa@x.test', role: 'VIEWER' }); // 1 anggota + 1 tertunda = penuh
   assert.equal(x.status, 201);
   await tq(o.tenantId, `UPDATE tenant_invitations SET expires_at = now() - interval '1 minute' WHERE id = $1`, [x.body.data.id]);
@@ -78,10 +74,10 @@ test('#2 menghidupkan undangan kedaluwarsa dengan reissue tunduk pada kuota angg
   const members = (await call('GET', '/team/members', o.tok)).body.meta.total;
   assert.equal(members, 2);
   // ada ruang -> boleh
-  assert.equal((await call('PATCH', '/tenant/settings', o.tok, { max_members: 3 })).status, 200);
+  await setMembers(o, 3);
   assert.equal((await call('POST', `/team/invitations/${x.body.data.id}/reissue`, o.tok)).status, 200);
   // undangan yang MASIH hidup tidak butuh slot tambahan (sudah dihitung)
-  assert.equal((await call('PATCH', '/tenant/settings', o.tok, { max_members: 3 })).status, 200);
+  await setMembers(o, 3);
   assert.equal((await call('POST', `/team/invitations/${x.body.data.id}/reissue`, o.tok)).status, 200, 'masih hidup: reissue tidak memicu cek kuota');
 });
 
@@ -181,18 +177,4 @@ test('#7 kunci serialisasi tim didefinisikan di SATU berkas (tidak ada salinan y
   assert.deepEqual(hits, ['modules/team/team-lock.ts']);
 });
 
-// ---------- #8 ceiling diturunkan operator ----------
-
-test('#8 menurunkan LIMIT_CEIL_* tidak membuat pengiriman ulang nilai yang tidak berubah ditolak; menaikkan di atas ceiling tetap ditolak', { skip }, async () => {
-  const o = await reg();
-  assert.equal((await call('PATCH', '/tenant/settings', o.tok, { max_members: 15 })).status, 200);
-  const prev = config.LIMIT_CEIL_MEMBERS; (config as any).LIMIT_CEIL_MEMBERS = 12; // operator menurunkan ceiling di bawah nilai tersimpan (15)
-  try {
-    const same = await call('PATCH', '/tenant/settings', o.tok, { max_members: 15, messages_per_minute: 90 }); // formulir yang mengirim semua field
-    assert.equal(same.status, 200, JSON.stringify(same.body));
-    assert.deepEqual([same.body.data.limits.max_members, same.body.data.limits.messages_per_minute], [15, 90]);
-    assert.equal((await auditOf(o, '&action=settings.updated'))[0].details.changes.max_members, undefined, 'nilai yang sama tidak tercatat sebagai perubahan');
-    assert.equal((await call('PATCH', '/tenant/settings', o.tok, { max_members: 16 })).status, 400, 'naik di atas ceiling baru tetap ditolak');
-    assert.equal((await call('PATCH', '/tenant/settings', o.tok, { max_members: 12 })).status, 200, 'turun ke ceiling boleh');
-  } finally { (config as any).LIMIT_CEIL_MEMBERS = prev; }
-});
+// (#8 ceiling diturunkan operator: kuota kini diatur platform; padanan di platform-workspaces.test.ts.)

@@ -139,7 +139,7 @@ export function generateOpenApi(routes: CollectedRoute[]): Json {
 
     const operation: Json = {
       operationId: `${method.toLowerCase()}_${path.replace(/^\//, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/_$/, '')}`,
-      tags: [op.tag], summary: op.summary, ...(op.description ? { description: op.description } : {}),
+      tags: [op.tag], summary: op.summary, ...(op.description ? { description: op.description } : {}), ...(op.deprecated ? { deprecated: true } : {}),
       ...(parameters.length ? { parameters } : {}), security, ...extra,
     };
     if (c.body) operation.requestBody = { required: !c.bodyOptional, content: { 'application/json': { schema: toSchema(c.body, 'input', defs) } } };

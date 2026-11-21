@@ -20,10 +20,12 @@ export interface SettingsRoutesOpts {
 export async function settingsRoutes(app: FastifyInstance, { settings, authenticate }: SettingsRoutesOpts) {
   // Baca: semua peran dashboard (atau API key ber-scope usage:read, sama dengan /usage/summary). Ubah: hanya OWNER dashboard.
   app.get('/tenant/settings', { preHandler: [authenticate, requireAccess('usage:read', ['OWNER', 'MEMBER', 'VIEWER'])] }, async (req) => ok(await settings.get(req.auth!.tenantId)));
+  // OWNER TIDAK lagi dapat mengubah kuota (ADR-054): diatur pemilik platform. Rute dipertahankan agar klien lama mendapat jawaban yang jelas, bukan 404.
+  // MEMBER/VIEWER/API key tetap ditolak guard seperti biasa; OWNER mendapat 403 dengan kode khusus.
   app.patch('/tenant/settings', { preHandler: [authenticate, requireRole('OWNER')] }, async (req) => {
-    const a = req.auth!;
-    if (a.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');
-    return ok(await settings.update({ userId: a.userId, tenantId: a.tenantId, ip: req.ip, requestId: req.id }, PatchSchema.parse(req.body)));
+    if (req.auth!.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');
+    PatchSchema.parse(req.body);
+    throw new AppError('QUOTA_MANAGED_BY_PLATFORM', 403, 'Kuota workspace diatur oleh pemilik platform. Hubungi pemilik platform untuk menambah atau mengubah kuota.');
   });
 }
 

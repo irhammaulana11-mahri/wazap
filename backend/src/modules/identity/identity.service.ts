@@ -71,7 +71,11 @@ export function createIdentityService(db: GatewayDb) {
           await storeRecoverySet(c, userId, recovery.hashes, false);
           await c.query('INSERT INTO tenants (id, name, slug) VALUES ($1,$2,$3)', [tenantId, input.tenantName.trim(), slug]);
           await c.query(`INSERT INTO tenant_memberships (tenant_id, user_id, role, member_email) VALUES ($1,$2,'OWNER',$3)`, [tenantId, userId, email]);
-          await c.query('INSERT INTO tenant_settings (tenant_id) VALUES ($1)', [tenantId]);
+          // Kuota awal dari kuota bawaan platform (ADR-054); nilai cadangan hanya bila baris bawaan hilang (tidak seharusnya terjadi).
+          await c.query(
+            `INSERT INTO tenant_settings (tenant_id, max_sessions, max_api_keys, max_members, messages_per_minute)
+             SELECT $1, COALESCE(d.max_sessions, 3), COALESCE(d.max_api_keys, 20), COALESCE(d.max_members, 10), COALESCE(d.messages_per_minute, 60)
+             FROM (SELECT 1) x LEFT JOIN platform_defaults d ON true`, [tenantId]);
           const rt = await issueRefresh(c, userId, tenantId);
           return {
             ...tokens(userId, tenantId, rt.raw),

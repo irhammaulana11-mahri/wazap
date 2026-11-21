@@ -443,8 +443,8 @@ oleh retensi (`RETENTION_AUDIT_DAYS`, default 365 hari).
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET | `/tenant/settings` | semua peran dashboard; API key `usage:read` | `{limits, ceilings, minimums, used, updated_at}` |
-| PATCH | `/tenant/settings` | OWNER (dashboard) | body strict, minimal satu: `{max_sessions?, max_api_keys?, max_members?, messages_per_minute?}` (bilangan bulat) -> objek seperti GET |
+| GET | `/tenant/settings` | semua peran dashboard; API key `usage:read` | `{limits, ceilings, minimums, used, updated_at, editable: false, managed_by: "platform"}` |
+| PATCH | `/tenant/settings` | **DIHENTIKAN** (deprecated) | OWNER selalu `403 QUOTA_MANAGED_BY_PLATFORM`: kuota diatur pemilik platform (ADR-054); body tetap divalidasi strict lebih dulu |
 
 `limits` = nilai berlaku; `ceilings` = batas atas global dari env operator (`LIMIT_CEIL_SESSIONS` 10, `LIMIT_CEIL_API_KEYS` 50, `LIMIT_CEIL_MEMBERS` 50, `LIMIT_CEIL_MESSAGES_PER_MINUTE` 120);
 `minimums` = `{max_sessions:1, max_api_keys:0, max_members:1, messages_per_minute:1}`; `used` = `{sessions, api_keys, members}` (anggota + undangan tertunda; definisi sama dengan penolakan `QUOTA_EXCEEDED`).
@@ -535,3 +535,22 @@ Hanya OWNER pengguna dashboard (API key 403); `GET /alerts/catalog` boleh semua 
 | `GET /alerts/deliveries?limit` | riwayat terbaru (1-100): `status` PENDING/SENT/DEAD, `last_error_code` (mis. `HTTP_401`, `RATE_CAPPED`, `CHANNEL_INACTIVE`) |
 
 `ALERTS_ENABLED=false` → semua operasi pengelolaan 503 `NOT_CONFIGURED` (kecuali baca); konfigurasi tetap tersimpan. Aturan: `session.logged_out`, `session.disconnected_long`, `session.reconnect_loop`, `webhook.endpoint_disabled`, `webhook.dead_burst`, `message.failed_burst`, `message.unknown`, `export.completed`.
+
+## Konsol platform (ADR-054) --- BUKAN bagian API pelanggan
+
+Seluruh `/api/v1/platform/*`. Token platform (`Authorization: Bearer`) BERBEDA dari token workspace dan API key (kunci dan klaim lain; tidak saling sah). MFA TOTP wajib; akun dibuat hanya lewat CLI server. `PLATFORM_ENABLED=false` membuat semuanya 404. Respons tidak pernah di-cache (`Cache-Control: no-store`). Platform admin hanya melihat metadata dan agregat (tanpa isi pesan, kontak, kredensial, target alarm, kunci API); dijaga tes pemindai sumber dan tes isi respons.
+
+| Method | Path | Isi |
+|---|---|---|
+| POST | `/platform/auth/login` | `{email, password}` -> `{mfa_token, expires_in}` (galat seragam `401 INVALID_CREDENTIALS`; terkunci `429 ACCOUNT_LOCKED`) |
+| POST | `/platform/auth/verify` | `{mfa_token, code}` (kode TOTP 6 digit atau kode pemulihan) -> `{access_token, expires_in, admin, recovery_remaining}`; `401 INVALID_OTP`, `401 INVALID_MFA_TOKEN`, `429` |
+| GET | `/platform/me` | `{user_id, email}` |
+| GET | `/platform/workspaces?q&status&page&page_size` | ringkasan: `{id,name,slug,status,created_at,suspended_at,limits,used:{sessions,sessions_connected,api_keys,members},owners[]}`; bawaan ACTIVE+SUSPENDED; `status=DELETED|ALL`; `q` = nama, slug, surel OWNER |
+| GET | `/platform/workspaces/:id` | ringkasan + `members_by_role`, `pending_invitations`, `owner_accounts`, `quota_used` (anggota termasuk undangan tertunda), `minimums`, `ceilings`, `history` (20 perubahan platform terakhir) |
+| PATCH | `/platform/workspaces/:id/quotas` | `{max_sessions?,max_api_keys?,max_members?,messages_per_minute?, reason(3..500), otp}` -> kuota baru. TOTP SEGAR (sekali pakai), alasan wajib. Urutan: pra-periksa input (kode TIDAK dikonsumsi bila salah), konsumsi kode, tulis. `400` di luar [minimum, batas mutlak `LIMIT_CEIL_*`], `409 LIMIT_BELOW_USAGE`, `409 NO_CHANGE`, `404` (tidak ada/terhapus), `401 INVALID_OTP`. Tercatat di audit platform (dengan alasan) dan di audit workspace (`tenant.quota_changed`, `actor.email=platform`, tanpa alasan) |
+| GET | `/platform/defaults` | kuota bawaan workspace baru `{limits, minimums, ceilings, updated_at}` |
+| PATCH | `/platform/defaults` | `{...kuota, reason, otp}`; tidak mengubah workspace yang ada |
+| GET | `/platform/audit?tenant_id&action&page&page_size` | jejak audit platform, terbaru dulu |
+| GET | `/platform/backup-status` | `{configured, available, status:{updated_at,last_success_at,last_failure_at,last_failure_reason,last_file,last_size_bytes,location,offsite_ok_at}, age_hours, stale, max_age_hours, reason}`; hanya-baca dari berkas yang ditulis `backup-run.sh` |
+| (P1c) | `/platform/workspaces/:id/suspend`, `/activate` | tangguhkan/aktifkan (belum) |
+

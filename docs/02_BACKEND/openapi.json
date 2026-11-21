@@ -7944,6 +7944,14 @@
                         "updated_at": {
                           "type": "string",
                           "format": "date-time"
+                        },
+                        "editable": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "managed_by": {
+                          "type": "string",
+                          "const": "platform"
                         }
                       },
                       "required": [
@@ -7951,7 +7959,9 @@
                         "ceilings",
                         "minimums",
                         "used",
-                        "updated_at"
+                        "updated_at",
+                        "editable",
+                        "managed_by"
                       ],
                       "additionalProperties": {}
                     }
@@ -7984,7 +7994,9 @@
         "tags": [
           "Workspace"
         ],
-        "summary": "Ubah kuota dalam batas atas",
+        "summary": "DIHENTIKAN: kuota diatur pemilik platform (selalu 403 QUOTA_MANAGED_BY_PLATFORM untuk OWNER)",
+        "description": "Sejak ADR-054 OWNER tidak dapat mengubah kuota; hanya pemilik platform (konsol platform). Rute dipertahankan agar klien lama mendapat jawaban yang jelas. Gunakan GET /tenant/settings untuk melihat kuota dan pemakaian (editable=false).",
+        "deprecated": true,
         "security": [
           {
             "bearerAuth": []
@@ -8028,166 +8040,6 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Berhasil",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "const": true
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "limits": {
-                          "type": "object",
-                          "properties": {
-                            "max_sessions": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "max_api_keys": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "max_members": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "messages_per_minute": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            }
-                          },
-                          "required": [
-                            "max_sessions",
-                            "max_api_keys",
-                            "max_members",
-                            "messages_per_minute"
-                          ],
-                          "additionalProperties": {}
-                        },
-                        "ceilings": {
-                          "type": "object",
-                          "properties": {
-                            "max_sessions": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "max_api_keys": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "max_members": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "messages_per_minute": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            }
-                          },
-                          "required": [
-                            "max_sessions",
-                            "max_api_keys",
-                            "max_members",
-                            "messages_per_minute"
-                          ],
-                          "additionalProperties": {}
-                        },
-                        "minimums": {
-                          "type": "object",
-                          "properties": {
-                            "max_sessions": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "max_api_keys": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "max_members": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "messages_per_minute": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            }
-                          },
-                          "required": [
-                            "max_sessions",
-                            "max_api_keys",
-                            "max_members",
-                            "messages_per_minute"
-                          ],
-                          "additionalProperties": {}
-                        },
-                        "used": {
-                          "type": "object",
-                          "properties": {
-                            "sessions": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "api_keys": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            },
-                            "members": {
-                              "type": "integer",
-                              "minimum": -9007199254740991,
-                              "maximum": 9007199254740991
-                            }
-                          },
-                          "required": [
-                            "sessions",
-                            "api_keys",
-                            "members"
-                          ],
-                          "additionalProperties": {}
-                        },
-                        "updated_at": {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      },
-                      "required": [
-                        "limits",
-                        "ceilings",
-                        "minimums",
-                        "used",
-                        "updated_at"
-                      ],
-                      "additionalProperties": {}
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "data"
-                  ],
-                  "additionalProperties": {}
-                }
-              }
-            }
-          },
           "400": {
             "$ref": "#/components/responses/Error400"
           },
@@ -8196,9 +8048,6 @@
           },
           "403": {
             "$ref": "#/components/responses/Error403"
-          },
-          "409": {
-            "$ref": "#/components/responses/Error409"
           },
           "413": {
             "$ref": "#/components/responses/Error413"
@@ -9090,6 +8939,1653 @@
           },
           "413": {
             "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/workspaces": {
+      "get": {
+        "operationId": "get_platform_workspaces",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Daftar workspace dengan kuota, pemakaian agregat, dan surel OWNER (tanpa data pelanggan)",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache. Bawaan: status ACTIVE dan SUSPENDED; status=DELETED atau ALL untuk yang lain. q mencari nama, slug, atau surel OWNER.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "SUSPENDED",
+                "DELETED",
+                "ALL"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "slug": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ACTIVE",
+                              "SUSPENDED",
+                              "DELETED"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string"
+                          },
+                          "suspended_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "limits": {
+                            "type": "object",
+                            "properties": {
+                              "max_sessions": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "max_api_keys": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "max_members": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "messages_per_minute": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "max_sessions",
+                              "max_api_keys",
+                              "max_members",
+                              "messages_per_minute"
+                            ],
+                            "additionalProperties": {}
+                          },
+                          "used": {
+                            "type": "object",
+                            "properties": {
+                              "sessions": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "sessions_connected": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "api_keys": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "members": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "sessions",
+                              "sessions_connected",
+                              "api_keys",
+                              "members"
+                            ],
+                            "additionalProperties": {}
+                          },
+                          "owners": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "slug",
+                          "status",
+                          "created_at",
+                          "suspended_at",
+                          "limits",
+                          "used",
+                          "owners"
+                        ],
+                        "additionalProperties": {}
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "page_size": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "total_capped": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "page_size",
+                        "total"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/workspaces/{id}": {
+      "get": {
+        "operationId": "get_platform_workspaces_id",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Detail workspace: kuota, pemakaian, akun OWNER, dan 20 perubahan platform terakhir",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache. Tidak memuat isi pesan, kontak, kredensial, atau kunci API.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "SUSPENDED",
+                            "DELETED"
+                          ]
+                        },
+                        "created_at": {
+                          "type": "string"
+                        },
+                        "suspended_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_api_keys": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_members": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "messages_per_minute": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "used": {
+                          "type": "object",
+                          "properties": {
+                            "sessions": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "sessions_connected": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "api_keys": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "members": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "sessions",
+                            "sessions_connected",
+                            "api_keys",
+                            "members"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "owners": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "members_by_role": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "pending_invitations": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "owner_accounts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "user_id": {
+                                "type": "string"
+                              },
+                              "email": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "status": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "user_id",
+                              "email",
+                              "status"
+                            ],
+                            "additionalProperties": {}
+                          }
+                        },
+                        "quota_used": {
+                          "type": "object",
+                          "properties": {
+                            "sessions": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "api_keys": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "members": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "sessions",
+                            "api_keys",
+                            "members"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "minimums": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_api_keys": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_members": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "messages_per_minute": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "ceilings": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_api_keys": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_members": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "messages_per_minute": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "history": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": [
+                                  "number",
+                                  "string"
+                                ]
+                              },
+                              "admin_email": {
+                                "type": "string"
+                              },
+                              "action": {
+                                "type": "string"
+                              },
+                              "details": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {}
+                              },
+                              "reason": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "created_at": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "admin_email",
+                              "action",
+                              "details",
+                              "reason",
+                              "created_at"
+                            ],
+                            "additionalProperties": {}
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "slug",
+                        "status",
+                        "created_at",
+                        "suspended_at",
+                        "limits",
+                        "used",
+                        "owners",
+                        "members_by_role",
+                        "pending_invitations",
+                        "owner_accounts",
+                        "quota_used",
+                        "minimums",
+                        "ceilings",
+                        "history"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/workspaces/{id}/quotas": {
+      "patch": {
+        "operationId": "patch_platform_workspaces_id_quotas",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Atur kuota satu workspace (kode TOTP segar dan alasan wajib)",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache. Nilai dalam [minimum, batas mutlak LIMIT_CEIL_*] dan tidak di bawah pemakaian saat ini (409 LIMIT_BELOW_USAGE); 409 NO_CHANGE bila tidak ada perubahan; 401 INVALID_OTP, 429 ACCOUNT_LOCKED. Tercatat di audit platform dan, tanpa alasan, di audit workspace.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "max_sessions": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "max_api_keys": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "max_members": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "messages_per_minute": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "otp": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 10
+                  }
+                },
+                "required": [
+                  "reason",
+                  "otp"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_api_keys": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_members": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "messages_per_minute": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "ceilings": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_api_keys": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_members": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "messages_per_minute": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "minimums": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_api_keys": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_members": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "messages_per_minute": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "used": {
+                          "type": "object",
+                          "properties": {
+                            "sessions": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "api_keys": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "members": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "sessions",
+                            "api_keys",
+                            "members"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "updated_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "editable": {
+                          "type": "boolean",
+                          "const": false
+                        },
+                        "managed_by": {
+                          "type": "string",
+                          "const": "platform"
+                        }
+                      },
+                      "required": [
+                        "limits",
+                        "ceilings",
+                        "minimums",
+                        "used",
+                        "updated_at",
+                        "editable",
+                        "managed_by"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/defaults": {
+      "get": {
+        "operationId": "get_platform_defaults",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Kuota bawaan untuk workspace baru",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache.",
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_api_keys": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_members": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "messages_per_minute": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "minimums": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_api_keys": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_members": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "messages_per_minute": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "ceilings": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_api_keys": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_members": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "messages_per_minute": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "limits",
+                        "minimums",
+                        "ceilings",
+                        "updated_at"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_platform_defaults",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Ubah kuota bawaan workspace BARU (kode TOTP segar dan alasan wajib; tidak mengubah workspace yang ada)",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache.",
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "max_sessions": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "max_api_keys": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "max_members": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "messages_per_minute": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "otp": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 10
+                  }
+                },
+                "required": [
+                  "reason",
+                  "otp"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "limits": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_api_keys": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "max_members": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "messages_per_minute": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "minimums": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_api_keys": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_members": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "messages_per_minute": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "ceilings": {
+                          "type": "object",
+                          "properties": {
+                            "max_sessions": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_api_keys": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "max_members": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            },
+                            "messages_per_minute": {
+                              "type": [
+                                "number",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "max_sessions",
+                            "max_api_keys",
+                            "max_members",
+                            "messages_per_minute"
+                          ],
+                          "additionalProperties": {}
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "limits",
+                        "minimums",
+                        "ceilings",
+                        "updated_at"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/audit": {
+      "get": {
+        "operationId": "get_platform_audit",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Jejak audit platform (login, kegagalan, perubahan), terbaru dulu",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache.",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 48,
+              "pattern": "^[a-z_]+\\.[a-z_]+$"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": [
+                              "number",
+                              "string"
+                            ]
+                          },
+                          "admin_email": {
+                            "type": "string"
+                          },
+                          "action": {
+                            "type": "string"
+                          },
+                          "tenant_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "details": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "reason": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "ip": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "request_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "admin_email",
+                          "action",
+                          "tenant_id",
+                          "details",
+                          "reason",
+                          "ip",
+                          "request_id",
+                          "created_at"
+                        ],
+                        "additionalProperties": {}
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "page_size": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "total_capped": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "page_size",
+                        "total"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/backup-status": {
+      "get": {
+        "operationId": "get_platform_backup_status",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Status cadangan (hanya-baca) dari berkas yang ditulis backup-run.sh",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache. Tidak ada tombol jalankan atau pulihkan (ADR-052).",
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "configured": {
+                          "type": "boolean"
+                        },
+                        "available": {
+                          "type": "boolean"
+                        },
+                        "age_hours": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "stale": {
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        },
+                        "max_age_hours": {
+                          "type": "number"
+                        },
+                        "reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "status": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "updated_at": {
+                                  "type": "string"
+                                },
+                                "last_success_at": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "last_failure_at": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "last_failure_reason": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "last_file": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                },
+                                "last_size_bytes": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                },
+                                "location": {
+                                  "type": "string",
+                                  "enum": [
+                                    "offsite",
+                                    "separate_disk",
+                                    "same_disk"
+                                  ]
+                                },
+                                "offsite_ok_at": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "updated_at",
+                                "last_success_at",
+                                "location"
+                              ],
+                              "additionalProperties": {}
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "configured",
+                        "available",
+                        "age_hours",
+                        "stale",
+                        "max_age_hours",
+                        "reason",
+                        "status"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
           },
           "429": {
             "$ref": "#/components/responses/Error429"

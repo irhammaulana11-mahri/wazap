@@ -100,6 +100,8 @@ export const JoinRequest = named('JoinRequest', z.looseObject({
 const Limits = z.looseObject({ max_sessions: int, max_api_keys: int, max_members: int, messages_per_minute: int });
 export const TenantSettings = z.looseObject({
   limits: Limits, ceilings: Limits, minimums: Limits, used: z.looseObject({ sessions: int, api_keys: int, members: int }), updated_at: Dt,
+  /** Kuota diatur pemilik platform (ADR-054): OWNER hanya melihat. */
+  editable: z.literal(false), managed_by: z.literal('platform'),
 });
 export const AuditLog = z.looseObject({
   id: str, action: str,
@@ -179,4 +181,29 @@ export const PlatformSession = z.looseObject({
   recovery_remaining: z.number().int(),
 });
 export const PlatformMe = z.looseObject({ user_id: z.string(), email: z.string() });
+const PLimits = z.looseObject({ max_sessions: z.number().nullable(), max_api_keys: z.number().nullable(), max_members: z.number().nullable(), messages_per_minute: z.number().nullable() });
+const Used = z.looseObject({ sessions: z.number().int(), sessions_connected: z.number().int(), api_keys: z.number().int(), members: z.number().int() });
+export const PlatformWorkspace = z.looseObject({
+  id: z.string(), name: z.string(), slug: z.string(), status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']), created_at: z.string(), suspended_at: z.string().nullable(),
+  limits: PLimits, used: Used, owners: z.array(z.string()),
+});
+export const PlatformWorkspaceDetail = PlatformWorkspace.extend({
+  members_by_role: z.record(z.string(), z.number().int()), pending_invitations: z.number().int(),
+  owner_accounts: z.array(z.looseObject({ user_id: z.string(), email: z.string().nullable(), status: z.string() })),
+  quota_used: z.looseObject({ sessions: z.number().int(), api_keys: z.number().int(), members: z.number().int() }),
+  minimums: PLimits, ceilings: PLimits,
+  history: z.array(z.looseObject({ id: z.union([z.number(), z.string()]), admin_email: z.string(), action: z.string(), details: z.record(z.string(), z.unknown()), reason: z.string().nullable(), created_at: z.string() })),
+});
+export const PlatformDefaults = z.looseObject({ limits: Limits, minimums: PLimits, ceilings: PLimits, updated_at: z.string() });
+export const PlatformAuditRow = z.looseObject({
+  id: z.union([z.number(), z.string()]), admin_email: z.string(), action: z.string(), tenant_id: z.string().nullable(), details: z.record(z.string(), z.unknown()),
+  reason: z.string().nullable(), ip: z.string().nullable(), request_id: z.string().nullable(), created_at: z.string(),
+});
+export const PlatformBackupStatus = z.looseObject({
+  configured: z.boolean(), available: z.boolean(), age_hours: z.number().nullable(), stale: z.boolean().nullable(), max_age_hours: z.number(), reason: z.string().nullable(),
+  status: z.looseObject({
+    updated_at: z.string(), last_success_at: z.string().nullable(), last_failure_at: z.string().nullable().optional(), last_failure_reason: z.string().nullable().optional(),
+    last_file: z.string().nullable().optional(), last_size_bytes: z.number().nullable().optional(), location: z.enum(['offsite', 'separate_disk', 'same_disk']), offsite_ok_at: z.string().nullable().optional(),
+  }).nullable(),
+});
 

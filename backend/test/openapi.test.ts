@@ -48,7 +48,7 @@ test('struktur dokumen: operationId unik, $ref terselesaikan, parameter path ses
     const inPath = [...path.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
     const declared = (op.parameters ?? []).filter((p: any) => p.in === 'path').map((p: any) => p.name).sort();
     assert.deepEqual(declared, inPath, `${method} ${path}: parameter path tidak cocok`);
-    assert.ok(Object.keys(op.responses).some((s) => /^2\d\d$/.test(s)), `${method} ${path}: tanpa respons sukses`);
+    assert.ok(op.deprecated === true || Object.keys(op.responses).some((s) => /^2\d\d$/.test(s)), `${method} ${path}: tanpa respons sukses (hanya operasi deprecated yang selalu galat boleh)`);
     assert.ok(Array.isArray(op.security), `${method} ${path}: security harus eksplisit (publik = [])`);
   }
   assert.ok(n >= 75);

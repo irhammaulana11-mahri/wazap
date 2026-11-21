@@ -154,6 +154,8 @@ const baseSchema = z.object({
   PLATFORM_LOCK_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
   /** Berkas status cadangan (JSON) yang ditulis backup-run.sh; dibaca HANYA-BACA oleh konsol platform. Kosong = fitur status cadangan mati. */
   PLATFORM_BACKUP_STATUS_FILE: z.string().max(500).optional(),
+  /** Cadangan dianggap basi (merah di konsol) bila sukses terakhir lebih tua dari ini. Sejalan dengan MON_BACKUP_MAX_AGE_H pemantau. */
+  PLATFORM_BACKUP_MAX_AGE_HOURS: z.coerce.number().min(1).max(720).default(26),
   EXPORT_ENABLED: z.enum(['true', 'false']).default('true'),
   EXPORT_MAX_ROWS: z.coerce.number().int().min(1).max(5_000_000).default(200_000),
   EXPORT_MAX_SPAN_DAYS: z.coerce.number().int().min(1).max(3650).default(92),

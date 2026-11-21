@@ -4,8 +4,9 @@ import type { GatewayDb } from '../../database/gateway.js';
 import { config } from '../../config/env.js';
 import type { CredentialCrypto } from '../../security/credential-crypto.js';
 import { generateRecoveryCodes, generateTotpSecret, base32Encode, hashRecovery, looksLikeRecovery, otpauthUri, totpAad, verifyTotp } from '../../security/totp.js';
-import { isSecretKey } from '../audit/audit.js';
 import { verifyPassword } from '../identity/password.js';
+import { auditPlatform, type PlatformAuditEntry } from './platform.audit.js';
+import { createWorkspaceOps } from './platform.workspaces.js';
 import { signMfaToken, signPlatformToken, verifyMfaToken, verifyPlatformToken } from './platform-token.js';
 
 /**
@@ -14,21 +15,12 @@ import { signMfaToken, signPlatformToken, verifyMfaToken, verifyPlatformToken } 
  */
 export interface PlatformAdmin { userId: string; email: string }
 export interface RequestMeta { ip?: string; requestId?: string }
+export { auditPlatform, type PlatformAuditEntry };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const invalidCreds = () => new AppError('INVALID_CREDENTIALS', 401, 'Email atau password salah');
 const invalidMfa = () => new AppError('INVALID_MFA_TOKEN', 401, 'Sesi verifikasi tidak valid atau kedaluwarsa; masuk ulang');
 const locked = (until: Date) => new AppError('ACCOUNT_LOCKED', 429, 'Terlalu banyak percobaan; akun dikunci sementara', [], { 'Retry-After': String(Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000))) });
-
-export interface PlatformAuditEntry { adminUserId: string | null; adminEmail: string; action: string; tenantId?: string | null; details?: Record<string, unknown>; reason?: string | null; ip?: string; requestId?: string }
-
-/** Jejak audit platform di DALAM transaksi perubahan (atomik). Kunci yang tampak rahasia dibuang (pertahanan berlapis). */
-export async function auditPlatform(c: pg.PoolClient, e: PlatformAuditEntry): Promise<void> {
-  const details = Object.fromEntries(Object.entries(e.details ?? {}).filter(([k]) => !isSecretKey(k)));
-  await c.query(
-    `INSERT INTO platform_audit_logs (admin_user_id, admin_email, action, tenant_id, details, reason, ip, request_id) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8)`,
-    [e.adminUserId, e.adminEmail.slice(0, 254), e.action, e.tenantId ?? null, JSON.stringify(details), e.reason?.slice(0, 500) ?? null, e.ip?.slice(0, 45) ?? null, e.requestId?.slice(0, 64) ?? null]);
-}
 
 export function createPlatformService(db: GatewayDb, deps: { crypto?: CredentialCrypto; /** Jam (detik epoch) yang dapat disuntikkan untuk uji langkah TOTP; bawaan Date.now. */ now?: () => number }) {
   const cryptoOf = () => { if (!deps.crypto) throw new AppError('NOT_CONFIGURED', 503, 'Kunci enkripsi kredensial belum dikonfigurasi'); return deps.crypto; };
@@ -80,7 +72,7 @@ export function createPlatformService(db: GatewayDb, deps: { crypto?: Credential
     return { secret, codes, uri: otpauthUri(email, secret), base32: base32Encode(secret) };
   };
 
-  return {
+  const api = {
     // ---------- autentikasi ----------
     /** Langkah 1: email + kata sandi. Semua kegagalan (bukan pengguna, kata sandi salah, bukan admin, admin nonaktif) menjawab sama: 401 INVALID_CREDENTIALS. */
     async login(input: { email: string; password: string }, meta: RequestMeta = {}) {
@@ -180,6 +172,7 @@ export function createPlatformService(db: GatewayDb, deps: { crypto?: Credential
       return out as { user_id: string; email: string | null; status: string; last_login_at: Date | null; locked_until: Date | null; failed_attempts: number; recovery_remaining: number; created_at: Date }[];
     },
   };
+  return { ...api, ...createWorkspaceOps(db, { requireOtp: api.requireOtp }) };
 }
 
 export type PlatformService = ReturnType<typeof createPlatformService>;

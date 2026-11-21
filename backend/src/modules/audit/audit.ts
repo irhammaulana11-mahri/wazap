@@ -7,7 +7,7 @@ export type AuditAction =
   | 'join_code.rotated' | 'join_code.disabled' | 'join_request.approved' | 'join_request.rejected' | 'join_request.created'
   | 'account.password_changed' | 'account.password_reset' | 'account.email_changed' | 'account.recovery_code_created' | 'account.sessions_revoked'
   | 'api_key.updated' | 'session.renamed' | 'tenant.renamed' | 'tenant.deleted' | 'tenant.restored'
-  | 'settings.updated' | 'data.exported'
+  | 'settings.updated' | 'data.exported' | 'tenant.quota_changed' | 'tenant.suspended' | 'tenant.reactivated'
   | 'alert_channel.created' | 'alert_channel.updated' | 'alert_channel.deleted' | 'alert_channel.disabled' | 'alert_rule.updated';
 
 export interface AuditEntry {

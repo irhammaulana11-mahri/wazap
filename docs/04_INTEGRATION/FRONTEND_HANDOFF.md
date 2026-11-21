@@ -113,7 +113,7 @@ refresh paralel. Jangan me-refresh untuk `/auth/login`, `/auth/register`, `/auth
 | Terima undangan (`POST /team/invitations/accept`), pindah workspace | ya | ya | ya |
 | Baca audit log (`GET /audit-logs`), ekspor data, notifikasi alarm | ya | tidak | tidak |
 | Lihat kuota (`GET /tenant/settings`) | ya | ya | ya |
-| Ubah kuota (`PATCH /tenant/settings`) | ya (sementara; menjadi hanya-baca di P1: kuota diatur platform) | tidak | tidak |
+| Ubah kuota (`PATCH /tenant/settings`) | **tidak** (diatur pemilik platform; `403 QUOTA_MANAGED_BY_PLATFORM`) | tidak | tidak |
 | Lihat metrik penggunaan (`/usage/*`) | ya | ya | ya |
 
 -   API key (`gwk_...`) untuk integrasi pihak ketiga, **bukan** untuk dashboard: tidak bisa memanggil `/auth/me` atau mengelola API key.
@@ -144,7 +144,7 @@ refresh paralel. Jangan me-refresh untuk `/auth/login`, `/auth/register`, `/auth
 | `getUsageSummary()` (mock) | `GET /usage/summary?from&to` (bagian 4.7); deret grafik: `GET /usage/messages`; per sesi: `GET /usage/sessions` |
 | `getTeamMembers()` (mock) | `GET /team/members` (bagian 4.6); undang/ubah/hapus: `/team/invitations`, `PATCH|DELETE /team/members/:userId` |
 | (belum ada) pindah workspace | `POST /auth/switch-tenant {tenant_id}` (bagian 2.4) |
-| (belum ada) pengaturan/kuota tenant | `GET /tenant/settings`, `PATCH /tenant/settings` (bagian 4.9) |
+| (belum ada) pengaturan/kuota tenant | `GET /tenant/settings` (bagian 4.9; hanya-baca, `PATCH` dihentikan) |
 | (belum ada) audit log | `GET /audit-logs` (bagian 4.8) |
 
 ## 4. Referensi resource dengan contoh nyata
@@ -391,11 +391,10 @@ ekspor/penghapusan; jejak disimpan 365 hari. API key tidak dapat membaca audit (
   "updated_at": "2026-11-19T16:21:52.637Z" } }
 ```
 
-`PATCH /tenant/settings` (hanya **OWNER** dashboard) body strict, minimal satu kunci, bilangan bulat: `{max_sessions?, max_api_keys?, max_members?, messages_per_minute?}` -> objek seperti GET.
-UI: form dengan input angka yang dibatasi `minimums` dan `ceilings` dari respons GET (jangan hardcode), tampilkan `used` di samping batas, dan nonaktifkan form untuk peran selain OWNER (MEMBER/VIEWER hanya baca).
-Galat: `400 VALIDATION_ERROR` (di luar [minimum, ceiling] atau bukan bilangan bulat; `details[].path` = nama kunci), `409 LIMIT_BELOW_USAGE` (batas tidak boleh di bawah pemakaian saat ini: kurangi pemakaian dulu),
-`403` (bukan OWNER). Berlaku seketika; mengirim nilai yang sama dengan yang tersimpan = tidak ada perubahan (tetap sah walau operator menurunkan `ceilings` sesudahnya, sehingga formulir yang mengirim semua field tidak gagal). `ceilings` ditentukan operator server (tenant tidak dapat melampauinya); untuk batas lebih tinggi hubungi operator.
-`messages_per_minute` adalah perlindungan anti-ban: jelaskan di UI bahwa menaikkannya meningkatkan risiko nomor dibatasi WhatsApp. Perubahan tercatat di audit log (`settings.updated`).
+**Kuota diatur pemilik platform, bukan OWNER (ADR-054).** Respons GET memuat `editable: false` dan `managed_by: "platform"`: tampilkan kuota dan pemakaian **hanya-baca** (bilah pemakaian, `used` di samping batas) dengan teks "Hubungi pemilik platform untuk menambah atau mengubah kuota". Jangan menampilkan form ubah kuota.
+`PATCH /tenant/settings` **dihentikan** (`deprecated` di OpenAPI): OWNER menerima `403` dengan `error.code = "QUOTA_MANAGED_BY_PLATFORM"` dan pesan yang menunjuk ke pemilik platform (MEMBER/VIEWER `403 FORBIDDEN`, API key `403`, tanpa kredensial `401`). `ceilings`/`minimums` tetap ada di respons tetapi hanya informatif.
+`messages_per_minute` adalah perlindungan anti-ban. Perubahan kuota oleh platform muncul di audit log workspace sebagai `tenant.quota_changed` dengan `actor.email = "platform"` (tanpa identitas operator dan tanpa alasan internal): tampilkan sebagai "Diubah oleh pemilik platform".
+Kuota awal workspace BARU berasal dari kuota bawaan platform (bukan lagi 3/20/10/60 tetap).
 
 ### 4.10 Permintaan bergabung dengan kode workspace (ADR-036)
 

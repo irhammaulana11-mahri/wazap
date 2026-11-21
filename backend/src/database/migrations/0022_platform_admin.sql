@@ -72,5 +72,7 @@ CREATE POLICY tenants_platform_update          ON tenants            FOR UPDATE 
 CREATE POLICY tenant_settings_platform         ON tenant_settings    FOR ALL    USING (is_platform()) WITH CHECK (is_platform());
 CREATE POLICY memberships_platform_select      ON tenant_memberships FOR SELECT USING (is_platform());
 CREATE POLICY api_keys_platform_select         ON api_keys           FOR SELECT USING (is_platform());
+-- Undangan tertunda dihitung sebagai pemakaian kuota anggota (definisi yang sama dengan penolakan pembuatan); modul platform hanya menghitung, tidak pernah membaca token_hash/email.
+CREATE POLICY invitations_platform_select      ON tenant_invitations FOR SELECT USING (is_platform());
 -- Jejak transparansi di audit workspace ("diubah oleh platform"): hanya INSERT.
 CREATE POLICY audit_logs_platform_insert       ON audit_logs         FOR INSERT WITH CHECK (is_platform());

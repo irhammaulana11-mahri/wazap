@@ -11,6 +11,8 @@ export interface Operation {
   errors?: number[];
   /** Header yang dibaca/ditulis lewat cookie refresh (bukan body). */
   cookie?: 'sets-refresh' | 'reads-refresh';
+  /** Operasi dihentikan: diberi `deprecated: true` di OpenAPI. Hanya operasi bertanda ini yang boleh tanpa respons sukses (selalu menjawab galat). */
+  deprecated?: boolean;
   /** Hanya pengguna dashboard (API key ditolak 403 oleh handler walau guard hanya `authenticate`). */
   userOnly?: boolean;
   /** Menerima header Idempotency-Key. */
@@ -116,7 +118,7 @@ export const OPERATIONS: Record<string, Operation> = {
   'PATCH /tenant': O('Workspace', 'Ganti nama workspace', { 200: ok(S.Tenant) }),
   'DELETE /tenant': O('Workspace', 'Hapus workspace (masa pemulihan)', { 200: ok(S.TenantDeleted) }),
   'GET /tenant/settings': O('Workspace', 'Kuota, batas atas, dan pemakaian', { 200: ok(S.TenantSettings) }),
-  'PATCH /tenant/settings': O('Workspace', 'Ubah kuota dalam batas atas', { 200: ok(S.TenantSettings) }, { errors: [409] }),
+  'PATCH /tenant/settings': O('Workspace', 'DIHENTIKAN: kuota diatur pemilik platform (selalu 403 QUOTA_MANAGED_BY_PLATFORM untuk OWNER)', {}, { deprecated: true, errors: [403], description: 'Sejak ADR-054 OWNER tidak dapat mengubah kuota; hanya pemilik platform (konsol platform). Rute dipertahankan agar klien lama mendapat jawaban yang jelas. Gunakan GET /tenant/settings untuk melihat kuota dan pemakaian (editable=false).' }),
 
   // ---- Ekspor data (ADR-048) ----
   'POST /exports/messages': O('Ekspor', 'Ekspor riwayat pesan masuk dan keluar (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
@@ -127,6 +129,13 @@ export const OPERATIONS: Record<string, Operation> = {
   'POST /exports/members': O('Ekspor', 'Ekspor anggota tim (CSV atau NDJSON, streaming)', {}, { stream: EXPORT_STREAM, errors: [409, 422, 503], description: EXPORT_NOTE }),
   'POST /platform/auth/login': O('Platform', 'Platform admin langkah 1: email dan kata sandi -> token MFA berumur pendek', { 200: ok(S.PlatformMfaChallenge) }, { errors: [429], description: PLATFORM_NOTE }),
   'POST /platform/auth/verify': O('Platform', 'Platform admin langkah 2: kode TOTP atau kode pemulihan -> token platform', { 200: ok(S.PlatformSession) }, { errors: [429], description: PLATFORM_NOTE }),
+  'GET /platform/workspaces': O('Platform', 'Daftar workspace dengan kuota, pemakaian agregat, dan surel OWNER (tanpa data pelanggan)', { 200: list(S.PlatformWorkspace) }, { description: PLATFORM_NOTE + ' Bawaan: status ACTIVE dan SUSPENDED; status=DELETED atau ALL untuk yang lain. q mencari nama, slug, atau surel OWNER.' }),
+  'GET /platform/workspaces/:id': O('Platform', 'Detail workspace: kuota, pemakaian, akun OWNER, dan 20 perubahan platform terakhir', { 200: ok(S.PlatformWorkspaceDetail) }, { description: PLATFORM_NOTE + ' Tidak memuat isi pesan, kontak, kredensial, atau kunci API.' }),
+  'PATCH /platform/workspaces/:id/quotas': O('Platform', 'Atur kuota satu workspace (kode TOTP segar dan alasan wajib)', { 200: ok(S.TenantSettings) }, { errors: [409, 429], description: PLATFORM_NOTE + ' Nilai dalam [minimum, batas mutlak LIMIT_CEIL_*] dan tidak di bawah pemakaian saat ini (409 LIMIT_BELOW_USAGE); 409 NO_CHANGE bila tidak ada perubahan; 401 INVALID_OTP, 429 ACCOUNT_LOCKED. Tercatat di audit platform dan, tanpa alasan, di audit workspace.' }),
+  'GET /platform/defaults': O('Platform', 'Kuota bawaan untuk workspace baru', { 200: ok(S.PlatformDefaults) }, { description: PLATFORM_NOTE }),
+  'PATCH /platform/defaults': O('Platform', 'Ubah kuota bawaan workspace BARU (kode TOTP segar dan alasan wajib; tidak mengubah workspace yang ada)', { 200: ok(S.PlatformDefaults) }, { errors: [409, 429], description: PLATFORM_NOTE }),
+  'GET /platform/audit': O('Platform', 'Jejak audit platform (login, kegagalan, perubahan), terbaru dulu', { 200: list(S.PlatformAuditRow) }, { description: PLATFORM_NOTE }),
+  'GET /platform/backup-status': O('Platform', 'Status cadangan (hanya-baca) dari berkas yang ditulis backup-run.sh', { 200: ok(S.PlatformBackupStatus) }, { description: PLATFORM_NOTE + ' Tidak ada tombol jalankan atau pulihkan (ADR-052).' }),
   'GET /platform/me': O('Platform', 'Identitas platform admin yang sedang masuk', { 200: ok(S.PlatformMe) }, { description: PLATFORM_NOTE }),
   'GET /alerts/catalog': O('Notifikasi', 'Daftar aturan alarm, batas, dan status fitur (untuk UI)', { 200: ok(S.AlertCatalog) }),
   'GET /alerts/channels': O('Notifikasi', 'Daftar kanal notifikasi (target tidak pernah dikembalikan; hanya petunjuk 4 karakter)', { 200: ok(z.array(S.AlertChannel)) }),

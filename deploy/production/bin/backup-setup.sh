@@ -58,6 +58,8 @@ SCHEMA=$SCHEMA
 BACKUP_DIR=$BDIR
 BACKUP_MOUNTPOINT=$BMNT
 BACKUP_MIN_FREE_MB=500
+# Berkas status JSON untuk konsol platform (hanya-baca; PLATFORM_BACKUP_STATUS_FILE di api.env harus menunjuk ke sini).
+STATUS_FILE=/var/lib/wazap/status/backup.json
 RETENTION_DAYS=$KEEP
 # Enkripsi (disarankan untuk salinan di luar host): isi dengan ID kunci publik GPG penerima (kunci publik diimpor ke keyring pengguna ini; kunci PRIVAT disimpan di tempat lain).
 GPG_RECIPIENT=

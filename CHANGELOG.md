@@ -6,6 +6,11 @@
     -   Penyedia tema terpadu (`ThemeContext.tsx`) dengan 3 pilihan mode: Mode Terang (`light`), Mode Gelap (`dark`), dan Otomatis Ikuti Preferensi OS (`system`).
     -   Pengaturan tema tersedia untuk **seluruh peran pengguna** (`OWNER`, `MEMBER`, `VIEWER`) di aplikasi utama melalui tombol cepat Sun/Moon di Header dan kartu preferensi tampilan interaktif di [ProfilePage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/ProfilePage.tsx).
     -   Konsol Admin Platform (`PlatformLayout.tsx`) kini mengadopsi arsitektur tata letak standar aplikasi utama (Sidebar Kiri + Top Header + Kanvas Konten Terang/Gelap) yang dilengkapi tombol beralih tema langsung di header operator.
+    -   Penyempurnaan tema gelap untuk antarmuka **Pesan & Obrolan** (`ChatsPage.tsx`):
+        -   Panel kanan viewport chat mengadopsi palet WhatsApp Web Dark Mode (`dark:bg-[#0b141a]` menggantikan warna krem hardcoded `#EFEAE2`).
+        -   Gelembung pesan (bubble chat): pesan keluar (`dark:bg-[#005c4b]` dengan teks `#e9edef`) dan pesan masuk (`dark:bg-[#202c33]` dengan border gelap halus).
+        -   Panel bawah pengetikan pesan (footer composer) dan bilah format cepat teks/emoji beralih ke warna gelap serasi (`dark:bg-[#111b21]`).
+        -   Tampilan status kosong (empty state) "WhatsApp Gateway Messenger" dan panel drawer (Chat Baru & Detail Pesan) kini berkontras tajam dan nyaman di mata saat mode gelap aktif.
     -   Tailwind v4 `@custom-variant dark (&:where(.dark, .dark *))` terpasang di `index.css` untuk reaktivitas CSS mulus tanpa reload halaman.
 
 -   Baru (ADR-053): Peran tanpa ADMIN di seluruh aplikasi frontend (`frontend/src`).

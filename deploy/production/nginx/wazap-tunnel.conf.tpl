@@ -1,14 +1,17 @@
 # Vhost produksi WAZAP untuk Cloudflare TUNNEL. Dirender oleh bin/render-nginx.sh (TUNNEL=1); JANGAN diedit di /etc.
 # Placeholder: @DASH_HOST@ @API_HOST@ @WEB_ROOT@ @API_PORT@ @LOC_FILE@ @ACCESS_LOG@ @HSTS_MAX_AGE@
 #
-# Lalu lintas: pengunjung -> Cloudflare (TLS berakhir di sana) -> tunnel keluar -> cloudflared di server ini -> http://localhost:80 (Nginx) -> API 127.0.0.1.
-# Tidak ada port 443, sertifikat, certbot, dan mode SSL Cloudflare tidak berlaku. Vhost ini memakai `listen 80` biasa dengan server_name eksplisit,
-# SAMA seperti vhost situs lain di server ini, sehingga tidak mengganggu situs lain (jangan memakai listen 127.0.0.1:80: itu akan mengambil
-# SEMUA permintaan lewat loopback, termasuk milik situs lain).
+# Lalu lintas: pengunjung -> Cloudflare (TLS berakhir di sana) -> tunnel keluar -> cloudflared di server ini -> http://127.0.0.1:80 (Nginx) -> API 127.0.0.1.
+# Tidak ada port 443, sertifikat, certbot, dan mode SSL Cloudflare tidak berlaku.
+#
+# ALAMAT LISTEN HARUS SAMA DENGAN SITUS LAIN YANG DILAYANI LEWAT TUNNEL (@LISTEN@ = TUNNEL_LISTEN, bawaan 127.0.0.1:80). Nginx mencocokkan koneksi ke
+# alamat:port dulu, baru server_name. Bila situs lain memakai `listen 127.0.0.1:80` dan vhost kita `listen 80` (wildcard), koneksi cloudflared ke 127.0.0.1:80
+# hanya melihat server milik alamat itu: nama kita TIDAK PERNAH dijangkau dan permintaan jatuh ke situs lain (terbukti dengan Nginx sungguhan: Host wazap dijawab situs
+# bimbel). Sebaliknya bila SEMUA situs lain wildcard, pakai TUNNEL_LISTEN=80. `preflight.sh` mendeteksi pola yang dipakai server.
 #
 # Dua pengaman:
-#  1. Hanya koneksi dari loopback (cloudflared) yang dilayani. Port 80 server terbuka untuk publik; tanpa ini siapa pun yang mengirim
-#     "Host: @DASH_HOST@" langsung ke IP server melewati Cloudflare. $realip_remote_addr = alamat koneksi ASLI (sebelum diganti realip).
+#  1. Hanya koneksi dari loopback (cloudflared) yang dilayani. Dengan listen 127.0.0.1:80, permintaan dari internet ke IP server bahkan tidak sampai ke vhost ini;
+#     pemeriksaan $realip_remote_addr (alamat koneksi ASLI, sebelum diganti realip) menjadi lapis kedua, dan satu-satunya pengaman bila TUNNEL_LISTEN=80.
 #  2. IP pengunjung dibaca dari CF-Connecting-IP HANYA bila koneksi dari loopback; $remote_addr menjadi IP pengunjung, sehingga aturan
 #     "X-Forwarded-For $remote_addr" (ADR-040) tetap benar untuk throttling login, batas laju, dan audit.
 
@@ -24,8 +27,7 @@ upstream wazap_api { server 127.0.0.1:@API_PORT@; keepalive 16; }
 
 # Dashboard
 server {
-    listen 80;
-    listen [::]:80;
+    @LISTEN@
     server_name @DASH_HOST@;
 
     set_real_ip_from 127.0.0.1;
@@ -72,8 +74,7 @@ server {
 
 # API (integrasi). Tidak ada dashboard di host ini.
 server {
-    listen 80;
-    listen [::]:80;
+    @LISTEN@
     server_name @API_HOST@;
 
     set_real_ip_from 127.0.0.1;

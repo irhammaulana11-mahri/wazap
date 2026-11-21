@@ -71,6 +71,8 @@ if have nginx; then
     inf "server_name yang ada: $(echo "$T" | grep -E '^[[:space:]]*server_name' | sed 's/server_name//; s/;//' | tr -s ' \n' ' ' | cut -c1-300)"
     echo "$T" | grep -qE 'listen[^;]*default_server' && inf "ada default_server di Nginx (host tak dikenal diarahkan ke sana; vhost kita memakai server_name eksplisit sehingga aman)"
     echo "$T" | grep -E 'listen[^;]*443[^;]*default_server' | grep -q . && wn "sudah ada default_server di 443: pasang dengan CATCHALL_443=0 (penampung 443 kita akan duplikat)" || ok "tidak ada default_server di 443 (penampung SNI-tak-dikenal kita aman ditambahkan)"
+    if echo "$T" | grep -qE 'listen[[:space:]]+127\.0\.0\.1:80[[:space:];]'; then inf "situs lain memakai 'listen 127.0.0.1:80' (pola tunnel): pasang vhost kita dengan bawaan TUNNEL_LISTEN=127.0.0.1:80. JANGAN memakai wildcard 'listen 80' untuk situs tunnel: namanya tidak akan pernah dijangkau (terbukti)"
+    elif echo "$T" | grep -qE 'listen[[:space:]]+(\[::\]:)?80[[:space:];]'; then inf "situs lain memakai listen wildcard di port 80: pasang dengan TUNNEL_LISTEN=80"; fi
     for z in wazap_api wazap_auth wazap_tls; do echo "$T" | grep -qE "zone=$z[: ]|shared:$z:|upstream $z " && ng "nama '$z' sudah dipakai di Nginx" || ok "nama zona/upstream $z bebas"; done
     nv="$(nginx -v 2>&1 | sed -n 's#.*nginx/\([0-9.]*\).*#\1#p')"; if [ -n "$nv" ] && [ "$(printf '%s\n1.25.1\n' "$nv" | sort -V | head -n1)" = 1.25.1 ]; then ok "Nginx >= 1.25.1 (direktif 'http2 on;' didukung)"; else wn "Nginx ${nv:-?} < 1.25.1: 'http2 on;' tidak dikenal, vhost harus disesuaikan (listen 443 ssl http2)"; fi
   else wn "isi konfigurasi Nginx tidak terbaca (butuh sudo tanpa kata sandi, atau jalankan manual: sudo nginx -T | grep -E 'server_name|listen')"; fi

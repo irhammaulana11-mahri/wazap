@@ -84,7 +84,9 @@ if [ "${VERIFY_TUNNEL:-0}" = 1 ]; then
   chk "/health/ready lewat loopback" "$(oc "$DASH" http://127.0.0.1/health/ready)" 200
   chk "host API / = 404" "$(oc "$API" http://127.0.0.1/)" 404
   mip="$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -n1)"
-  if [ -n "$mip" ]; then chk "koneksi NON-loopback ke vhost kita ditolak 403 (Cloudflare tidak dapat dilewati; sumber $mip)" "$(oc "$DASH" "http://$mip/")" 403; else bad "IP lokal tidak terdeteksi untuk uji non-loopback"; fi
+  if [ -n "$mip" ]; then nb="$(curl -sS --max-time 10 -H "Host: $DASH" "http://$mip/" 2>/dev/null)"
+    case "$nb" in *'<div id="root"'*) bad "koneksi NON-loopback ($mip) dengan Host $DASH MENDAPAT dashboard: Cloudflare dapat dilewati (listen harus 127.0.0.1:80)" ;; *) ok "koneksi NON-loopback ($mip) dengan Host $DASH tidak mendapat dashboard (Cloudflare tidak dapat dilewati)" ;; esac
+  else bad "IP lokal tidak terdeteksi untuk uji non-loopback"; fi
   cc "https://$DASH/health/live?verify=$RANDOM" >/dev/null; sleep 1
   L=/var/log/nginx/wazap-access.log
   if [ -r "$L" ]; then ln="$(grep ' /health/live ' "$L" | tail -n1)"

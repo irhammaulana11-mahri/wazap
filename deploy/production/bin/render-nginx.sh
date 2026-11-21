@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Render templat vhost produksi ke dua berkas: <dir>/wazap.conf dan <dir>/wazap-locations.conf.
-# Pemakaian: render-nginx.sh <direktori-keluaran> [HSTS_MAX_AGE]   Env: DASH_HOST API_HOST CERT_DIR WEB_ROOT API_PORT TUNNEL(0|1; Cloudflare Tunnel, HTTP:80 hanya dari loopback) CLOUDFLARE(0|1) CATCHALL_443(1; 0 bila sudah ada default_server di 443)
+# Pemakaian: render-nginx.sh <direktori-keluaran> [HSTS_MAX_AGE]   Env: DASH_HOST API_HOST CERT_DIR WEB_ROOT API_PORT TUNNEL(0|1; Cloudflare Tunnel) TUNNEL_LISTEN(127.0.0.1:80 | 80; harus SAMA dengan pola situs lain di tunnel) CLOUDFLARE(0|1) CATCHALL_443(1; 0 bila sudah ada default_server di 443)
 set -euo pipefail
 D="$(cd "$(dirname "$0")/.." && pwd)"
 out="${1:?direktori keluaran}"; hsts="${2:-300}"
@@ -13,8 +13,9 @@ if [ "${CLOUDFLARE:-0}" = 1 ]; then
 fi
 sed -e "s#@API_PORT@#$PORT#g" "$D/nginx/wazap-locations.conf.tpl" > "$LOC"
 if [ "${TUNNEL:-0}" = 1 ]; then   # Cloudflare Tunnel: tanpa TLS/443/sertifikat/penampung
+  TL="${TUNNEL_LISTEN:-127.0.0.1:80}"; case "$TL" in 80) LISTEN="listen 80; listen [::]:80;" ;; *) LISTEN="listen $TL;" ;; esac
   sed -e "s#@DASH_HOST@#$DASH#g" -e "s#@API_HOST@#$API#g" -e "s#@WEB_ROOT@#$WEB#g" -e "s#@API_PORT@#$PORT#g" -e "s#@HSTS_MAX_AGE@#$hsts#g" \
-      -e "s#@LOC_FILE@#$LOC#g" -e "s#@ACCESS_LOG@#${ACCESS_LOG:-/var/log/nginx/wazap-access.log}#g" "$D/nginx/wazap-tunnel.conf.tpl" > "$out/wazap.conf"
+      -e "s#@LOC_FILE@#$LOC#g" -e "s#@LISTEN@#$LISTEN#g" -e "s#@ACCESS_LOG@#${ACCESS_LOG:-/var/log/nginx/wazap-access.log}#g" "$D/nginx/wazap-tunnel.conf.tpl" > "$out/wazap.conf"
   exit 0
 fi
 sed -e "s#@DASH_HOST@#$DASH#g" -e "s#@API_HOST@#$API#g" -e "s#@CERT_DIR@#$CERT#g" -e "s#@WEB_ROOT@#$WEB#g" \

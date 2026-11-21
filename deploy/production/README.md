@@ -15,6 +15,7 @@ Tanpa rahasia di folder ini. Rahasia dibuat di server, `/var/lib/wazap/env/` (06
 | `nginx/*.tpl`, `bin/render-nginx.sh` | vhost dua host + penampung 443 (templat; tidak diedit tangan di /etc); `CATCHALL_443=0` bila sudah ada default_server di 443 |
 | `bin/install-nginx.sh` | pasang ke Nginx sistem (**sudo**), dua tahap `http` lalu `https`; `nginx -t` dan rollback otomatis |
 | `bin/release.sh` | rilis tanpa sudo: cek cadangan -> build -> migrasi -> worker -> API -> frontend |
+| `bin/test-tunnel-vhost.sh` | uji perilaku vhost tunnel dengan Nginx sungguhan (berdampingan dengan situs lain, kontrol negatif); dipakai CI |
 | `bin/verify.sh` | gerbang dari luar lewat domain sungguhan (`ORIGIN_IP`, `VERIFY_BEHIND_CDN` bila lewat Cloudflare) |
 | `bin/preflight.sh` | pemeriksa read-only sebelum memasang di server yang sudah dipakai aplikasi lain |
 
@@ -59,10 +60,11 @@ Tanpa langkah ini semua pengunjung terlihat berasal dari satu IP (IP Cloudflare)
 6.  **Cloudflare Tunnel** (bukan awan oranye ke IP publik) topologinya berbeda: port 80/443 publik tidak dibuka dan asal tunnel diarahkan ke Nginx lokal. Bila Anda memakai Tunnel, beri tahu saya sebelum lanjut agar templatnya disesuaikan.
 
 ## Jalur untuk server ini: Cloudflare TUNNEL (DIPILIH, berdasarkan preflight dan `cloudflared` aktif)
-Lalu lintas: pengunjung, Cloudflare (TLS berakhir di sana), tunnel keluar, `cloudflared` di server, `http://localhost:80` (Nginx), API `127.0.0.1:3000`. Konsekuensinya: **tanpa port 443, tanpa sertifikat/certbot, dan mode SSL Cloudflare (Flexible/Full) tidak berlaku**; situs lain di zona yang sama tidak tersentuh. Lewati langkah 5 di "Urutan" dan ikuti ini.
-Dua pengaman bawaan vhost tunnel (terbukti dengan Nginx sungguhan berdampingan dengan situs lain di port yang sama):
--   Hanya koneksi dari **loopback** (cloudflared) yang dilayani; koneksi langsung dari internet ke IP server (port 80 server ini terbuka di `ufw`) dengan `Host: wazap...` ditolak **403**, jadi Cloudflare (WAF, batas laju, perlindungan) tidak dapat dilewati.
--   IP pengunjung dibaca dari `CF-Connecting-IP` hanya bila koneksi dari loopback, sehingga throttling login, batas laju, dan audit memakai IP pengunjung. Terbukti: tanpa header, semua pengunjung terlihat `127.0.0.1` (itu yang diperiksa `verify.sh`).
+Lalu lintas: pengunjung, Cloudflare (TLS berakhir di sana), tunnel keluar, `cloudflared` di server, `http://127.0.0.1:80` (Nginx), API `127.0.0.1:3000`. Konsekuensinya: **tanpa port 443, tanpa sertifikat/certbot, dan mode SSL Cloudflare (Flexible/Full) tidak berlaku**; situs lain di zona yang sama tidak tersentuh. Lewati langkah 5 di "Urutan" dan ikuti ini.
+**Alamat listen vhost WAJIB sama dengan situs lain di tunnel.** Server ini memakai `listen 127.0.0.1:80` (bimbel), jadi vhost kita bawaannya `listen 127.0.0.1:80` (`TUNNEL_LISTEN`). Nginx mencocokkan alamat:port dulu baru `server_name`: vhost wildcard (`listen 80`) di samping situs `127.0.0.1:80` TIDAK PERNAH dijangkau dan permintaan WAZAP dijawab situs lain (terbukti dengan Nginx sungguhan; `bin/test-tunnel-vhost.sh` menjadikannya uji permanen dengan kontrol negatif). Hanya bila SEMUA situs lain wildcard, pasang dengan `TUNNEL_LISTEN=80`. `preflight.sh` mendeteksi polanya.
+Pengaman bawaan:
+-   Dengan `listen 127.0.0.1:80`, permintaan dari internet ke IP server tidak sampai ke vhost kita (Cloudflare tidak dapat dilewati); pemeriksaan alamat koneksi asli (403) adalah lapis kedua.
+-   IP pengunjung dibaca dari `CF-Connecting-IP` hanya bila koneksi dari loopback, sehingga throttling login, batas laju, dan audit memakai IP pengunjung. Tanpa header itu semua pengunjung terlihat `127.0.0.1` (diperiksa `verify.sh` lewat log akses).
 
 **T1. Siapkan server** (tanpa publikasi): langkah 0 sampai 4 di "Urutan" (kode, DB, env, kunci master), lalu
 ```bash
@@ -73,8 +75,8 @@ pm2 save                                                # pm2 startup sudah terp
 VERIFY_LOCAL=1 VERIFY_TUNNEL=1 deploy/production/bin/verify.sh   # sisi origin: harus lulus SEBELUM dipublikasikan
 ```
 **T2. Publikasikan lewat tunnel** (Cloudflare Zero Trust, Networks, Tunnels, pilih tunnel yang sudah ada). Cek dulu jenisnya:
--   **Dikelola dari dashboard** (ExecStart cloudflared memakai `--token`; JANGAN menempel token ke chat): tab *Public Hostname*, tambah `wazap.bolinggo.org` dan `api-wazap.bolinggo.org`, Service **HTTP** `localhost:80` untuk keduanya. Bila nama itu sudah ada di daftar (preflight melihat DNS-nya sudah ada), ubah Service-nya, jangan buat ganda.
--   **Dikelola lokal** (`/etc/cloudflared/config.yml`): tambah dua aturan `ingress` SEBELUM aturan penutup `http_status:404`, masing-masing `service: http://localhost:80`, jalankan `cloudflared tunnel route dns <nama-tunnel> <hostname>` untuk tiap nama, lalu `sudo systemctl restart cloudflared`.
+-   **Dikelola dari dashboard** (ExecStart cloudflared memakai `--token`; JANGAN menempel token ke chat): tab *Public Hostname*, tambah `wazap.bolinggo.org` dan `api-wazap.bolinggo.org`, Service **HTTP** `127.0.0.1:80` untuk keduanya (alamat eksplisit, bukan `localhost`, agar tidak ambigu IPv4/IPv6). Bila nama itu sudah ada di daftar (preflight melihat DNS-nya sudah ada), ubah Service-nya, jangan buat ganda.
+-   **Dikelola lokal** (`/etc/cloudflared/config.yml`): tambah dua aturan `ingress` SEBELUM aturan penutup `http_status:404`, masing-masing `service: http://127.0.0.1:80`, jalankan `cloudflared tunnel route dns <nama-tunnel> <hostname>` untuk tiap nama, lalu `sudo systemctl restart cloudflared`.
 **T3. Pengaturan Cloudflare untuk dua hostname itu:** aktifkan *Always Use HTTPS* (rule per-hostname), *WebSockets* menyala (Network), dan buat notifikasi *Tunnel Health* (Notifications) ke surel Anda. Batas: 100 dtk per permintaan (ekspor sangat besar dapat 524), unggahan 100 MB.
 **T4. Verifikasi** dari mesin LAIN dan di server:
 ```bash

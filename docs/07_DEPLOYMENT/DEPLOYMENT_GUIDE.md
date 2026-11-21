@@ -21,7 +21,7 @@
     reconciled.
 -   Do not start duplicate session owners during recovery.
 
-## Operasi produksi\n\nRunbook operasional, playbook insiden, dan prosedur rotasi kunci: `RUNBOOK.md`. Cadangan dan pemulihan (termasuk peringatan RLS untuk `pg_dump`): `BACKUP_RESTORE.md`.\n\n## Catatan Fase G (hardening)
+## Operasi produksi\n\nPenyiapan produksi `wazap.bolinggo.org` / `api-wazap.bolinggo.org`: `deploy/production/README.md`; kesiapan dan gerbang: `PRODUCTION_READINESS.md` (ADR-050).\n\nRunbook operasional, playbook insiden, dan prosedur rotasi kunci: `RUNBOOK.md`. Cadangan dan pemulihan (termasuk peringatan RLS untuk `pg_dump`): `BACKUP_RESTORE.md`.\n\n## Catatan Fase G (hardening)
 
 -   **Migrasi terpisah:** produksi `AUTO_MIGRATE=false`; deploy: `npm run build && npm run migrate:prod`, lalu `npm start`.
     Role database: lihat DB_ROLES.md (belum diuji).

@@ -115,8 +115,8 @@ jobs:
       - name: Sintaks skrip
         run: |
           set -e
-          for f in deploy/staging/bin/*.sh deploy/ops/*.sh backend/scripts/*.sh; do bash -n "$f" && echo "ok $f"; done
-          for f in deploy/staging/bin/*.mjs deploy/staging/tools/*.mjs deploy/staging/ecosystem.config.cjs; do node --check "$f" && echo "ok $f"; done
+          for f in deploy/staging/bin/*.sh deploy/production/bin/*.sh deploy/ops/*.sh backend/scripts/*.sh; do bash -n "$f" && echo "ok $f"; done
+          for f in deploy/staging/bin/*.mjs deploy/staging/tools/*.mjs deploy/staging/ecosystem.config.cjs deploy/production/ecosystem.config.cjs; do node --check "$f" && echo "ok $f"; done
 
       - name: Vhost Nginx dirender dan lolos `nginx -t`
         run: |
@@ -129,7 +129,25 @@ jobs:
           nginx -t -c "$T/nginx.conf" -e "$T/run/error.log"
           # aturan keamanan yang sudah terbukti di staging: XFF HARUS ditimpa, bukan ditambah
           grep -qF 'X-Forwarded-For   $remote_addr' "$T/vhost.conf"
-          ! grep -v '^[[:space:]]*#' "$T/vhost.conf" | grep -qF 'proxy_add_x_forwarded_for'
+          # `! cmd` tidak memicu set -e, jadi pakai if eksplisit
+          if grep -v '^[[:space:]]*#' "$T/vhost.conf" | grep -qF 'proxy_add_x_forwarded_for'; then echo 'GAGAL: X-Forwarded-For ditambah, bukan ditimpa'; exit 1; fi
+
+      - name: Vhost produksi (dua host) dirender dan lolos `nginx -t`
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq nginx >/dev/null
+          T="$(mktemp -d)"; mkdir -p "$T/web" "$T/out" "$T/tmp"
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout "$T/privkey.pem" -out "$T/fullchain.pem" -days 1 -subj "/CN=wazap.bolinggo.org" 2>/dev/null
+          CERT_DIR="$T" WEB_ROOT="$T/web" deploy/production/bin/render-nginx.sh "$T/out" 300
+          # pengguna runner bukan root: salinan uji memakai port tinggi (templat produksi tetap 80/443)
+          sed -i -e 's/listen 80;/listen 18080;/' -e 's/listen \[::\]:80;/listen [::1]:18080;/' -e 's/listen 443 ssl;/listen 18443 ssl;/' -e 's/listen \[::\]:443 ssl;/listen [::1]:18443 ssl;/' "$T/out/wazap.conf"
+          printf 'pid %s/nginx.pid;\nevents {}\nhttp { access_log off; client_body_temp_path %s/b; proxy_temp_path %s/p; fastcgi_temp_path %s/f; uwsgi_temp_path %s/u; scgi_temp_path %s/s; include %s/out/wazap.conf; }\n' "$T" "$T" "$T" "$T" "$T" "$T" "$T" > "$T/nginx.conf"
+          nginx -t -c "$T/nginx.conf" -e "$T/error.log"
+          grep -qF 'X-Forwarded-For   $remote_addr' "$T/out/wazap-locations.conf" "$T/out/wazap.conf"
+          if grep -hv '^[[:space:]]*#' "$T/out/wazap.conf" "$T/out/wazap-locations.conf" | grep -qF 'proxy_add_x_forwarded_for'; then echo 'GAGAL: X-Forwarded-For ditambah, bukan ditimpa'; exit 1; fi
+          # satu origin untuk dashboard; host API tidak boleh melayani dashboard
+          grep -q 'server_name wazap.bolinggo.org;' "$T/out/wazap.conf"
+          grep -q 'server_name api-wazap.bolinggo.org;' "$T/out/wazap.conf"
 
   hygiene:
     name: Higiene repo (rahasia dan berkas lingkungan)

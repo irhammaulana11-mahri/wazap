@@ -67,8 +67,8 @@ const idemKey = (req: FastifyRequest) => {
 };
 
 export async function messageRoutes(app: FastifyInstance, { messages, authenticate }: MessageRoutesOpts) {
-  const read = [authenticate, requireAccess('messages:read', ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'])];
-  const write = [authenticate, requireAccess('messages:send', ['OWNER', 'ADMIN', 'MEMBER'])];
+  const read = [authenticate, requireAccess('messages:read', ['OWNER', 'MEMBER', 'VIEWER'])];
+  const write = [authenticate, requireAccess('messages:send', ['OWNER', 'MEMBER'])];
   const id = (req: FastifyRequest) => IdParam.parse(req.params).messageId;
 
   app.post('/messages/send', { preHandler: write }, async (req, reply) => {

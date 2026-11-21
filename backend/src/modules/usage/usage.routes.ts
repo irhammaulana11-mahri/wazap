@@ -19,7 +19,7 @@ export interface UsageRoutesOpts {
 }
 
 export async function usageRoutes(app: FastifyInstance, { usage, authenticate }: UsageRoutesOpts) {
-  const read = [authenticate, requireAccess('usage:read', ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'])];
+  const read = [authenticate, requireAccess('usage:read', ['OWNER', 'MEMBER', 'VIEWER'])];
 
   app.get('/usage/summary', { preHandler: read }, async (req) => ok(await usage.summary(req.auth!.tenantId, resolveRange(RangeQ.parse(req.query)))));
 

@@ -39,7 +39,7 @@ const code = async (o: U) => { const r = await call('PUT', '/team/join-code', o.
 const apply = (joinCode: string, email: string, password = PW) => call('POST', '/auth/join-requests', undefined, { join_code: joinCode, email, password });
 const loginRes = (email: string, tenantId?: string, password = PW) => call('POST', '/auth/login', undefined, { email, password, tenant_id: tenantId });
 const pending = async (o: U) => (await call('GET', '/team/join-requests?status=PENDING', o.tok)).body.data as any[];
-async function joinAs(o: U, role: string): Promise<U> { // anggota biasa lewat alur undangan, untuk menguji peran ADMIN/MEMBER
+async function joinAs(o: U, role: string): Promise<U> { // anggota biasa lewat alur undangan, untuk menguji peran OWNER/MEMBER
   const u = await reg();
   const inv = await call('POST', '/team/invitations', o.tok, { email: u.email, role });
   await call('POST', '/team/invitations/accept', u.tok, { token: inv.body.data.token });
@@ -55,7 +55,7 @@ test('normalisasi kode: huruf kecil, tanpa tanda hubung, awalan WJ opsional; kod
   assert.equal(normalizeJoinCode('ABCDEFGHJKMNPQRSTUV0'), null, 'karakter di luar alfabet');
 });
 
-test('kode workspace: OWNER/ADMIN saja; tampil sekali; GET tidak membocorkan kode; hash saja di DB', { skip }, async () => {
+test('kode workspace: OWNER saja; tampil sekali; GET tidak membocorkan kode; hash saja di DB', { skip }, async () => {
   const o = await reg(); const m = await joinAs(o, 'MEMBER');
   assert.equal((await call('GET', '/team/join-code', o.tok)).body.data.enabled, false);
   const r = await call('PUT', '/team/join-code', o.tok);
@@ -122,17 +122,16 @@ test('email yang sudah terdaftar harus membuktikan kata sandi; tidak membuat aku
   assert.equal((await apply(c, other.email)).body.error.code, 'ALREADY_MEMBER');
 });
 
-test('wewenang penyetuju: ADMIN hanya MEMBER/VIEWER; MEMBER/API key tidak dapat mengelola; OWNER dapat memberi ADMIN', { skip }, async () => {
-  const o = await reg(); const adm = await joinAs(o, 'ADMIN'); const mem = await joinAs(o, 'MEMBER'); const c = await code(o);
+test('wewenang penyetuju: hanya OWNER; MEMBER/API key tidak dapat mengelola; peran ADMIN tidak sah (ADR-053)', { skip }, async () => {
+  const o = await reg(); const own2 = await joinAs(o, 'OWNER'); const mem = await joinAs(o, 'MEMBER'); const c = await code(o);
   await apply(c, `p${++n}@x.test`); await apply(c, `p${++n}@x.test`);
   const [a, b] = await pending(o);
-  assert.equal((await call('POST', `/team/join-requests/${a.id}/approve`, adm.tok, { role: 'ADMIN' })).status, 403);
-  assert.equal((await call('POST', `/team/join-requests/${a.id}/approve`, adm.tok, { role: 'OWNER' })).status, 403);
   assert.equal((await call('POST', `/team/join-requests/${a.id}/approve`, mem.tok, { role: 'MEMBER' })).status, 403);
   assert.equal((await call('GET', '/team/join-requests', mem.tok)).status, 403);
-  assert.equal((await call('POST', `/team/join-requests/${a.id}/approve`, adm.tok, { role: 'MEMBER' })).status, 200);
-  assert.equal((await call('POST', `/team/join-requests/${b.id}/approve`, o.tok, { role: 'ADMIN' })).status, 200);
-  assert.equal((await call('POST', `/team/join-requests/${b.id}/approve`, o.tok, { role: 'ADMIN', x: 1 })).status, 400, 'strict');
+  assert.equal((await call('POST', `/team/join-requests/${a.id}/approve`, own2.tok, { role: 'ADMIN' })).status, 400, 'peran ADMIN dihapus');
+  assert.equal((await call('POST', `/team/join-requests/${a.id}/approve`, own2.tok, { role: 'MEMBER' })).status, 200, 'OWNER kedua boleh menyetujui');
+  assert.equal((await call('POST', `/team/join-requests/${b.id}/approve`, o.tok, { role: 'OWNER', x: 1 })).status, 400, 'strict');
+  assert.equal((await call('POST', `/team/join-requests/${b.id}/approve`, o.tok, { role: 'OWNER' })).status, 200, 'OWNER dapat memberi OWNER');
 });
 
 test('tolak: pemohon melihat JOIN_REJECTED, dapat mengajukan ulang; permintaan kedaluwarsa tidak dapat disetujui dan dapat diajukan ulang', { skip }, async () => {

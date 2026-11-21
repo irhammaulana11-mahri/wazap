@@ -98,23 +98,23 @@ refresh paralel. Jangan me-refresh untuk `/auth/login`, `/auth/register`, `/auth
 -   Login tanpa `tenant_id` memilih workspace tertua pengguna. **Pindah workspace:** `POST /auth/switch-tenant {tenant_id}` (tanpa kata sandi; `tenant_id` dari
     `memberships` pada `/auth/me`) -> respons sama dengan login + cookie refresh baru (family lama dicabut). Bukan anggota/ditangguhkan = `404`. Refresh mempertahankan
     tenant yang sedang aktif. Setelah pindah, muat ulang SEMUA data (query cache dikosongkan) dan sambung ulang Socket.IO dengan token baru.
--   Peran: `OWNER`, `ADMIN`, `MEMBER`, `VIEWER`. Server memverifikasi ulang peran pada setiap permintaan (perubahan berlaku segera). Sembunyikan/nonaktifkan
-    kontrol sesuai peran, tetapi tetap tangani `403 FORBIDDEN`:
+-   Peran: `OWNER`, `MEMBER` (agent), `VIEWER` (**peran `ADMIN` dihapus, ADR-053**: nilai `ADMIN` ditolak `400`; akun yang sebelumnya ADMIN menjadi MEMBER). Satu workspace boleh punya
+    beberapa OWNER. Server memverifikasi ulang peran pada setiap permintaan (perubahan berlaku segera). Sembunyikan/nonaktifkan kontrol sesuai peran, tetapi tetap tangani `403 FORBIDDEN`:
 
-| Aksi | OWNER | ADMIN | MEMBER | VIEWER |
-|---|---|---|---|---|
-| Lihat sesi, pesan, chat, kontak, daftar API key | ya | ya | ya | ya |
-| Buat/connect/disconnect/reconnect/hapus sesi, ambil QR | ya | ya | ya | tidak |
-| Kirim/batalkan/kirim ulang pesan, media, bulk | ya | ya | ya | tidak |
-| Kelola webhook (semua endpoint `/webhooks*`) | ya | ya | tidak | tidak |
-| Buat/cabut API key | ya | ya | tidak | tidak |
-| Lihat anggota & undangan; undang; ubah peran/status; hapus anggota (`/team/*`) | ya | ya (hanya MEMBER/VIEWER) | tidak | tidak |
-| Keluar dari workspace sendiri (`DELETE /team/members/{id-sendiri}`) | ya (kecuali OWNER terakhir) | ya | ya | ya |
-| Terima undangan (`POST /team/invitations/accept`), pindah workspace | ya | ya | ya | ya |
-| Baca audit log (`GET /audit-logs`) | ya | ya | tidak | tidak |
-| Lihat kuota (`GET /tenant/settings`) | ya | ya | ya | ya |
-| Ubah kuota (`PATCH /tenant/settings`) | ya | tidak | tidak | tidak |
-| Lihat metrik penggunaan (`/usage/*`) | ya | ya | ya | ya |
+| Aksi | OWNER | MEMBER (agent) | VIEWER |
+|---|---|---|---|
+| Lihat sesi, pesan, chat, kontak, daftar API key | ya | ya | ya |
+| Buat/connect/disconnect/reconnect/hapus sesi, ambil QR | ya | ya | tidak |
+| Kirim/batalkan/kirim ulang pesan, media, bulk | ya | ya | tidak |
+| Kelola webhook (semua endpoint `/webhooks*`) | ya | tidak | tidak |
+| Buat/cabut API key | ya | tidak | tidak |
+| Lihat anggota & undangan; undang; ubah peran/status; hapus anggota (`/team/*`) | ya | tidak | tidak |
+| Keluar dari workspace sendiri (`DELETE /team/members/{id-sendiri}`) | ya (kecuali OWNER terakhir) | ya | ya |
+| Terima undangan (`POST /team/invitations/accept`), pindah workspace | ya | ya | ya |
+| Baca audit log (`GET /audit-logs`), ekspor data, notifikasi alarm | ya | tidak | tidak |
+| Lihat kuota (`GET /tenant/settings`) | ya | ya | ya |
+| Ubah kuota (`PATCH /tenant/settings`) | ya (sementara; menjadi hanya-baca di P1: kuota diatur platform) | tidak | tidak |
+| Lihat metrik penggunaan (`/usage/*`) | ya | ya | ya |
 
 -   API key (`gwk_...`) untuk integrasi pihak ketiga, **bukan** untuk dashboard: tidak bisa memanggil `/auth/me` atau mengelola API key.
 
@@ -127,7 +127,7 @@ refresh paralel. Jangan me-refresh untuk `/auth/login`, `/auth/register`, `/auth
 | `health()` -> `/health`, membaca `{status, database}` | `/health` adalah alias `GET /health/ready`; bentuknya `{status:"READY", checks:{database:"UP", shutting_down:false}, timestamp}` (field `database` di level atas **tidak ada**; baca `checks.database`). Tidak berstatus 200 saat tidak siap: 503. `/health/live` untuk liveness |
 | `getSessions()` -> `res.data` | `GET /sessions` -> `data[]` + `meta` |
 | `createSession(sessionName)` body `{sessionName}` | `POST /sessions {session_name (2-50: huruf/angka/spasi/. _ -), auto_connect?: true}` -> 201 sesi |
-| `getSessionQr(id)` | `GET /sessions/:id/qr` -> `{qr, qr_data_url, expires_at}` (hanya OWNER/ADMIN/MEMBER; pakai **hanya** `qr_data_url`) |
+| `getSessionQr(id)` | `GET /sessions/:id/qr` -> `{qr, qr_data_url, expires_at}` (hanya OWNER/MEMBER; pakai **hanya** `qr_data_url`) |
 | `deleteSession(id)` | `DELETE /sessions/:id` -> **202** (asinkron; sesi hilang dari daftar setelah dibersihkan, lalu 404) |
 | (belum ada) | `POST /sessions/:id/connect`, `/disconnect`, `/reconnect` -> 202; `GET /sessions/:id/status`; `GET /sessions/:id/events` |
 | `sendMessage(sessionId, to, text)` body `{sessionId,to,text}` | `POST /messages/send {session_id, to, type:"text", message, priority?, scheduled_at?}` + header `Idempotency-Key` -> **202** `{job_id, status:"PENDING"}` |
@@ -231,7 +231,7 @@ pratinjau pesan terakhir --- ambil dari `/chats/:id/messages?page_size=1` bila p
 `meta.chat` memuat chat-nya. Status `RECEIVED` (masuk) / `SENT|DELIVERED|READ` (keluar). Pesan media masuk hanya bertipe + caption (`text`); media tidak diunduh.
 `GET /contacts` -> `{phone, name, last_message_at, chats}`. `phone` bisa `null` pada chat berbasis `@lid` (privasi WhatsApp). Hanya chat 1:1 (tanpa grup).
 
-### 4.4 Webhook (OWNER/ADMIN)
+### 4.4 Webhook (OWNER)
 
 `POST /webhooks {url, events}` -> 201 dengan `secret` (**hanya sekali**; header `Cache-Control: no-store`):
 
@@ -249,7 +249,7 @@ aktifkan (`PATCH {"active": true}`). Lainnya: `POST /webhooks/:id/rotate-secret`
 `GET /webhooks/:id/deliveries?status=PENDING|DELIVERED|DEAD`, `POST /webhooks/:id/deliveries/:deliveryId/replay`. Format payload/tanda tangan:
 `WEBHOOK_SPECIFICATION.md` (untuk penerima webhook, bukan untuk dashboard).
 
-### 4.5 API key (daftar: semua peran; buat/cabut: OWNER/ADMIN)
+### 4.5 API key (daftar: semua peran; buat/cabut: OWNER)
 
 `POST /api-keys {name (2-100), scopes: [...], expires_at?}` -> 201 dengan **`key` hanya sekali**:
 
@@ -263,9 +263,9 @@ Scope valid (tidak ada `*`): `sessions:read`, `sessions:write`, `messages:send`,
 `null` bila dibuat lewat API key atau pembuatnya sudah dihapus (basis data mengosongkannya; key yang dibuatnya sudah dicabut). Maks 20 key (`409 QUOTA_EXCEEDED`).
 Tampilkan `key` di dialog "salin sekarang", jangan simpan.
 
-### 4.6 Tim (anggota dan undangan) --- hanya pengguna dashboard, OWNER/ADMIN kecuali disebut lain
+### 4.6 Tim (anggota dan undangan) --- hanya pengguna dashboard, OWNER kecuali disebut lain
 
-**Daftar anggota** `GET /team/members?page&page_size` (urut peran: OWNER, ADMIN, MEMBER, VIEWER):
+**Daftar anggota** `GET /team/members?page&page_size` (urut peran: OWNER, MEMBER, VIEWER):
 
 ```json
 { "success": true, "data": [
@@ -276,7 +276,7 @@ Tampilkan `key` di dialog "salin sekarang", jangan simpan.
 
 `email` bisa `null` untuk keanggotaan lama yang belum terisi (tampilkan "-"). Gunakan `is_me` untuk menandai/menonaktifkan aksi pada diri sendiri.
 
-**Ubah peran/status** `PATCH /team/members/:userId` body strict `{role?: OWNER|ADMIN|MEMBER|VIEWER, status?: ACTIVE|SUSPENDED}` (minimal satu) -> objek anggota.
+**Ubah peran/status** `PATCH /team/members/:userId` body strict `{role?: OWNER|MEMBER|VIEWER, status?: ACTIVE|SUSPENDED}` (minimal satu) -> objek anggota.
 `DELETE /team/members/:userId` -> `{user_id, removed: true}` (404 bila sudah tidak ada). Menghapus **diri sendiri** = keluar dari workspace (boleh untuk semua peran).
 
 Aturan izin (server menegakkan; UI menyembunyikan kontrol yang pasti ditolak):
@@ -284,7 +284,6 @@ Aturan izin (server menegakkan; UI menyembunyikan kontrol yang pasti ditolak):
 | Aktor | Boleh mengelola (ubah peran/status, hapus) | Boleh memberi peran |
 |---|---|---|
 | OWNER | semua anggota | semua peran (termasuk OWNER) |
-| ADMIN | hanya anggota ber-peran MEMBER/VIEWER | hanya MEMBER/VIEWER |
 | MEMBER, VIEWER | tidak ada (hanya keluar sendiri) | -- |
 
 Galat: `403 CANNOT_MODIFY_SELF` (ubah peran/status akun sendiri; untuk keluar pakai `DELETE`), `403 FORBIDDEN` (di luar wewenang), `409 LAST_OWNER`
@@ -310,11 +309,11 @@ tidak menghidupkannya kembali, OWNER membuat undangan baru bila perlu). Keduanya
     (2) **QR** dari tautan (dibuat di klien), (3) **Kirim lewat WhatsApp**: buka `https://wa.me/?text=<teks undangan + tautan, di-encode>` pada perangkat pengundang, atau (bila ada sesi
     `CONNECTED` dan nomor penerima) kirim langsung lewat `POST /messages/send` dari sesi tenant dengan teks undangan berisi tautan. Jangan menaruh token di log/analytics.
 -   `POST /team/invitations/:id/reissue` -> `200` dengan `token` + `invite_url` BARU (sekali tampil); token lama langsung hangus dan masa berlaku dihitung ulang. Tampilkan sebagai
-    "Buat ulang tautan" pada undangan PENDING/EXPIRED (untuk tautan yang hilang atau kedaluwarsa); `409 INVALID_STATE` bila sudah diterima/dicabut; ADMIN hanya untuk undangan MEMBER/VIEWER.
+    "Buat ulang tautan" pada undangan PENDING/EXPIRED (untuk tautan yang hilang atau kedaluwarsa); `409 INVALID_STATE` bila sudah diterima/dicabut; hanya OWNER yang menerbitkan ulang.
 -   `GET /team/invitations?status=PENDING|ACCEPTED|REVOKED|EXPIRED` (tanpa filter = semua; `EXPIRED` dihitung server dari `expires_at`). Tanpa `token`.
 -   `DELETE /team/invitations/:id` -> mencabut undangan PENDING (idempoten; `409 INVALID_STATE` bila sudah diterima).
 -   Galat undang: `409 INVITATION_EXISTS` (masih ada undangan tertunda untuk email itu: cabut dulu), `409 ALREADY_MEMBER`, `409 QUOTA_EXCEEDED`
-    (anggota + undangan tertunda <= 10 per workspace), `403` (ADMIN tidak boleh mengundang ADMIN/OWNER).
+    (anggota + undangan tertunda <= 10 per workspace), `403` (non-OWNER tidak boleh mengundang), `400` (peran `ADMIN` tidak sah).
 
 **Menerima undangan** (halaman penerima): pengguna harus **login dengan email yang sama** dengan yang diundang (belum punya akun: `POST /auth/register` dulu;
 ia mendapat workspace pribadi sendiri, itu normal). Lalu `POST /team/invitations/accept {token}` ->
@@ -361,7 +360,7 @@ Bucket kosong **sudah diisi nol** (tidak perlu mengisi celah). Rentang `from`/`t
 `GET /usage/sessions?from&to` (tanpa paginasi) -> `[{session_id, session_name, status, outgoing, failed, incoming}]` (sesi yang dihapus tidak muncul).
 Galat: `400 INVALID_RANGE`, `400 VALIDATION_ERROR` (zona waktu tidak dikenal / `group_by` salah / UUID salah), `401`, `403` (API key tanpa `usage:read`).
 
-### 4.8 Audit log (OWNER/ADMIN dashboard)
+### 4.8 Audit log (OWNER dashboard)
 
 `GET /audit-logs?page&page_size&action=&actor_user_id=&target_id=&from=&to=` (terbaru dulu; `from` inklusif, `to` eksklusif, ISO dengan offset; `meta.total_capped` seperti daftar lain):
 
@@ -370,7 +369,7 @@ Galat: `400 INVALID_RANGE`, `400 VALIDATION_ERROR` (zona waktu tidak dikenal / `
   { "id": "42", "action": "member.role_changed",
     "actor":  { "user_id": "72c6c682-...", "email": "owner@contoh.id", "role": "OWNER" },
     "target": { "type": "member", "id": "14c240b8-...", "email": "staf@contoh.id" },
-    "details": { "from": "MEMBER", "to": "ADMIN" }, "ip": "203.0.113.7", "request_id": "e8fe2390-...", "created_at": "2026-11-19T16:21:52.637Z" } ],
+    "details": { "from": "MEMBER", "to": "OWNER" }, "ip": "203.0.113.7", "request_id": "e8fe2390-...", "created_at": "2026-11-19T16:21:52.637Z" } ],
   "meta": { "page": 1, "page_size": 20, "total": 1 } }
 ```
 
@@ -393,14 +392,14 @@ ekspor/penghapusan; jejak disimpan 365 hari. API key tidak dapat membaca audit (
 ```
 
 `PATCH /tenant/settings` (hanya **OWNER** dashboard) body strict, minimal satu kunci, bilangan bulat: `{max_sessions?, max_api_keys?, max_members?, messages_per_minute?}` -> objek seperti GET.
-UI: form dengan input angka yang dibatasi `minimums` dan `ceilings` dari respons GET (jangan hardcode), tampilkan `used` di samping batas, dan nonaktifkan form untuk peran selain OWNER (ADMIN/MEMBER/VIEWER hanya baca).
+UI: form dengan input angka yang dibatasi `minimums` dan `ceilings` dari respons GET (jangan hardcode), tampilkan `used` di samping batas, dan nonaktifkan form untuk peran selain OWNER (MEMBER/VIEWER hanya baca).
 Galat: `400 VALIDATION_ERROR` (di luar [minimum, ceiling] atau bukan bilangan bulat; `details[].path` = nama kunci), `409 LIMIT_BELOW_USAGE` (batas tidak boleh di bawah pemakaian saat ini: kurangi pemakaian dulu),
 `403` (bukan OWNER). Berlaku seketika; mengirim nilai yang sama dengan yang tersimpan = tidak ada perubahan (tetap sah walau operator menurunkan `ceilings` sesudahnya, sehingga formulir yang mengirim semua field tidak gagal). `ceilings` ditentukan operator server (tenant tidak dapat melampauinya); untuk batas lebih tinggi hubungi operator.
 `messages_per_minute` adalah perlindungan anti-ban: jelaskan di UI bahwa menaikkannya meningkatkan risiko nomor dibatasi WhatsApp. Perubahan tercatat di audit log (`settings.updated`).
 
 ### 4.10 Permintaan bergabung dengan kode workspace (ADR-036)
 
-Alur tambahan di samping undangan: calon anggota mendaftar sendiri dengan **kode workspace** dan **kata sandi pilihannya**; akun baru aktif di workspace setelah OWNER/ADMIN menyetujui.
+Alur tambahan di samping undangan: calon anggota mendaftar sendiri dengan **kode workspace** dan **kata sandi pilihannya**; akun baru aktif di workspace setelah OWNER menyetujui.
 
 **Halaman publik `/join`** (kode di fragmen `#code=WJ-XXXXX-XXXXX-XXXXX-XXXXX`; baca dari `location.hash`, hapus dengan `history.replaceState`, simpan di memori; kolom kode tetap dapat diketik manual):
 `POST /auth/join-requests` body `{join_code, email, password(>=10)}` (strict; tanpa cookie/token) -> `201`:
@@ -412,14 +411,14 @@ Galat: `404 INVALID_JOIN_CODE` (kode salah/diputar/dinonaktifkan: pesan seragam)
 
 **Login pemohon** sebelum disetujui: `403 JOIN_PENDING` (menunggu) atau `403 JOIN_REJECTED` (ditolak/kedaluwarsa; tawarkan ajukan ulang). Kata sandi salah tetap `401`. Setelah disetujui, login biasa dengan kata sandi yang sama.
 
-**Kelola (OWNER/ADMIN, dashboard):**
+**Kelola (OWNER, dashboard):**
 | Method | Path | Catatan |
 |---|---|---|
 | GET | `/team/join-code` | `{enabled, created_at, created_by}`; kode TIDAK dikembalikan lagi |
 | PUT | `/team/join-code` | buat/putar: `{enabled, created_at, join_code, join_url}` SEKALI (`no-store`); kode lama hangus; `join_url` null bila `DASHBOARD_BASE_URL` kosong (bangun `/join#code=…` dari origin sendiri) |
 | DELETE | `/team/join-code` | nonaktifkan |
 | GET | `/team/join-requests?status=PENDING\|APPROVED\|REJECTED\|EXPIRED&page&page_size` | `{id, email, user_id, status, role, requested_at, expires_at, decided_at, decided_by}` |
-| POST | `/team/join-requests/:id/approve` | body `{role=MEMBER}` (ADMIN hanya MEMBER/VIEWER; selebihnya `403`); `409 QUOTA_EXCEEDED`, `409 REQUEST_EXPIRED`, `409 INVALID_STATE` |
+| POST | `/team/join-requests/:id/approve` | body `{role=MEMBER}` (non-OWNER `403`; peran `ADMIN` `400`); `409 QUOTA_EXCEEDED`, `409 REQUEST_EXPIRED`, `409 INVALID_STATE` |
 | POST | `/team/join-requests/:id/reject` | `409 INVALID_STATE` bila sudah diputuskan |
 
 UI: dialog kode sekali tampil (salin, QR, WhatsApp) seperti undangan; daftar permintaan dengan tombol setujui (pilih peran)/tolak; badge jumlah PENDING. Aksi audit baru: `join_code.rotated|disabled`, `join_request.approved|rejected` (target `join_request`/`join_code`).
@@ -510,7 +509,7 @@ Bila produk membutuhkan salah satu di atas, ajukan lewat `INTEGRATION_CONTRACT.m
 6.  Webhook dan API key: secret/key hanya tampil sekali; scope valid; `disabled_reason` webhook ditangani.
 7.  Realtime: refetch setelah reconnect/resync, `auth.expired` ditangani.
 8.  Halaman Team (daftar, undang + salin tautan sekali tampil, ubah peran/status, hapus/keluar, terima undangan, pindah workspace) dan Usage (KPI, grafik per hari/jam dengan `tz`, per sesi, kuota)
-    memakai endpoint NYATA, tanpa mock. Tambahkan: dialog undangan (salin/QR/WhatsApp, buat ulang tautan), halaman Audit log (OWNER/ADMIN, filter aksi dan tanggal), dan form Pengaturan kuota (OWNER;
+    memakai endpoint NYATA, tanpa mock. Tambahkan: dialog undangan (salin/QR/WhatsApp, buat ulang tautan), halaman Audit log (OWNER, filter aksi dan tanggal), dan form Pengaturan kuota (OWNER;
     batas dari `minimums`/`ceilings`). Gap yang tersisa (bagian 6) tercatat di `INTEGRATION_CONTRACT.md`.
 9.  Tes dan hasilnya dicatat di `FRONTEND_PROGRESS.md`; endpoint/event yang dipakai dan asumsi terdaftar (aturan serah-terima `FRONTEND_AGENT_PROMPT.md`).
 
@@ -546,7 +545,7 @@ Rute yang butuh body tetap `400 VALIDATION_ERROR` bila body kosong.
 
 Backend siap; frontend belum. Rancangan UI: `docs/02_BACKEND/DATA_EXPORT_DESIGN.md` bagian 10. Kontrak mesin-terbaca: `openapi.json` (tag `Ekspor`).
 -   **Panggil `GET /exports/policy`** saat membuka halaman: `{enabled, max_rows, max_span_days, per_hour, types, retention}`. Bila `enabled=false` sembunyikan tombol ekspor dan tampilkan "Ekspor dinonaktifkan sementara". Tampilkan retensi: "Isi pesan disimpan {content_days} hari, riwayat {row_days} hari" (pengguna perlu tahu mengapa ekspor berguna).
--   **Tombol ekspor hanya untuk OWNER dan ADMIN** (MEMBER/VIEWER 403; API key tidak dipakai di UI).
+-   **Tombol ekspor hanya untuk OWNER** (MEMBER/VIEWER 403; API key tidak dipakai di UI).
 -   **Unduh dengan `fetch` + `Authorization` (bukan tautan)**: `POST /exports/{type}` body `{password, format: 'csv'|'ndjson', from?, to?, session_id?, direction?, status?}`; baca `res.body` bertahap (hitung byte untuk indikator), beri `AbortController` untuk tombol Batal (server menghentikan loop dan mencatat `aborted`), kumpulkan ke `Blob`, lalu simpan dengan nama dari `Content-Disposition`. Berkas bisa hingga puluhan MB: tampilkan peringatan untuk rentang besar.
 -   **Kata sandi**: minta di dialog konfirmasi, kirim sekali, JANGAN simpan di state/storage setelahnya. `403 INVALID_PASSWORD` tetap di dialog; 5 salah per 15 menit mengunci (`429`).
 -   **Rentang**: wajib untuk `messages`, `outbound`, `audit-logs` (bawaan 30 hari terakhir, maksimal `max_span_days`); tawarkan "per bulan" untuk data besar.
@@ -557,7 +556,7 @@ Backend siap; frontend belum. Rancangan UI: `docs/02_BACKEND/DATA_EXPORT_DESIGN.
 ## Notifikasi alarm workspace: kontrak untuk UI (2026-11-20, ADR-049)
 
 Sumber kebenaran: `docs/02_BACKEND/openapi.json` (tag `Notifikasi`), `docs/02_BACKEND/API_CONTRACT.md` bagian "Notifikasi alarm", rancangan `docs/02_BACKEND/ALERT_NOTIFICATIONS_DESIGN.md` (bagian 12 = apa yang benar-benar dibangun).
-Semua respons memakai amplop `{success, data}` (daftar ini TIDAK berpaginasi: `data` berupa array). Hanya OWNER/ADMIN pengguna dashboard, kecuali `GET /alerts/catalog` (semua pengguna dashboard).
+Semua respons memakai amplop `{success, data}` (daftar ini TIDAK berpaginasi: `data` berupa array). Hanya OWNER pengguna dashboard, kecuali `GET /alerts/catalog` (semua pengguna dashboard).
 
 -   `GET /alerts/catalog` -> `{enabled, max_channels, channel_types:['TELEGRAM','SLACK'], cooldown:{default,min,max}, rules:[{code,label,description,threshold:{default,min,max,unit}|null,repeats}]}`. Label dan deskripsi aturan datang dari server: tampilkan apa adanya, jangan menyalin daftar ke klien.
 -   `GET /alerts/channels` -> `[{id,type,name,target_hint,active,consecutive_failures,disabled_at,disabled_reason,created_at,updated_at}]`. **Target (token/URL) tidak pernah dikembalikan**; `target_hint` = 4 karakter terakhir. `disabled_reason: 'AUTO_CONSECUTIVE_FAILURES'` = dinonaktifkan otomatis karena gagal berturut-turut.

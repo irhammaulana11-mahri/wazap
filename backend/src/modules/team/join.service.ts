@@ -98,7 +98,7 @@ export function createJoinService(db: GatewayDb) {
       }
     },
 
-    // ================= jalur tenant (OWNER/ADMIN) =================
+    // ================= jalur tenant (OWNER) =================
 
     async getCode(actor: TeamActor) {
       return db.tx({ tenantId: actor.tenantId }, async (c) => {

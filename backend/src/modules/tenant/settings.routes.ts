@@ -19,7 +19,7 @@ export interface SettingsRoutesOpts {
 
 export async function settingsRoutes(app: FastifyInstance, { settings, authenticate }: SettingsRoutesOpts) {
   // Baca: semua peran dashboard (atau API key ber-scope usage:read, sama dengan /usage/summary). Ubah: hanya OWNER dashboard.
-  app.get('/tenant/settings', { preHandler: [authenticate, requireAccess('usage:read', ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'])] }, async (req) => ok(await settings.get(req.auth!.tenantId)));
+  app.get('/tenant/settings', { preHandler: [authenticate, requireAccess('usage:read', ['OWNER', 'MEMBER', 'VIEWER'])] }, async (req) => ok(await settings.get(req.auth!.tenantId)));
   app.patch('/tenant/settings', { preHandler: [authenticate, requireRole('OWNER')] }, async (req) => {
     const a = req.auth!;
     if (a.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');

@@ -22,5 +22,5 @@ Perintah mencetak 8 kode baru SEKALI (stdout) dan menghanguskan semua kode lama.
 ## Setelah itu
 
 -   Pengguna memakai satu kode di `/forgot-password`, mengatur kata sandi baru, lalu membuat himpunan kode baru dari Pengaturan Akun dan mengonfirmasi bahwa sudah menyimpannya.
--   Reset tercatat di audit setiap workspace pengguna (`account.password_reset`); OWNER/ADMIN dapat melihatnya.
+-   Reset tercatat di audit setiap workspace pengguna (`account.password_reset`); OWNER dapat melihatnya.
 -   Bila identitas tidak dapat diverifikasi, JANGAN menerbitkan kode. Akun yang terkunci lebih baik daripada akun yang diambil alih.

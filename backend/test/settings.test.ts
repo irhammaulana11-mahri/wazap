@@ -64,9 +64,9 @@ test('GET /tenant/settings: batas, batas atas (ceiling), minimum, pemakaian; sem
   assert.equal((await call('GET', '/tenant/settings')).status, 401);
 });
 
-test('PATCH: hanya OWNER dashboard; ADMIN/MEMBER/VIEWER dan API key ditolak', { skip }, async () => {
-  const o = await reg(); const a = await join(o, 'ADMIN'); const m = await join(o, 'MEMBER'); const v = await join(o, 'VIEWER');
-  for (const u of [a, m, v]) assert.equal((await patch(u, { max_sessions: 4 })).status, 403);
+test('PATCH: hanya OWNER dashboard; MEMBER/VIEWER dan API key ditolak', { skip }, async () => {
+  const o = await reg(); const m = await join(o, 'MEMBER'); const v = await join(o, 'VIEWER');
+  for (const u of [m, v]) assert.equal((await patch(u, { max_sessions: 4 })).status, 403);
   const key = (await call('POST', '/api-keys', o.tok, { name: 'kunci-uji', scopes: ['usage:read', 'sessions:write'] })).body.data.key;
   assert.equal((await call('PATCH', '/tenant/settings', undefined, { max_sessions: 4 }, { 'x-api-key': key })).status, 403);
   assert.equal((await call('PATCH', '/tenant/settings', undefined, { max_sessions: 4 })).status, 401);

@@ -91,7 +91,7 @@ test('#3 undangan tertunda dicabut saat pembuatnya ditangguhkan, diturunkan, dih
   const o = await reg();
   const mk = async (tok: string, email: string) => (await call('POST', '/team/invitations', tok, { email, role: 'MEMBER' })).body.data;
   // (a) ditangguhkan
-  const a1 = await join(o, 'ADMIN'); const ia = await mk(a1.tok, 'a-susp@x.test'); const keep = await mk(o.tok, 'milik-owner@x.test');
+  const a1 = await join(o, 'OWNER'); const ia = await mk(a1.tok, 'a-susp@x.test'); const keep = await mk(o.tok, 'milik-owner@x.test');
   assert.equal((await call('PATCH', `/team/members/${a1.userId}`, o.tok, { status: 'SUSPENDED' })).status, 200);
   assert.equal((await invs(o, 'REVOKED')).some((x) => x.id === ia.id), true);
   assert.equal((await call('POST', '/team/invitations/accept', (await reg()).tok, { token: ia.token })).status, 404, 'token undangan yang dicabut tidak berlaku');
@@ -102,25 +102,25 @@ test('#3 undangan tertunda dicabut saat pembuatnya ditangguhkan, diturunkan, dih
   await call('PATCH', `/team/members/${a1.userId}`, o.tok, { status: 'ACTIVE' });
   assert.equal((await invs(o, 'REVOKED')).some((x) => x.id === ia.id), true);
   // (b) diturunkan
-  const a2 = await join(o, 'ADMIN'); const ib = await mk(a2.tok, 'a-turun@x.test');
+  const a2 = await join(o, 'OWNER'); const ib = await mk(a2.tok, 'a-turun@x.test');
   await call('PATCH', `/team/members/${a2.userId}`, o.tok, { role: 'MEMBER' });
   assert.equal((await invs(o, 'REVOKED')).some((x) => x.id === ib.id), true);
   assert.equal((await auditOf(o, '&action=invitation.revoked')).find((x) => x.target.id === ib.id).details.reason, 'inviter_demoted');
-  // (c) promosi TIDAK mencabut
-  const a3 = await join(o, 'ADMIN'); const ic = await mk(a3.tok, 'a-naik@x.test');
+  // (c) perubahan yang TIDAK menurunkan wewenang (peran sama) TIDAK mencabut (ADR-053: tidak ada peran di atas OWNER)
+  const a3 = await join(o, 'OWNER'); const ic = await mk(a3.tok, 'a-naik@x.test');
   await call('PATCH', `/team/members/${a3.userId}`, o.tok, { role: 'OWNER' });
-  assert.equal((await invs(o, 'PENDING')).some((x) => x.id === ic.id), true, 'dinaikkan = wewenang bertambah, undangan tetap sah');
+  assert.equal((await invs(o, 'PENDING')).some((x) => x.id === ic.id), true, 'wewenang tidak berkurang, undangan tetap sah');
   // (d) dihapus
-  const a4 = await join(o, 'ADMIN'); const id = await mk(a4.tok, 'a-hapus@x.test');
+  const a4 = await join(o, 'OWNER'); const id = await mk(a4.tok, 'a-hapus@x.test');
   await call('DELETE', `/team/members/${a4.userId}`, o.tok);
   assert.equal((await invs(o, 'REVOKED')).some((x) => x.id === id.id), true);
   assert.equal((await auditOf(o, '&action=invitation.revoked')).find((x) => x.target.id === id.id).details.reason, 'inviter_removed');
   // (e) keluar sendiri
-  const a5 = await join(o, 'ADMIN'); const ie = await mk(a5.tok, 'a-keluar@x.test');
+  const a5 = await join(o, 'OWNER'); const ie = await mk(a5.tok, 'a-keluar@x.test');
   await call('DELETE', `/team/members/${a5.userId}`, a5.tok);
   assert.equal((await auditOf(o, '&action=invitation.revoked')).find((x) => x.target.id === ie.id).details.reason, 'inviter_left');
   // undangan yang sudah DITERIMA tidak berubah
-  const a6 = await join(o, 'ADMIN'); const accepted = await join(a6, 'VIEWER');
+  const a6 = await join(o, 'OWNER'); const accepted = await join(a6, 'VIEWER');
   await call('DELETE', `/team/members/${a6.userId}`, o.tok);
   assert.equal(((await call('GET', '/team/members?page_size=100', o.tok)).body.data as any[]).some((m) => m.user_id === accepted.userId), true, 'anggota yang sudah bergabung tidak ikut terhapus');
 });
@@ -128,7 +128,7 @@ test('#3 undangan tertunda dicabut saat pembuatnya ditangguhkan, diturunkan, dih
 // ---------- #4 offboarding: API key pembuat ikut dicabut saat dihapus ----------
 
 test('#4 API key yang dibuat anggota dicabut saat ia dihapus; key anggota lain tetap; ditangguhkan tidak mencabut; daftar menampilkan pembuat', { skip }, async () => {
-  const o = await reg(); const adm = await join(o, 'ADMIN'); const adm2 = await join(o, 'ADMIN');
+  const o = await reg(); const adm = await join(o, 'OWNER'); const adm2 = await join(o, 'OWNER');
   const kOwner = await mkKey(o, 'kunci-owner'); const kA = await mkKey(adm, 'kunci-admin'); const kA2 = await mkKey(adm2, 'kunci-admin2');
   for (const k of [kOwner, kA, kA2]) assert.equal((await useKey(k.key)).status, 200);
   // daftar menampilkan pembuat
@@ -149,7 +149,7 @@ test('#4 API key yang dibuat anggota dicabut saat ia dihapus; key anggota lain t
   assert.deepEqual(au.details.revoked_api_keys, [kA.id], 'audit mencatat key yang dicabut (id saja, bukan nilai key)');
   assert.ok(!JSON.stringify(au).includes(kA.key));
   // keluar sendiri juga mencabut
-  const adm3 = await join(o, 'ADMIN'); const kA3 = await mkKey(adm3, 'kunci-admin3');
+  const adm3 = await join(o, 'OWNER'); const kA3 = await mkKey(adm3, 'kunci-admin3');
   await call('DELETE', `/team/members/${adm3.userId}`, adm3.tok);
   assert.equal((await useKey(kA3.key)).status, 401);
   assert.equal((await auditOf(o, '&action=member.left'))[0].details.revoked_api_keys.length, 1);

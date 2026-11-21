@@ -15,7 +15,7 @@ export interface ChatRoutesOpts {
 }
 
 export async function chatRoutes(app: FastifyInstance, { chats, authenticate }: ChatRoutesOpts) {
-  const ALL = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] as const;
+  const ALL = ['OWNER', 'MEMBER', 'VIEWER'] as const;
   const readMsgs = [authenticate, requireAccess('messages:read', [...ALL])];
   const readContacts = [authenticate, requireAccess('contacts:read', [...ALL])];
 

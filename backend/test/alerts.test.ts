@@ -87,7 +87,7 @@ test('teks notifikasi: aman dari karakter kontrol, tidak memuat nomor telepon, r
 // ---------- hak akses dan kata sandi ----------
 
 test('hak akses: MEMBER/VIEWER dan API key ditolak; katalog boleh dibaca semua anggota', { skip }, async () => {
-  const owner = await reg(); const member = await join(owner, 'MEMBER'); const viewer = await join(owner, 'VIEWER'); const admin = await join(owner, 'ADMIN');
+  const owner = await reg(); const member = await join(owner, 'MEMBER'); const viewer = await join(owner, 'VIEWER'); const admin = await join(owner, 'OWNER');
   for (const u of [member, viewer]) {
     for (const [m, url] of [['GET', '/alerts/channels'], ['GET', '/alerts/rules'], ['GET', '/alerts/deliveries']] as const) assert.equal((await call(app, m, url, u.tok)).statusCode, 403, `${u.email} ${url}`);
     assert.equal((await tg(u)).statusCode, 403);
@@ -95,7 +95,7 @@ test('hak akses: MEMBER/VIEWER dan API key ditolak; katalog boleh dibaca semua a
     assert.equal((await call(app, 'GET', '/alerts/catalog', u.tok)).statusCode, 200);
   }
   assert.equal((await call(app, 'GET', '/alerts/channels')).statusCode, 401);
-  assert.equal((await tg(admin)).statusCode, 201, 'ADMIN boleh');
+  assert.equal((await tg(admin)).statusCode, 201, 'OWNER kedua boleh');
   const key = (await call(app, 'POST', '/api-keys', owner.tok, { name: 'kunci-uji', scopes: ['usage:read'] })).json().data.key;
   for (const [m, url] of [['GET', '/alerts/channels'], ['GET', '/alerts/rules'], ['GET', '/alerts/deliveries']] as const)
     assert.equal((await app.inject({ method: m, url: `/api/v1${url}`, headers: { 'x-api-key': key } })).statusCode, 403, `API key ${url}`);

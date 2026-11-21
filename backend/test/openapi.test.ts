@@ -61,8 +61,8 @@ test('keamanan diturunkan dari guard nyata (bukan salinan tulisan tangan)', () =
   assert.deepEqual(op('get', '/health/live').security, []);
   const sessions = op('get', '/api/v1/sessions');
   assert.deepEqual(sessions.security, [{ bearerAuth: [] }, { apiKeyAuth: ['sessions:read'] }]);
-  assert.deepEqual(sessions['x-roles'], ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']);
-  assert.deepEqual(op('post', '/api/v1/messages/send')['x-roles'], ['OWNER', 'ADMIN', 'MEMBER'], 'VIEWER tidak boleh mengirim');
+  assert.deepEqual(sessions['x-roles'], ['OWNER', 'MEMBER', 'VIEWER']);
+  assert.deepEqual(op('post', '/api/v1/messages/send')['x-roles'], ['OWNER', 'MEMBER'], 'VIEWER tidak boleh mengirim');
   assert.equal(op('post', '/api/v1/messages/send')['x-required-scope'], 'messages:send');
   for (const [p, m] of [['/api/v1/team/members', 'get'], ['/api/v1/api-keys', 'post'], ['/api/v1/tenant', 'delete'], ['/api/v1/auth/me', 'get']] as const) {
     assert.deepEqual(op(m, p).security, [{ bearerAuth: [] }], `${m} ${p}: hanya pengguna dashboard`);

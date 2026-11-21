@@ -50,15 +50,15 @@ const roleOf = async (tenantId: string, userId: string) => (await q(tenantId, 'S
 
 // ---------- daftar anggota ----------
 
-test('daftar anggota: OWNER/ADMIN saja; memuat email, peran, is_me; MEMBER/VIEWER/API key ditolak', { skip }, async () => {
+test('daftar anggota: OWNER saja; memuat email, peran, is_me; MEMBER/VIEWER/API key ditolak', { skip }, async () => {
   const o = await reg();
-  const m = await join(o, 'MEMBER'); const v = await join(o, 'VIEWER'); const a = await join(o, 'ADMIN');
+  const m = await join(o, 'MEMBER'); const v = await join(o, 'VIEWER'); const o2 = await join(o, 'OWNER');
   const r = await call('GET', '/team/members', o.tok);
   assert.equal(r.status, 200); assert.equal(r.body.meta.total, 4);
-  assert.deepEqual(r.body.data.map((x: any) => x.role), ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'], 'urut menurut peran');
+  assert.deepEqual(r.body.data.map((x: any) => x.role), ['OWNER', 'OWNER', 'MEMBER', 'VIEWER'], 'urut menurut peran (ADR-053: tanpa ADMIN)');
   const me = r.body.data.find((x: any) => x.is_me);
   assert.deepEqual([me.email, me.role, me.status, me.user_id], [o.email, 'OWNER', 'ACTIVE', o.userId]);
-  assert.equal((await call('GET', '/team/members', a.tok)).status, 200, 'ADMIN boleh');
+  assert.equal((await call('GET', '/team/members', o2.tok)).status, 200, 'OWNER kedua boleh');
   for (const x of [m, v]) assert.equal((await call('GET', '/team/members', x.tok)).status, 403);
   const key = (await call('POST', '/api-keys', o.tok, { name: 'kunci-uji', scopes: ['sessions:read'] })).body.data.key;
   assert.equal((await call('GET', '/team/members', undefined, undefined, { 'x-api-key': key })).status, 403, 'API key tidak dapat mengelola tim');
@@ -154,11 +154,11 @@ test('RLS menegakkan undangan di tingkat SQL: tidak ada jalan masuk ke tenant la
 });
 
 test('aturan undangan: matriks peran, duplikat, sudah anggota, validasi, kuota (anggota + tertunda)', { skip }, async () => {
-  const o = await reg(); const admin = await join(o, 'ADMIN'); const member = await join(o, 'MEMBER');
+  const o = await reg(); const owner2 = await join(o, 'OWNER'); const member = await join(o, 'MEMBER');
   const invite = (tok: string, body: any) => call('POST', '/team/invitations', tok, body);
-  assert.equal((await invite(admin.tok, { email: 'a1@x.test', role: 'ADMIN' })).status, 403, 'ADMIN tidak dapat mengundang ADMIN');
-  assert.equal((await invite(admin.tok, { email: 'a2@x.test', role: 'OWNER' })).status, 403, 'ADMIN tidak dapat mengundang OWNER');
-  assert.equal((await invite(admin.tok, { email: 'a3@x.test', role: 'VIEWER' })).status, 201);
+  assert.equal((await invite(o.tok, { email: 'a1@x.test', role: 'ADMIN' })).status, 400, 'peran ADMIN dihapus (ADR-053)');
+  assert.equal((await invite(member.tok, { email: 'a2@x.test', role: 'OWNER' })).status, 403, 'MEMBER tidak dapat mengundang siapa pun (tanpa eskalasi)');
+  assert.equal((await invite(owner2.tok, { email: 'a3@x.test', role: 'VIEWER' })).status, 201, 'OWNER kedua boleh mengundang');
   assert.equal((await invite(member.tok, { email: 'a4@x.test', role: 'VIEWER' })).status, 403);
   assert.equal((await invite(o.tok, { email: 'a5@x.test', role: 'OWNER' })).status, 201, 'OWNER boleh mengundang OWNER');
   const dup = await invite(o.tok, { email: 'a3@x.test', role: 'MEMBER' });
@@ -177,28 +177,26 @@ test('aturan undangan: matriks peran, duplikat, sudah anggota, validasi, kuota (
   const pending = (await call('GET', '/team/invitations?status=PENDING', o.tok)).body.data;
   await call('DELETE', `/team/invitations/${pending[0].id}`, o.tok);
   assert.equal((await invite(o.tok, { email: 'a7@x.test', role: 'MEMBER' })).status, 201);
-  // ADMIN tidak dapat mencabut undangan peran OWNER
+  // MEMBER tidak dapat mencabut undangan apa pun
   const ownerInv = (await call('GET', '/team/invitations?status=PENDING', o.tok)).body.data.find((x: any) => x.role === 'OWNER');
-  assert.equal((await call('DELETE', `/team/invitations/${ownerInv.id}`, admin.tok)).status, 403);
+  assert.equal((await call('DELETE', `/team/invitations/${ownerInv.id}`, member.tok)).status, 403);
   assert.equal((await call('DELETE', `/team/invitations/${crypto.randomUUID()}`, o.tok)).status, 404);
   assert.equal((await call('DELETE', `/team/invitations/bukan-uuid`, o.tok)).status, 404);
 });
 
 // ---------- kelola anggota ----------
 
-test('matriks peran anggota: OWNER mengelola semua; ADMIN hanya MEMBER/VIEWER; tidak ada eskalasi; tidak bisa ubah diri sendiri', { skip }, async () => {
-  const o = await reg(); const admin = await join(o, 'ADMIN'); const admin2 = await join(o, 'ADMIN'); const m = await join(o, 'MEMBER'); const v = await join(o, 'VIEWER');
+test('matriks peran anggota: OWNER mengelola semua anggota; MEMBER/VIEWER tidak; peran ADMIN tidak sah; tidak bisa ubah diri sendiri', { skip }, async () => {
+  const o = await reg(); const o2 = await join(o, 'OWNER'); const m = await join(o, 'MEMBER'); const v = await join(o, 'VIEWER');
   const patch = (tok: string, id: string, body: any) => call('PATCH', `/team/members/${id}`, tok, body);
-  assert.equal((await patch(o.tok, m.userId, { role: 'ADMIN' })).body.data.role, 'ADMIN', 'OWNER mempromosikan');
-  assert.equal((await patch(o.tok, m.userId, { role: 'MEMBER' })).body.data.role, 'MEMBER');
-  assert.equal((await patch(admin.tok, m.userId, { role: 'VIEWER' })).body.data.role, 'VIEWER', 'ADMIN mengubah MEMBER<->VIEWER');
-  assert.equal((await patch(admin.tok, m.userId, { role: 'ADMIN' })).status, 403, 'ADMIN tidak dapat memberi ADMIN');
-  assert.equal((await patch(admin.tok, m.userId, { role: 'OWNER' })).status, 403, 'ADMIN tidak dapat memberi OWNER');
-  assert.equal((await patch(admin.tok, admin2.userId, { role: 'VIEWER' })).status, 403, 'ADMIN tidak dapat menyentuh ADMIN lain');
-  assert.equal((await patch(admin.tok, o.userId, { status: 'SUSPENDED' })).status, 403, 'ADMIN tidak dapat menyentuh OWNER');
-  const self = await patch(admin.tok, admin.userId, { role: 'VIEWER' });
+  assert.equal((await patch(o.tok, m.userId, { role: 'VIEWER' })).body.data.role, 'VIEWER', 'OWNER mengubah MEMBER<->VIEWER');
+  assert.equal((await patch(o.tok, m.userId, { role: 'ADMIN' })).status, 400, 'peran ADMIN dihapus (ADR-053)');
+  assert.equal((await patch(o2.tok, o.userId, { status: 'SUSPENDED' })).status, 200, 'OWNER mengelola OWNER lain selama masih ada OWNER aktif');
+  assert.equal((await patch(o2.tok, o.userId, { status: 'ACTIVE' })).status, 200);
+  const self = await patch(o2.tok, o2.userId, { role: 'VIEWER' });
   assert.equal(self.status, 403); assert.equal(self.body.error.code, 'CANNOT_MODIFY_SELF');
-  assert.equal((await patch(m.tok, v.userId, { role: 'MEMBER' })).status, 403, 'MEMBER tidak dapat mengelola');
+  assert.equal((await patch(m.tok, v.userId, { role: 'MEMBER' })).status, 403, 'non-OWNER tidak dapat mengelola');
+  assert.equal((await patch(v.tok, m.userId, { role: 'MEMBER' })).status, 403, 'VIEWER tidak dapat mengelola');
   assert.equal((await patch(o.tok, v.userId, {})).status, 400); assert.equal((await patch(o.tok, v.userId, { role: 'ROOT' })).status, 400);
   assert.equal((await patch(o.tok, v.userId, { role: 'MEMBER', extra: 1 })).status, 400);
   assert.equal((await patch(o.tok, crypto.randomUUID(), { role: 'MEMBER' })).status, 404);
@@ -210,14 +208,14 @@ test('pemilik terakhir terlindungi: tidak dapat diturunkan, ditangguhkan, dihapu
   const o = await reg();
   const last = (r: any) => { assert.equal(r.status, 409); assert.equal(r.body.error.code, 'LAST_OWNER'); };
   const o2 = await join(o, 'OWNER');                                    // OWNER kedua (hanya OWNER yang bisa mengundang OWNER)
-  assert.equal((await call('PATCH', `/team/members/${o2.userId}`, o.tok, { role: 'ADMIN' })).body.data.role, 'ADMIN', 'masih ada OWNER lain');
+  assert.equal((await call('PATCH', `/team/members/${o2.userId}`, o.tok, { role: 'MEMBER' })).body.data.role, 'MEMBER', 'masih ada OWNER lain');
   assert.equal((await call('PATCH', `/team/members/${o2.userId}`, o.tok, { role: 'OWNER' })).body.data.role, 'OWNER');
   // o2 menurunkan o (ada o2 yang tetap OWNER) -> boleh
   assert.equal((await call('PATCH', `/team/members/${o.userId}`, o2.tok, { role: 'MEMBER' })).body.data.role, 'MEMBER');
   // sekarang o2 adalah OWNER terakhir
   last(await call('DELETE', `/team/members/${o2.userId}`, o2.tok));        // keluar sendiri ditolak
-  const admin = await join(o2, 'ADMIN');
-  assert.equal((await call('PATCH', `/team/members/${o2.userId}`, admin.tok, { status: 'SUSPENDED' })).status, 403);
+  const mem = await join(o2, 'MEMBER');
+  assert.equal((await call('PATCH', `/team/members/${o2.userId}`, mem.tok, { status: 'SUSPENDED' })).status, 403);
   // pemulihan kondisi: promosikan o kembali, lalu o2 boleh keluar
   await call('PATCH', `/team/members/${o.userId}`, o2.tok, { role: 'OWNER' });
   assert.equal((await call('DELETE', `/team/members/${o2.userId}`, o2.tok)).status, 200, 'keluar sendiri sah bila ada OWNER lain');

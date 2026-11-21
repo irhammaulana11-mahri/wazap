@@ -10,11 +10,11 @@ import { readMembership, teamLock } from './team-lock.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN_RE = /^inv_[A-Za-z0-9_-]{43}$/;
-const ROLES: Role[] = ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'];
-const RANK: Record<Role, number> = { OWNER: 3, ADMIN: 2, MEMBER: 1, VIEWER: 0 };
+const ROLES: Role[] = ['OWNER', 'MEMBER', 'VIEWER'];
+const RANK: Record<Role, number> = { OWNER: 2, MEMBER: 1, VIEWER: 0 };
 
-/** OWNER mengelola semua; ADMIN hanya MEMBER/VIEWER (tidak dapat menyentuh OWNER/ADMIN). */
-export const canManageRole = (actor: Role, target: Role) => actor === 'OWNER' || (actor === 'ADMIN' && (target === 'MEMBER' || target === 'VIEWER'));
+/** Hanya OWNER yang mengelola anggota (ADR-053: peran ADMIN dihapus). Satu workspace boleh punya beberapa OWNER; perlindungan OWNER terakhir tetap berlaku. */
+export const canManageRole = (actor: Role, _target: Role) => actor === 'OWNER';
 /** Peran yang boleh DIBERIKAN aktor (sama dengan batas pengelolaan: tidak ada eskalasi ke peran yang tidak boleh dikelola). */
 export const canAssignRole = canManageRole;
 
@@ -82,7 +82,7 @@ export function createTeamService(db: GatewayDb) {
         const total = (await c.query('SELECT count(*)::int n FROM tenant_memberships WHERE tenant_id = $1', [actor.tenantId])).rows[0].n;
         const rows = (await c.query(
           `SELECT user_id, member_email, role, status, created_at FROM tenant_memberships WHERE tenant_id = $1
-           ORDER BY array_position(ARRAY['OWNER','ADMIN','MEMBER','VIEWER'], role::text), created_at, user_id LIMIT $2 OFFSET $3`,
+           ORDER BY array_position(ARRAY['OWNER','MEMBER','VIEWER'], role::text), created_at, user_id LIMIT $2 OFFSET $3`,
           [actor.tenantId, q.pageSize, (q.page - 1) * q.pageSize])).rows;
         return { rows: rows.map((r: any) => memberView(r, actor.userId)), total };
       });

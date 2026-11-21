@@ -1,4 +1,4 @@
-export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+export type Role = 'OWNER' | 'MEMBER' | 'VIEWER';
 
 export const API_KEY_SCOPES = [
   'sessions:read',

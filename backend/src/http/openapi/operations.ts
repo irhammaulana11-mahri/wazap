@@ -21,8 +21,8 @@ export interface Operation {
 
 const ok = S.okOf, list = S.listOf;
 const EXPORT_STREAM = { contentTypes: ['text/csv', 'application/x-ndjson'] };
-const EXPORT_NOTE = 'Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.';
-const ALERT_NOTE = 'Hanya OWNER/ADMIN pengguna dashboard (API key ditolak). Target kanal (token bot / URL webhook) dienkripsi dan tidak pernah dikembalikan. Notifikasi tidak memuat nomor telepon pelanggan akhir maupun isi pesan.';
+const EXPORT_NOTE = 'Hanya OWNER pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi di body. Respons berupa berkas (Content-Disposition: attachment; X-Export-Rows = jumlah baris). Ekspor yang melebihi batas ditolak 422 EXPORT_TOO_LARGE SEBELUM data dikirim; jenis berentang waktu wajib from dan to. CSV: UTF-8 BOM, sel teks yang diawali = + - @ diberi awalan kutip tunggal (anti injeksi formula); NDJSON: baris terakhir adalah manifest.';
+const ALERT_NOTE = 'Hanya OWNER pengguna dashboard (API key ditolak). Target kanal (token bot / URL webhook) dienkripsi dan tidak pernah dikembalikan. Notifikasi tidak memuat nomor telepon pelanggan akhir maupun isi pesan.';
 const O = (tag: string, summary: string, responses: Operation['responses'], extra: Partial<Operation> = {}): Operation => ({ tag, summary, responses, ...extra });
 
 /** Kunci: `METHOD /path` persis seperti didaftarkan di Fastify, tanpa awalan /api/v1 (kecuali /health*). Kelengkapan dijaga test/openapi.test.ts. */
@@ -139,5 +139,5 @@ export const OPERATIONS: Record<string, Operation> = {
   'GET /usage/summary': O('Penggunaan', 'Ringkasan penggunaan dan kuota', { 200: ok(S.UsageSummary) }),
   'GET /usage/messages': O('Penggunaan', 'Deret waktu pesan (jam/hari, zona waktu IANA)', { 200: list(S.UsagePoint, S.UsageSeriesMeta) }),
   'GET /usage/sessions': O('Penggunaan', 'Pemakaian per sesi', { 200: ok(S.UsageSession.array()) }),
-  'GET /audit-logs': O('Audit', 'Log audit (hanya OWNER/ADMIN)', { 200: list(S.AuditLog) }),
+  'GET /audit-logs': O('Audit', 'Log audit (hanya OWNER)', { 200: list(S.AuditLog) }),
 };

@@ -173,3 +173,8 @@ manual deployment action.
 ## 0020_alerts (2026-11-20)
 
 `alert_channels` (target terenkripsi), `alert_rules`, `alert_deliveries` (UNIQUE idempotensi), semua RLS ENABLE+FORCE; indeks evaluator pada `wa_session_events` dan `message_queue`; `audit_logs.target_type` ditambah `alert_channel` dan `alert_rule`. Tidak mengubah migrasi lama.
+
+## 0021_remove_admin_role (2026-11-21)
+
+Peran `ADMIN` dihapus (ADR-053). Konversi data `ADMIN` -> `MEMBER` pada `tenant_memberships.role`, `tenant_invitations.role`, `tenant_join_requests.decided_role`; CHECK lama (nama otomatis, ditemukan lewat `pg_constraint`) dibuang dan diganti `chk_memberships_role`, `chk_invitations_role`, `chk_join_requests_decided_role` (OWNER/MEMBER/VIEWER). Karena FORCE RLS dan trigger penjaga `trg_tenant_memberships_guard` (0016) menolak/menyembunyikan UPDATE lintas tenant dari migrasi, FORCE dan trigger dimatikan hanya untuk konversi dalam satu transaksi migrasi lalu dihidupkan kembali sebelum COMMIT (tes memastikan keduanya aktif lagi). Riwayat audit tidak diubah. Tidak dapat dibatalkan otomatis (ADMIN lama tidak dapat dipulihkan dari MEMBER); pemulihan hanya dari cadangan.
+

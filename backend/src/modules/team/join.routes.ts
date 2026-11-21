@@ -7,7 +7,7 @@ import type { JoinService } from './join.service.js';
 import type { TeamActor } from './team.service.js';
 
 import type { RouteContract } from '../../http/openapi/types.js';
-const Role = z.enum(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']);
+const Role = z.enum(['OWNER', 'MEMBER', 'VIEWER']);
 const RequestSchema = z.strictObject({ join_code: z.string().min(10).max(40), email: z.email().max(254), password: z.string().min(10, 'minimal 10 karakter').max(128) });
 const ApproveSchema = z.strictObject({ role: Role.default('MEMBER') });
 const ListSchema = z.object({
@@ -24,7 +24,7 @@ export interface JoinRoutesOpts {
 
 export async function joinRoutes(app: FastifyInstance, { join, authenticate, limiter }: JoinRoutesOpts) {
   const lim = limiter ?? new RateLimiter();
-  const manage = [authenticate, requireRole('OWNER', 'ADMIN')];
+  const manage = [authenticate, requireRole('OWNER')];
   const actor = (req: FastifyRequest): TeamActor => {
     const a = req.auth!;
     if (a.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');

@@ -26,11 +26,11 @@ const DeliveriesQuery = z.strictObject({ limit: z.coerce.number().int().min(1).m
 
 export interface AlertRoutesOpts { alerts: AlertService; identity: IdentityService; authenticate: (req: FastifyRequest, reply: FastifyReply) => Promise<void>; limiter?: RateLimiter }
 
-/** Notifikasi alarm per workspace (ADR-049). OWNER/ADMIN pengguna dashboard (API key ditolak). Membuat kanal, mengganti target, dan menghapus meminta kata sandi. */
+/** Notifikasi alarm per workspace (ADR-049). OWNER pengguna dashboard (API key ditolak). Membuat kanal, mengganti target, dan menghapus meminta kata sandi. */
 export async function alertRoutes(app: FastifyInstance, { alerts, identity, authenticate, limiter }: AlertRoutesOpts) {
   const lim = limiter ?? new RateLimiter();
-  const manage = [authenticate, requireRole('OWNER', 'ADMIN')];
-  const anyUser = [authenticate, requireRole('OWNER', 'ADMIN', 'MEMBER', 'VIEWER')];
+  const manage = [authenticate, requireRole('OWNER')];
+  const anyUser = [authenticate, requireRole('OWNER', 'MEMBER', 'VIEWER')];
   const actor = (req: FastifyRequest): AlertActor => {
     const a = req.auth!;
     if (a.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');

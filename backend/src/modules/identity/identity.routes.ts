@@ -114,7 +114,7 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
   });
 
   // Pindah workspace (hanya pengguna dashboard; API key terikat satu tenant). Rotasi cookie refresh ke tenant tujuan.
-  app.post('/auth/switch-tenant', { preHandler: [authenticate, requireRole('OWNER', 'ADMIN', 'MEMBER', 'VIEWER')] }, async (req, reply) => {
+  app.post('/auth/switch-tenant', { preHandler: [authenticate, requireRole('OWNER', 'MEMBER', 'VIEWER')] }, async (req, reply) => {
     limit(`switch:${req.ip}`, 30, 5 * 60_000);
     const b = SwitchSchema.parse(req.body);
     const a = req.auth!;
@@ -125,7 +125,7 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
   });
 
   // ---- akun (hanya pengguna dashboard) ----
-  const account = [authenticate, requireRole('OWNER', 'ADMIN', 'MEMBER', 'VIEWER')];
+  const account = [authenticate, requireRole('OWNER', 'MEMBER', 'VIEWER')];
   const self = (req: FastifyRequest) => {
     const a = req.auth!;
     if (a.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');
@@ -185,10 +185,10 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
     return ok({ ...(await identity.me(a.userId, a.tenantId)), role: a.role });
   });
 
-  // ---- API keys (kelola: OWNER/ADMIN pengguna dashboard) ----
-  const manage = [authenticate, requireRole('OWNER', 'ADMIN')];
+  // ---- API keys (kelola: OWNER pengguna dashboard) ----
+  const manage = [authenticate, requireRole('OWNER')];
 
-  app.get('/api-keys', { preHandler: [authenticate, requireRole('OWNER', 'ADMIN', 'MEMBER', 'VIEWER')] }, async (req) => {
+  app.get('/api-keys', { preHandler: [authenticate, requireRole('OWNER', 'MEMBER', 'VIEWER')] }, async (req) => {
     const { page, page_size } = PageSchema.parse(req.query);
     const { rows, total } = await identity.listApiKeys(req.auth!.tenantId, page, page_size);
     return ok(rows, { page, page_size, total });
@@ -207,7 +207,7 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
     return reply.code(201).send(ok(created));
   });
 
-  app.patch('/api-keys/:keyId', { preHandler: [authenticate, requireRole('OWNER', 'ADMIN')] }, async (req) => {
+  app.patch('/api-keys/:keyId', { preHandler: [authenticate, requireRole('OWNER')] }, async (req) => {
     const { keyId } = IdParam.parse(req.params);
     return ok(await identity.updateApiKey(self(req), keyId, PatchKeySchema.parse(req.body)));
   });

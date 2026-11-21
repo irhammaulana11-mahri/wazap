@@ -22,8 +22,8 @@ export interface AuditRoutesOpts {
 }
 
 export async function auditRoutes(app: FastifyInstance, { audit, authenticate }: AuditRoutesOpts) {
-  // Jejak perubahan hanya untuk pengurus (OWNER/ADMIN) pengguna dashboard; API key tidak dapat membacanya.
-  const manage = [authenticate, requireRole('OWNER', 'ADMIN')];
+  // Jejak perubahan hanya untuk pemilik workspace (OWNER) pengguna dashboard; API key tidak dapat membacanya.
+  const manage = [authenticate, requireRole('OWNER')];
   app.get('/audit-logs', { preHandler: manage }, async (req) => {
     const q = ListQ.parse(req.query);
     const { rows, total, capped } = await audit.list(req.auth!.tenantId, {

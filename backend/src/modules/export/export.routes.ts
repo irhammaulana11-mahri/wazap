@@ -30,12 +30,12 @@ export interface ExportRoutesOpts {
   perHour?: number;
 }
 
-/** Ekspor data workspace (ADR-048). Hanya OWNER/ADMIN pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi. */
+/** Ekspor data workspace (ADR-048). Hanya OWNER pengguna dashboard (API key ditolak), dengan konfirmasi kata sandi. */
 export async function exportRoutes(app: FastifyInstance, { exports: svc, identity, authenticate, limiter, perHour }: ExportRoutesOpts) {
   const lim = limiter ?? new RateLimiter();
   const quota = perHour ?? config.EXPORT_PER_USER_PER_HOUR;
-  const manage = [authenticate, requireRole('OWNER', 'ADMIN')];
-  const anyUser = [authenticate, requireRole('OWNER', 'ADMIN', 'MEMBER', 'VIEWER')];
+  const manage = [authenticate, requireRole('OWNER')];
+  const anyUser = [authenticate, requireRole('OWNER', 'MEMBER', 'VIEWER')];
   const actor = (req: FastifyRequest): ExportActor => {
     const a = req.auth!;
     if (a.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');

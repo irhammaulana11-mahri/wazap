@@ -155,10 +155,10 @@ test('ISOLASI TENANT: A tidak pernah menerima baris B (termasuk dengan session_i
 
 // ---------- hak akses dan pengaman ----------
 
-test('hak akses: hanya OWNER/ADMIN pengguna dashboard; MEMBER, VIEWER, API key, dan tanpa kredensial ditolak', { skip }, async () => {
-  const o = await reg(); const admin = await join(o, 'ADMIN'); const member = await join(o, 'MEMBER'); const viewer = await join(o, 'VIEWER');
+test('hak akses: hanya OWNER pengguna dashboard; MEMBER, VIEWER, API key, dan tanpa kredensial ditolak', { skip }, async () => {
+  const o = await reg(); const admin = await join(o, 'OWNER'); const member = await join(o, 'MEMBER'); const viewer = await join(o, 'VIEWER');
   assert.equal((await exp(app, 'chats', o.tok)).statusCode, 200);
-  assert.equal((await exp(app, 'chats', admin.tok)).statusCode, 200, 'ADMIN boleh');
+  assert.equal((await exp(app, 'chats', admin.tok)).statusCode, 200, 'OWNER kedua boleh');
   for (const [name, u] of [['MEMBER', member], ['VIEWER', viewer]] as const) assert.equal((await exp(app, 'chats', u.tok)).statusCode, 403, `${name} ditolak`);
   const key = (await call(app, 'POST', '/api-keys', o.tok, { name: 'kunci-uji', scopes: ['messages:read', 'sessions:read'] })).json().data.key;
   const viaKey = await call(app, 'POST', '/exports/chats', undefined, { password: PW }, { 'x-api-key': key });

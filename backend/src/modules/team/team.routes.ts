@@ -7,7 +7,7 @@ import { RateLimiter as Limiter } from '../identity/rate-limit.js';
 import type { TeamActor, TeamService } from './team.service.js';
 
 import type { RouteContract } from '../../http/openapi/types.js';
-const Role = z.enum(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']);
+const Role = z.enum(['OWNER', 'MEMBER', 'VIEWER']);
 const PageSchema = z.object({ page: z.coerce.number().int().min(1).default(1), page_size: z.coerce.number().int().min(1).max(100).default(20) });
 const PatchSchema = z.strictObject({ role: Role.optional(), status: z.enum(['ACTIVE', 'SUSPENDED']).optional() })
   .refine((v) => v.role !== undefined || v.status !== undefined, 'minimal satu field (role atau status)');
@@ -25,9 +25,9 @@ export interface TeamRoutesOpts {
 
 export async function teamRoutes(app: FastifyInstance, { team, authenticate, limiter }: TeamRoutesOpts) {
   const lim = limiter ?? new Limiter();
-  // Hanya pengguna dashboard (API key tidak dapat mengelola tim), peran OWNER/ADMIN.
-  const manage = [authenticate, requireRole('OWNER', 'ADMIN')];
-  const anyUser = [authenticate, requireRole('OWNER', 'ADMIN', 'MEMBER', 'VIEWER')];
+  // Hanya pengguna dashboard (API key tidak dapat mengelola tim), peran OWNER.
+  const manage = [authenticate, requireRole('OWNER')];
+  const anyUser = [authenticate, requireRole('OWNER', 'MEMBER', 'VIEWER')];
   const actor = (req: FastifyRequest): TeamActor => {
     const a = req.auth!;
     if (a.type !== 'user') throw new AppError('FORBIDDEN', 403, 'Endpoint ini hanya untuk pengguna dashboard');

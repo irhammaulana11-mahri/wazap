@@ -168,8 +168,8 @@ must not be described as delivered/read.
 | POST | `/auth/logout` | cookie | 204, idempoten |
 | GET | `/auth/me` | user | `{user, active_tenant_id, memberships[], role}` |
 | GET | `/api-keys` | user (semua role) | paginated `?page=1&page_size=20(max 100)`; `meta {page,page_size,total}`; tanpa hash |
-| POST | `/api-keys` | user OWNER/ADMIN | body `{name, scopes[], expires_at?}` -> 201 termasuk `key` (**hanya sekali**) |
-| DELETE | `/api-keys/:keyId` | user OWNER/ADMIN | revoke idempoten; 404 bila bukan milik tenant |
+| POST | `/api-keys` | user OWNER | body `{name, scopes[], expires_at?}` -> 201 termasuk `key` (**hanya sekali**) |
+| DELETE | `/api-keys/:keyId` | user OWNER | revoke idempoten; 404 bila bukan milik tenant |
 
 Scopes yang valid: `sessions:read`, `sessions:write`, `messages:send`,
 `messages:read`, `contacts:read`, `webhooks:manage`, `usage:read`.
@@ -212,7 +212,7 @@ Perubahan: `LEGACY_AUTH_ENABLED` default `false`. Login `{username,password}`
 dan route prototipe tidak aktif (route legacy dipindah ke
 `/api/v1/legacy/*` bila diaktifkan). `/api/v1/sessions` kini milik registry baru.
 
-Otorisasi: pengguna dashboard OWNER/ADMIN/MEMBER boleh menulis, semua role
+Otorisasi: pengguna dashboard OWNER/MEMBER boleh menulis, semua role
 membaca; API key memerlukan scope `sessions:write` (tulis) atau
 `sessions:read` (baca) --- write tidak mencakup read. Sesi tenant lain => 404.
 
@@ -255,7 +255,7 @@ Perubahan: kompatibilitas prototipe DIHAPUS. `{username,password}` pada login
 |---|---|---|
 | GET | `/sessions/:id/qr` | 200 `{qr, qr_data_url, expires_at}` saat status `QR_REQUIRED`; header `Cache-Control: no-store` |
 
-Otorisasi sama dengan menulis sesi (OWNER/ADMIN/MEMBER atau scope
+Otorisasi sama dengan menulis sesi (OWNER/MEMBER atau scope
 `sessions:write`): QR = kredensial login WhatsApp, VIEWER dan scope baca saja
 tidak boleh. Sesi tenant lain => 404. QR berotasi sekitar 20 detik; klien
 polling `GET /sessions/:id/qr` (atau `/status`) sampai `CONNECTED`.
@@ -266,7 +266,7 @@ pernah muncul di log, event, atau respons selain endpoint ini.
 
 ## Implementasi Fase E (messaging, 2026-11-19)
 
-Otorisasi: kirim/cancel/retry = OWNER/ADMIN/MEMBER atau scope `messages:send`;
+Otorisasi: kirim/cancel/retry = OWNER/MEMBER atau scope `messages:send`;
 baca = semua role atau scope `messages:read` (send tidak mencakup read).
 Respons memakai envelope standar; objek pesan:
 `{id, session_id, to, type, message, status, priority, attempts, max_attempts,
@@ -305,7 +305,7 @@ Belum tersedia: `send-media`, `bulk`, `/contacts`, `/chats`.
 Semua respons memakai envelope standar. Validasi body strict (field tak dikenal
 => 400 `VALIDATION_ERROR`).
 
-### Pesan media dan bulk (otorisasi sama dengan `send`: OWNER/ADMIN/MEMBER atau `messages:send`)
+### Pesan media dan bulk (otorisasi sama dengan `send`: OWNER/MEMBER atau `messages:send`)
 
 | Method | Path | Respons |
 |---|---|---|
@@ -342,7 +342,7 @@ Status pesan keluar kini dapat `DELIVERED` dan `READ` (dari receipt WhatsApp;
 hanya maju, tidak pernah mundur). Pesan masuk bertipe `text|image|video|audio|
 document|sticker|location|contact|other` (media tidak diunduh; `text` = caption).
 
-### Webhook (hanya OWNER/ADMIN atau scope `webhooks:manage`)
+### Webhook (hanya OWNER atau scope `webhooks:manage`)
 
 | Method | Path | Respons |
 |---|---|---|
@@ -385,16 +385,16 @@ Semua respons memakai envelope standar. Contoh respons nyata: `docs/04_INTEGRATI
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| GET | `/team/members` | OWNER, ADMIN | paginated; `{user_id, email, role, status, joined_at, is_me}` |
-| PATCH | `/team/members/:userId` | OWNER, ADMIN | body strict `{role?, status?: ACTIVE\|SUSPENDED}` (minimal satu) |
+| GET | `/team/members` | OWNER | paginated; `{user_id, email, role, status, joined_at, is_me}` |
+| PATCH | `/team/members/:userId` | OWNER | body strict `{role?, status?: ACTIVE\|SUSPENDED}` (minimal satu) |
 | DELETE | `/team/members/:userId` | semua peran (batas izin di bawah) | hapus anggota; menghapus diri sendiri = keluar |
-| GET | `/team/invitations` | OWNER, ADMIN | paginated; `?status=PENDING\|ACCEPTED\|REVOKED\|EXPIRED`; tanpa token |
-| POST | `/team/invitations` | OWNER, ADMIN | body `{email, role=MEMBER}` -> 201 + `token` SEKALI (`Cache-Control: no-store`), berlaku 7 hari |
-| DELETE | `/team/invitations/:id` | OWNER, ADMIN | cabut (idempoten); 409 bila sudah diterima |
+| GET | `/team/invitations` | OWNER | paginated; `?status=PENDING\|ACCEPTED\|REVOKED\|EXPIRED`; tanpa token |
+| POST | `/team/invitations` | OWNER | body `{email, role=MEMBER}` -> 201 + `token` SEKALI (`Cache-Control: no-store`), berlaku 7 hari |
+| DELETE | `/team/invitations/:id` | OWNER | cabut (idempoten); 409 bila sudah diterima |
 | POST | `/team/invitations/accept` | semua pengguna dashboard | body `{token}` -> `{tenant:{id,name,slug}, role}`; email akun harus = email undangan |
 | POST | `/auth/switch-tenant` | semua pengguna dashboard | body `{tenant_id}` -> sama seperti login + cookie refresh baru (family lama dicabut) |
 
-Izin: OWNER mengelola semua anggota dan boleh memberi semua peran (termasuk OWNER); ADMIN hanya mengelola dan memberi MEMBER/VIEWER; MEMBER/VIEWER tidak
+Izin: OWNER mengelola semua anggota dan boleh memberi semua peran (OWNER, MEMBER, VIEWER; peran ADMIN dihapus, ADR-053, nilai `ADMIN` ditolak 400); MEMBER/VIEWER tidak
 mengelola (hanya keluar sendiri). Tidak dapat mengubah peran/status akun sendiri (`CANNOT_MODIFY_SELF`). Tenant tidak boleh kehilangan OWNER aktif terakhir
 (`LAST_OWNER`: menurunkan, menangguhkan, menghapus, atau keluar). Anggota SUSPENDED/dihapus kehilangan akses seketika. Peran aktor dibaca ulang di dalam lock
 transaksi (bukan dari token) sehingga permintaan bersamaan tidak dapat melewati aturan. Kuota: anggota + undangan tertunda <= `tenant_settings.max_members` (default 10).
@@ -427,9 +427,9 @@ memakai header `Origin`/`Host` klien). Pengundang menyampaikan tautan sendiri (s
 
 | Method | Path | Peran | Keterangan |
 |---|---|---|---|
-| POST | `/team/invitations/:id/reissue` | OWNER, ADMIN (ADMIN hanya undangan MEMBER/VIEWER) | token baru (sekali tampil, `Cache-Control: no-store`), token LAMA langsung hangus, masa berlaku dihitung ulang; hanya status PENDING (termasuk yang kedaluwarsa); selain itu `409 INVALID_STATE` |
+| POST | `/team/invitations/:id/reissue` | OWNER | token baru (sekali tampil, `Cache-Control: no-store`), token LAMA langsung hangus, masa berlaku dihitung ulang; hanya status PENDING (termasuk yang kedaluwarsa); selain itu `409 INVALID_STATE` |
 
-### Audit log (hanya OWNER/ADMIN pengguna dashboard; API key ditolak 403)
+### Audit log (hanya OWNER pengguna dashboard; API key ditolak 403)
 
 `GET /audit-logs?page&page_size&action=&actor_user_id=&target_id=&from=&to=` (terbaru dulu; `from` inklusif, `to` eksklusif; `meta.total_capped` seperti daftar lain).
 Item: `{id, action, actor:{user_id,email,role}, target:{type,id,email}, details, ip, request_id, created_at}`.
@@ -466,12 +466,12 @@ Berlaku seketika; satu nilai tidak sah membatalkan seluruh permintaan; mengirim 
 | Method | Path | Peran | Catatan |
 |---|---|---|---|
 | POST | `/auth/join-requests` | publik | body `{join_code, email, password}` strict -> 201 `{request_id, status:'PENDING', tenant_name, expires_at, existing_account}`; 10/jam per IP |
-| GET | `/team/join-code` | OWNER, ADMIN | `{enabled, created_at, created_by}` |
-| PUT | `/team/join-code` | OWNER, ADMIN | buat/putar; `join_code` (+`join_url`) SEKALI, `Cache-Control: no-store`; kode lama hangus |
-| DELETE | `/team/join-code` | OWNER, ADMIN | nonaktifkan |
-| GET | `/team/join-requests` | OWNER, ADMIN | paginated; `?status=PENDING\|APPROVED\|REJECTED\|EXPIRED` |
-| POST | `/team/join-requests/:id/approve` | OWNER, ADMIN | body `{role=MEMBER}`; ADMIN hanya MEMBER/VIEWER; cek kuota anggota; tulis audit |
-| POST | `/team/join-requests/:id/reject` | OWNER, ADMIN | tulis audit |
+| GET | `/team/join-code` | OWNER | `{enabled, created_at, created_by}` |
+| PUT | `/team/join-code` | OWNER | buat/putar; `join_code` (+`join_url`) SEKALI, `Cache-Control: no-store`; kode lama hangus |
+| DELETE | `/team/join-code` | OWNER | nonaktifkan |
+| GET | `/team/join-requests` | OWNER | paginated; `?status=PENDING\|APPROVED\|REJECTED\|EXPIRED` |
+| POST | `/team/join-requests/:id/approve` | OWNER | body `{role=MEMBER}`; cek kuota anggota; tulis audit |
+| POST | `/team/join-requests/:id/reject` | OWNER | tulis audit |
 
 Login pemohon yang belum disetujui: `403 JOIN_PENDING`; ditolak/kedaluwarsa: `403 JOIN_REJECTED` (hanya setelah kata sandi benar). Kode galat baru: `INVALID_JOIN_CODE` 404, `JOIN_REQUEST_EXISTS` 409, `REQUEST_EXPIRED` 409,
 `JOIN_PENDING` 403, `JOIN_REJECTED` 403 (selain yang sudah ada: `ALREADY_MEMBER`, `INVALID_STATE`, `QUOTA_EXCEEDED`, `INVALID_CREDENTIALS`).
@@ -489,8 +489,8 @@ Permintaan yang sudah diputuskan atau kedaluwarsa dihapus retensi setelah `RETEN
 | POST | `/auth/reset-password` | publik | `{email, recovery_code, new_password}` (satu dari 8 kode) -> `{remaining_recovery_codes}`; kode itu terpakai, sisanya tetap berlaku; semua sesi dicabut; dicatat di audit semua workspace pengguna; kegagalan seragam `400 INVALID_RECOVERY`; 10/jam per IP, 8/15 menit per email |
 | POST | `/auth/change-email` | pengguna dashboard | `{password, new_email}` -> `{user:{id,email}}`; `409 EMAIL_TAKEN`, `400 EMAIL_UNCHANGED`; email tidak diverifikasi |
 | POST | `/auth/logout-all` | pengguna dashboard | 204; semua refresh dan access token mati (termasuk perangkat ini) |
-| PATCH | `/api-keys/:id` | OWNER, ADMIN | `{name?, scopes?}` (minimal satu; `*` ditolak); `409 INVALID_STATE` bila dicabut; berlaku seketika; diaudit |
-| PATCH | `/sessions/:id` | OWNER, ADMIN, MEMBER (atau scope `sessions:write`) | `{session_name}`; `409 SESSION_NAME_TAKEN`, `409 INVALID_STATE` (DELETING) |
+| PATCH | `/api-keys/:id` | OWNER | `{name?, scopes?}` (minimal satu; `*` ditolak); `409 INVALID_STATE` bila dicabut; berlaku seketika; diaudit |
+| PATCH | `/sessions/:id` | OWNER, MEMBER (atau scope `sessions:write`) | `{session_name}`; `409 SESSION_NAME_TAKEN`, `409 INVALID_STATE` (DELETING) |
 | PATCH | `/tenant` | OWNER | `{name}` -> `{id,name,slug}`; diaudit |
 | DELETE | `/tenant` | OWNER | `{password, confirm_name}` -> `{deleted:true, sessions_scheduled, purge_after_days}`; `403 INVALID_PASSWORD`, `400 CONFIRMATION_MISMATCH`; 3/jam |
 
@@ -510,7 +510,7 @@ Bila prosa di atas dan `openapi.json` berbeda, `openapi.json` yang benar (ia dip
 
 ## Ekspor data workspace (ADR-048; kontrak mesin-terbaca di `openapi.json`)
 
-`POST /api/v1/exports/{type}` dengan `type` salah satu `messages`, `outbound`, `chats`, `contacts`, `audit-logs`, `members`. Hanya OWNER/ADMIN pengguna dashboard (API key 403), body strict dengan `password` (kata sandi akun) dan `format` (`csv` bawaan | `ndjson`).
+`POST /api/v1/exports/{type}` dengan `type` salah satu `messages`, `outbound`, `chats`, `contacts`, `audit-logs`, `members`. Hanya OWNER pengguna dashboard (API key 403), body strict dengan `password` (kata sandi akun) dan `format` (`csv` bawaan | `ndjson`).
 -   Berentang waktu (`messages`, `outbound`, `audit-logs`): `from` dan `to` wajib (ISO-8601 dengan offset, `from < to`, maks `EXPORT_MAX_SPAN_DAYS`=92 hari); filter opsional `session_id`, `direction` (messages), `status` (outbound). `to` di masa depan dipotong ke waktu mulai.
 -   Sukses `200`: berkas streaming (`text/csv; charset=utf-8` atau `application/x-ndjson`), header `Content-Disposition: attachment; filename="wazap-<slug>-<jenis>-<YYYYMMDD>.<csv|ndjson>"`, `X-Export-Rows`, `Cache-Control: no-store`. CSV: UTF-8 BOM, CRLF, sel teks berawalan `= + - @` tab/CR diberi awalan `'`. NDJSON: baris terakhir `{"_manifest": {...}}` (tanpa manifest = terpotong).
 -   Galat (amplop standar): `400 VALIDATION_ERROR`, `401`, `403 FORBIDDEN | INVALID_PASSWORD`, `409 EXPORT_IN_PROGRESS`, `422 EXPORT_TOO_LARGE` (`details: [{max_rows, estimated_rows, capped}]`; ditolak SEBELUM data dikirim), `429 RATE_LIMITED` (+`Retry-After`), `503 SERVICE_UNAVAILABLE | NOT_CONFIGURED` (ekspor dinonaktifkan operator).
@@ -520,7 +520,7 @@ Batas: 5 ekspor per jam per pengguna (ditagih setelah pra-hitung lolos), 5 perco
 
 ## Notifikasi alarm (ADR-049)
 
-Hanya OWNER/ADMIN pengguna dashboard (API key 403); `GET /alerts/catalog` boleh semua pengguna dashboard. Target kanal (token bot / URL webhook) dienkripsi dan **tidak pernah dikembalikan** (hanya `target_hint` 4 karakter). Notifikasi tidak memuat nomor telepon pelanggan akhir maupun isi pesan.
+Hanya OWNER pengguna dashboard (API key 403); `GET /alerts/catalog` boleh semua pengguna dashboard. Target kanal (token bot / URL webhook) dienkripsi dan **tidak pernah dikembalikan** (hanya `target_hint` 4 karakter). Notifikasi tidak memuat nomor telepon pelanggan akhir maupun isi pesan.
 
 | Endpoint | Keterangan |
 |---|---|

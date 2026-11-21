@@ -12,7 +12,7 @@ const named = <T extends z.ZodType>(id: string, s: T): T => { registry.add(s, { 
 
 export const Uuid = z.uuid();
 export const Dt = z.iso.datetime({ offset: true });
-export const Role = z.enum(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']);
+export const Role = z.enum(['OWNER', 'MEMBER', 'VIEWER']);
 export const SessionState = z.enum(SESSION_STATES);
 export const MessageStatus = z.enum(['PENDING', 'PROCESSING', 'SENT', 'DELIVERED', 'READ', 'UNKNOWN', 'RECONCILIATION_REQUIRED', 'FAILED', 'CANCELLED']);
 export const MessageType = z.enum(['text', 'image', 'video', 'audio', 'document']);

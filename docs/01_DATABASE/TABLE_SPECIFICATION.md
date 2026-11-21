@@ -58,7 +58,7 @@ Klasifikasi: P + S. RLS: SELECT jika `id = app.user_id` atau
 
 ### tenant_memberships (tenant_id)
 PK `(tenant_id, user_id)`; FK tenants & users `ON DELETE CASCADE`;
-`role` OWNER|ADMIN|MEMBER|VIEWER; `status` ACTIVE|SUSPENDED default
+`role` OWNER|MEMBER|VIEWER (ADMIN dihapus di 0021, ADR-053); `status` ACTIVE|SUSPENDED default
 ACTIVE; `created_at`. Index `(user_id)`. RLS: SELECT jika tenant aktif
 atau user sendiri; mutasi hanya tenant aktif.
 
@@ -227,7 +227,7 @@ Rollback: forward-fix; dev DROP tabel Fase F.
 ## Fase H
 
 ### tenant_invitations (tenant_id) --- S
-`id`, `tenant_id` (FK tenants cascade), `email` (huruf kecil), `role` (OWNER/ADMIN/MEMBER/VIEWER), `token_hash char(64)` UNIQUE (SHA-256; token mentah tidak disimpan),
+`id`, `tenant_id` (FK tenants cascade), `email` (huruf kecil), `role` (OWNER/MEMBER/VIEWER), `token_hash char(64)` UNIQUE (SHA-256; token mentah tidak disimpan),
 `status` (`PENDING|ACCEPTED|REVOKED`), `invited_by`, `expires_at`, `created_at`, `accepted_at`, `accepted_by`. Unik parsial `(tenant_id, email) WHERE status='PENDING'`.
 RLS: tenant mengelola miliknya; penerima menemukan undangan HANYA lewat `app.invite_hash`; penerima hanya dapat mengubah PENDING (belum kedaluwarsa) menjadi ACCEPTED atas namanya.
 Platform TIDAK punya akses (disengaja).

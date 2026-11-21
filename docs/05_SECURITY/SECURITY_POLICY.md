@@ -111,7 +111,7 @@
 
 -   **Tim:** keanggotaan lintas-tenant hanya lewat undangan yang dijaga kebijakan RLS (token + email akun + peran harus cocok; diuji langsung di SQL: penyusup tanpa token,
     token milik orang lain, eskalasi peran, dan pendaftaran pengguna lain semuanya ditolak). Token undangan 256-bit, hanya hash disimpan, sekali pakai, kedaluwarsa 7 hari, dibatasi
-    10 percobaan/15 menit/pengguna; kegagalan dijawab seragam (tidak ada oracle). Wewenang ADMIN dibatasi; OWNER terakhir terlindungi; perubahan diserialkan per tenant dan peran aktor dibaca ulang
+    10 percobaan/15 menit/pengguna; kegagalan dijawab seragam (tidak ada oracle). Hanya OWNER yang mengelola tim (peran ADMIN dihapus, ADR-053); OWNER terakhir terlindungi; perubahan diserialkan per tenant dan peran aktor dibaca ulang
     di dalam lock. Anggota ditangguhkan/dihapus kehilangan akses seketika (access token diverifikasi ulang tiap permintaan; socket dalam <= 30 detik).
 -   **Isolasi kredensial:** daftar tim tidak membaca tabel `users` (email disalin ke keanggotaan) sehingga `password_hash` anggota lain tetap tidak terjangkau dari konteks tenant.
 -   **`switch-tenant`:** hanya ke keanggotaan AKTIF milik sendiri; family refresh lama dicabut; API key tidak dapat memakainya.
@@ -120,10 +120,10 @@
 
 ## Implementasi (Fase H2)
 
--   **Audit log:** append-only, atomik dengan perubahan, tanpa rahasia (tes memeriksa token mentah dan hash tidak pernah muncul), hanya OWNER/ADMIN dashboard yang dapat membaca; pencatatan "undangan diterima"
+-   **Audit log:** append-only, atomik dengan perubahan, tanpa rahasia (tes memeriksa token mentah dan hash tidak pernah muncul), hanya OWNER dashboard yang dapat membaca; pencatatan "undangan diterima"
     dijaga RLS (token + email akun harus cocok; pemalsuan oleh pemegang token ditolak di SQL). Penghapusan hanya retensi platform (`RETENTION_AUDIT_DAYS`). IP pelaku disimpan (data pribadi, dibatasi retensi).
     **Risiko tersisa:** operator database/pemilik tabel dapat mengubah jejak (tanpa rantai hash/penyimpanan eksternal); belum mencakup aksi sesi/pesan/webhook/API key dan login.
--   **Kuota:** OWNER dapat mengubah kuota hanya dalam [minimum, ceiling env]; peran dibaca ulang di dalam lock; ADMIN/MEMBER/VIEWER dan API key ditolak. **Risiko tersisa:** OWNER yang kredensialnya dibobol dapat menaikkan
+-   **Kuota:** OWNER dapat mengubah kuota hanya dalam [minimum, ceiling env]; peran dibaca ulang di dalam lock; MEMBER/VIEWER dan API key ditolak. **Risiko tersisa:** OWNER yang kredensialnya dibobol dapat menaikkan
     kuota sampai ceiling (terbatas dan tercatat di audit); ceiling bawaan (sesi 10, pesan/menit 120) adalah nilai awal, bukan hasil pengukuran risiko ban --- tinjau sebelum produksi.
 -   **Undangan tanpa email:** `invite_url` dibangun dari konfigurasi server (bukan header klien); terbit ulang menghanguskan token lama.
 
@@ -137,9 +137,9 @@ diturunkan (#8), helper kunci tim terduplikasi (#7). **Diterima sebagai keterbat
 
 ## Permintaan bergabung dengan kode workspace (Fase H3, ADR-036)
 
--   Kode workspace: 100 bit (alfabet 31 simbol, 20 karakter), hanya SHA-256 yang disimpan, tampil sekali, dapat diputar/dinonaktifkan oleh OWNER/ADMIN; pencarian kode lewat RLS (`app.join_hash`), tanpa akses platform. Kode salah/diputar/dinonaktifkan dijawab seragam dan tidak membuat akun.
+-   Kode workspace: 100 bit (alfabet 31 simbol, 20 karakter), hanya SHA-256 yang disimpan, tampil sekali, dapat diputar/dinonaktifkan oleh OWNER; pencarian kode lewat RLS (`app.join_hash`), tanpa akses platform. Kode salah/diputar/dinonaktifkan dijawab seragam dan tidak membuat akun.
 -   Kata sandi dibuat pemohon SAAT mendaftar (bukan setelah disetujui): persetujuan hanya mengaktifkan keanggotaan, sehingga tidak ada pembajakan akun oleh pihak yang login pertama setelah persetujuan. Email terdaftar harus membuktikan kata sandi.
--   Pemohon tidak dapat menyetujui diri sendiri atau membuat keanggotaan (RLS; diuji dengan SQL langsung). Peran yang diberikan dibatasi wewenang penyetuju (ADMIN hanya MEMBER/VIEWER), kuota anggota diperiksa saat persetujuan, peran penyetuju dibaca ulang di dalam lock.
+-   Pemohon tidak dapat menyetujui diri sendiri atau membuat keanggotaan (RLS; diuji dengan SQL langsung). Peran yang diberikan dibatasi wewenang penyetuju (hanya OWNER), kuota anggota diperiksa saat persetujuan, peran penyetuju dibaca ulang di dalam lock.
 -   Login memberi `JOIN_PENDING/JOIN_REJECTED` hanya setelah kata sandi benar (tidak membuka enumerasi akun melebihi `EMAIL_TAKEN` pada register yang sudah ada).
 -   Antrean dibatasi `JOIN_MAX_PENDING` (default 50) per tenant, diserialkan dengan lock tim (batas eksak), `409 JOIN_QUEUE_FULL` bila penuh tanpa membuat akun. Kebijakan RLS `join_requests_queue_count` membuka baris PENDING yang berlaku milik tenant pemilik kode KHUSUS untuk dihitung (lihat ADR-036 untuk konsekuensinya).
 -   Retensi: permintaan diputuskan/kedaluwarsa dihapus setelah `RETENTION_JOIN_REQUEST_DAYS` (90); platform hanya SELECT/DELETE di tabel ini.
@@ -157,8 +157,8 @@ diturunkan (#8), helper kunci tim terduplikasi (#7). **Diterima sebagai keterbat
 
 ## Ekspor data workspace (ADR-048)
 
-Ekspor massal berisi data pribadi pelanggan tenant sehingga dilindungi berlapis: hanya OWNER/ADMIN pengguna dashboard (API key ditolak, dijaga dua lapis di route dan handler), konfirmasi kata sandi (5 percobaan salah per 15 menit; penguncian dicek sebelum verifikasi), jatah 5 per jam, satu ekspor per workspace, dijalankan dalam konteks RLS tenant (terbukti menahan kebocoran bahkan tanpa filter SQL), kolom daftar putih (tanpa kredensial, hash, kunci, secret), CSV dinetralkan dari injeksi formula, batas ukuran dengan penolakan sebelum data (422), saklar mati `EXPORT_ENABLED`, dan audit `data.exported` untuk setiap hasil (jumlah baris dan byte, tanpa isi). Risiko tersisa: sesi pengguna yang dibajak masih dapat mengekspor setelah menebak kata sandi (dibatasi laju dan tercatat); pantau lonjakan `data.exported` (RUNBOOK P15).
+Ekspor massal berisi data pribadi pelanggan tenant sehingga dilindungi berlapis: hanya OWNER pengguna dashboard (API key ditolak, dijaga dua lapis di route dan handler), konfirmasi kata sandi (5 percobaan salah per 15 menit; penguncian dicek sebelum verifikasi), jatah 5 per jam, satu ekspor per workspace, dijalankan dalam konteks RLS tenant (terbukti menahan kebocoran bahkan tanpa filter SQL), kolom daftar putih (tanpa kredensial, hash, kunci, secret), CSV dinetralkan dari injeksi formula, batas ukuran dengan penolakan sebelum data (422), saklar mati `EXPORT_ENABLED`, dan audit `data.exported` untuk setiap hasil (jumlah baris dan byte, tanpa isi). Risiko tersisa: sesi pengguna yang dibajak masih dapat mengekspor setelah menebak kata sandi (dibatasi laju dan tercatat); pantau lonjakan `data.exported` (RUNBOOK P15).
 
 ## Notifikasi alarm per workspace (ADR-049)
 
-Fitur ini mengirim data keluar ke pihak ketiga atas permintaan pelanggan, sehingga dilindungi berlapis: hanya OWNER/ADMIN pengguna dashboard (API key ditolak), kata sandi untuk membuat kanal, mengganti target, dan menghapus (5 salah per 15 menit; penguncian dicek sebelum verifikasi), target dienkripsi AES-256-GCM dengan AAD tenant+kanal dan ikut rotasi kunci master, tidak pernah dikembalikan API atau ditulis ke log/audit, anti-SSRF (Telegram: host dikunci; Slack-compatible: daftar host, https, port 443, host publik, tanpa redirect, timeout), isi pesan dibatasi pada fakta tersanitasi (tanpa nomor telepon pelanggan akhir, isi pesan, URL penuh webhook), RLS ENABLE+FORCE pada ketiga tabel, batas 5 kanal per workspace, 10 uji per jam, batas kirim per kanal per jam, breaker yang menonaktifkan kanal gagal, dan saklar `ALERTS_ENABLED`. Risiko tersisa: token bot pelanggan tersimpan terenkripsi di server; kebocoran kunci master membukanya (kelas risiko sama dengan rahasia webhook).
+Fitur ini mengirim data keluar ke pihak ketiga atas permintaan pelanggan, sehingga dilindungi berlapis: hanya OWNER pengguna dashboard (API key ditolak), kata sandi untuk membuat kanal, mengganti target, dan menghapus (5 salah per 15 menit; penguncian dicek sebelum verifikasi), target dienkripsi AES-256-GCM dengan AAD tenant+kanal dan ikut rotasi kunci master, tidak pernah dikembalikan API atau ditulis ke log/audit, anti-SSRF (Telegram: host dikunci; Slack-compatible: daftar host, https, port 443, host publik, tanpa redirect, timeout), isi pesan dibatasi pada fakta tersanitasi (tanpa nomor telepon pelanggan akhir, isi pesan, URL penuh webhook), RLS ENABLE+FORCE pada ketiga tabel, batas 5 kanal per workspace, 10 uji per jam, batas kirim per kanal per jam, breaker yang menonaktifkan kanal gagal, dan saklar `ALERTS_ENABLED`. Risiko tersisa: token bot pelanggan tersimpan terenkripsi di server; kebocoran kunci master membukanya (kelas risiko sama dengan rahasia webhook).

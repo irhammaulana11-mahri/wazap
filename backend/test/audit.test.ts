@@ -62,12 +62,12 @@ test('semua perubahan tim tercatat: aksi, pelaku, sasaran, detail, ip, request_i
   const acc = (await logs(o))[0];
   assert.deepEqual([acc.action, acc.actor.user_id, acc.actor.email, acc.actor.role, acc.target.id], ['invitation.accepted', u.userId, u.email, 'MEMBER', inv.body.data.id], 'pelaku = penerima, tercatat di tenant pengundang');
 
-  assert.equal((await call('PATCH', `/team/members/${u.userId}`, o.tok, { role: 'ADMIN' })).status, 200);
+  assert.equal((await call('PATCH', `/team/members/${u.userId}`, o.tok, { role: 'OWNER' })).status, 200);
   assert.equal((await call('PATCH', `/team/members/${u.userId}`, o.tok, { status: 'SUSPENDED' })).status, 200);
   assert.equal((await call('PATCH', `/team/members/${u.userId}`, o.tok, { role: 'VIEWER', status: 'ACTIVE' })).status, 200, 'dua perubahan sekaligus');
   const all = await logs(o);
   assert.deepEqual(all.slice(0, 4).map((x) => [x.action, x.details.from, x.details.to]).reverse(), [
-    ['member.role_changed', 'MEMBER', 'ADMIN'], ['member.status_changed', 'ACTIVE', 'SUSPENDED'], ['member.role_changed', 'ADMIN', 'VIEWER'], ['member.status_changed', 'SUSPENDED', 'ACTIVE']]);
+    ['member.role_changed', 'MEMBER', 'OWNER'], ['member.status_changed', 'ACTIVE', 'SUSPENDED'], ['member.role_changed', 'OWNER', 'VIEWER'], ['member.status_changed', 'SUSPENDED', 'ACTIVE']]);
   assert.ok(all.every((x, i) => i === 0 || new Date(x.created_at) <= new Date(all[i - 1].created_at)), 'urut terbaru dulu');
   assert.equal(all[0].target.email, u.email); assert.equal(all[0].target.id, u.userId);
 
@@ -86,12 +86,12 @@ test('semua perubahan tim tercatat: aksi, pelaku, sasaran, detail, ip, request_i
 });
 
 test('tidak ada jejak untuk operasi yang ditolak atau tidak mengubah apa pun; tidak ada rahasia di jejak', { skip }, async () => {
-  const o = await reg(); const admin = await join(o, 'ADMIN'); const m = await join(o, 'MEMBER');
+  const o = await reg(); const admin = await join(o, 'MEMBER'); const m = await join(o, 'MEMBER');
   const before = (await logs(o)).length;
   assert.equal((await call('PATCH', `/team/members/${o.userId}`, admin.tok, { role: 'VIEWER' })).status, 403);            // di luar wewenang
   assert.equal((await call('PATCH', `/team/members/${admin.userId}`, admin.tok, { role: 'VIEWER' })).status, 403);        // diri sendiri
   assert.equal((await call('DELETE', `/team/members/${o.userId}`, o.tok)).status, 409);                                    // OWNER terakhir
-  assert.equal((await call('POST', '/team/invitations', admin.tok, { email: 'z@x.test', role: 'ADMIN' })).status, 403);    // eskalasi
+  assert.equal((await call('POST', '/team/invitations', admin.tok, { email: 'z@x.test', role: 'OWNER' })).status, 403);    // eskalasi
   assert.equal((await call('POST', '/team/invitations', o.tok, { email: m.email, role: 'VIEWER' })).status, 409);          // sudah anggota
   assert.equal((await call('PATCH', `/team/members/${m.userId}`, o.tok, { role: 'MEMBER' })).status, 200);                 // no-op: peran sama
   assert.equal((await call('POST', '/team/invitations/accept', m.tok, { token: 'inv_' + 'A'.repeat(43) })).status, 404);   // token salah
@@ -105,7 +105,7 @@ test('tidak ada jejak untuk operasi yang ditolak atau tidak mengubah apa pun; ti
 });
 
 test('terbitkan ulang undangan: token lama hangus, token baru sah, masa berlaku dihitung ulang; aturan akses', { skip }, async () => {
-  const o = await reg(); const u = await reg(); const admin = await join(o, 'ADMIN');
+  const o = await reg(); const u = await reg(); const admin = await join(o, 'MEMBER');
   const inv = await call('POST', '/team/invitations', o.tok, { email: u.email, role: 'MEMBER' });
   const oldTok = inv.body.data.token as string;
   const re = await call('POST', `/team/invitations/${inv.body.data.id}/reissue`, o.tok);
@@ -118,8 +118,8 @@ test('terbitkan ulang undangan: token lama hangus, token baru sah, masa berlaku 
   assert.equal((await call('GET', '/team/invitations', o.tok)).body.data[0].status, 'EXPIRED');
   const re2 = await call('POST', `/team/invitations/${inv.body.data.id}/reissue`, o.tok);
   assert.equal(re2.status, 200); assert.ok(new Date(re2.body.data.expires_at) > new Date());
-  // ADMIN tidak dapat menerbitkan ulang undangan ber-peran OWNER/ADMIN
-  const ownerInv = await call('POST', '/team/invitations', o.tok, { email: 'o2@x.test', role: 'ADMIN' });
+  // non-OWNER (MEMBER) tidak dapat menerbitkan ulang undangan apa pun
+  const ownerInv = await call('POST', '/team/invitations', o.tok, { email: 'o2@x.test', role: 'OWNER' });
   assert.equal((await call('POST', `/team/invitations/${ownerInv.body.data.id}/reissue`, admin.tok)).status, 403);
   assert.equal((await call('POST', `/team/invitations/${crypto.randomUUID()}/reissue`, o.tok)).status, 404);
   assert.equal((await call('POST', `/team/invitations/bukan-uuid/reissue`, o.tok)).status, 404);
@@ -157,14 +157,14 @@ test('invite_url: null tanpa DASHBOARD_BASE_URL; tersusun benar bila diatur (tid
 
 // ---------- API baca ----------
 
-test('GET /audit-logs: filter, paginasi, validasi; hanya OWNER/ADMIN dashboard', { skip }, async () => {
-  const o = await reg(); const m = await join(o, 'MEMBER'); const v = await join(o, 'VIEWER'); const a = await join(o, 'ADMIN');
+test('GET /audit-logs: filter, paginasi, validasi; hanya OWNER dashboard', { skip }, async () => {
+  const o = await reg(); const m = await join(o, 'MEMBER'); const v = await join(o, 'VIEWER'); const a = await join(o, 'OWNER');
   await call('PATCH', `/team/members/${m.userId}`, o.tok, { role: 'VIEWER' });
   await call('PATCH', `/team/members/${v.userId}`, a.tok, { role: 'MEMBER' });
   const byAction = await logs(o, '&action=member.role_changed');
   assert.equal(byAction.length, 2); assert.ok(byAction.every((x) => x.action === 'member.role_changed'));
   const byActor = await logs(o, `&actor_user_id=${a.userId}`);
-  assert.deepEqual(byActor.map((x) => x.action), ['member.role_changed', 'invitation.accepted'], 'ADMIN: satu perubahan peran + penerimaan undangannya sendiri');
+  assert.deepEqual(byActor.map((x) => x.action), ['member.role_changed', 'invitation.accepted'], 'OWNER kedua: satu perubahan peran + penerimaan undangannya sendiri');
   const byTarget = await logs(o, `&target_id=${m.userId}`);
   assert.ok(byTarget.length >= 1 && byTarget.every((x) => x.target.id === m.userId));
   const p1 = await call('GET', '/audit-logs?page=1&page_size=2', o.tok); const p2 = await call('GET', '/audit-logs?page=2&page_size=2', o.tok);
@@ -176,7 +176,7 @@ test('GET /audit-logs: filter, paginasi, validasi; hanya OWNER/ADMIN dashboard',
   for (const qs of ['action=BUKAN FORMAT', 'actor_user_id=bukan-uuid', 'page_size=500', 'from=2026-11-10T00:00:00Z&to=2026-11-10T00:00:00Z', 'from=kemarin']) {
     assert.equal((await call('GET', `/audit-logs?${qs.replace(' ', '%20')}`, o.tok)).status, 400, qs);
   }
-  assert.equal((await call('GET', '/audit-logs', a.tok)).status, 200, 'ADMIN boleh membaca');
+  assert.equal((await call('GET', '/audit-logs', a.tok)).status, 200, 'OWNER kedua boleh membaca');
   for (const x of [m, v]) assert.equal((await call('GET', '/audit-logs', x.tok)).status, 403);
   const key = (await call('POST', '/api-keys', o.tok, { name: 'kunci-uji', scopes: ['usage:read'] })).body.data.key;
   assert.equal((await call('GET', '/audit-logs', undefined, undefined, { 'x-api-key': key })).status, 403, 'API key tidak boleh membaca audit');

@@ -28,8 +28,8 @@ export interface WebhookRoutesOpts {
 }
 
 export async function webhookRoutes(app: FastifyInstance, { webhooks, authenticate }: WebhookRoutesOpts) {
-  // Konfigurasi webhook menyangkut secret & egress: hanya OWNER/ADMIN (atau API key ber-scope webhooks:manage).
-  const manage = [authenticate, requireAccess('webhooks:manage', ['OWNER', 'ADMIN'])];
+  // Konfigurasi webhook menyangkut secret & egress: hanya OWNER (atau API key ber-scope webhooks:manage).
+  const manage = [authenticate, requireAccess('webhooks:manage', ['OWNER'])];
   const id = (req: FastifyRequest) => IdParam.parse(req.params).webhookId;
 
   app.post('/webhooks', { preHandler: manage }, async (req, reply) => {

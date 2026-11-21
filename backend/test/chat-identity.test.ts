@@ -153,8 +153,14 @@ test('0018: penulis paralel untuk kontak yang sama tidak membuat duplikat', { sk
     resolve(tn, id, '6285500006666@s.whatsapp.net', '6285500006666'), resolve(tn, id, LID(6), '6285500006666'),
     resolve(tn, id, LID(6), null), resolve(tn, id, '6285500006666@s.whatsapp.net', '6285500006666'),
   ]);
-  assert.equal(new Set(ids).size, 1);
-  assert.equal((await chatsOf(id)).length, 1);
+  // Invarian yang dijamin rancangan (ADR-041): setelah semuanya selesai tersisa TEPAT SATU chat, dan resolve berikutnya menunjuk chat itu. ID yang dikembalikan tiap
+  // panggilan TIDAK dijamin sama: panggilan awal dapat mengembalikan chat yang kemudian digabung (dihapus) oleh panggilan lain. Itu aman karena jalur produksi
+  // (inbox.ts) memanggil resolve_chat dan menyisipkan pesan dalam SATU transaksi dengan kunci advisory ditahan sampai commit; penggabungan menunggu lalu
+  // memindahkan pesannya. Tes memanggil dalam transaksi terpisah, jadi ID basi wajar dan tidak boleh dijadikan asersi.
+  const chats = await chatsOf(id);
+  assert.equal(chats.length, 1, 'tepat satu chat tersisa');
+  assert.equal(await resolve(tn, id, '6285500006666@s.whatsapp.net', '6285500006666'), chats[0].id, 'resolve berikutnya menunjuk satu-satunya chat');
+  assert.ok(ids.every((x) => typeof x === 'string'), 'setiap panggilan mengembalikan id');
 });
 
 test('0018: duplikat lama (dibuat sebelum perbaikan) pulih pada penulisan berikutnya, riwayat utuh', { skip }, async () => {

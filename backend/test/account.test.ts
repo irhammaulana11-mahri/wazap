@@ -178,7 +178,7 @@ test('RLS kode pemulihan: hanya pemilik; pengguna lain dan platform tidak meliha
 
 test('ganti email: validasi, login dengan email baru, member_email di SEMUA keanggotaan ikut berubah, peran tidak tersentuh', { skip }, async () => {
   const o1 = await reg(); const o2 = await reg();
-  const m1 = await joinAs(o1, 'MEMBER'); const m2 = await joinAs(o2, 'ADMIN'); // pengguna yang sama? tidak: dua akun; buat satu akun di dua tenant:
+  const m1 = await joinAs(o1, 'MEMBER'); const m2 = await joinAs(o2, 'MEMBER'); // pengguna yang sama? tidak: dua akun; buat satu akun di dua tenant:
   const multi = await reg(); // OWNER tenant sendiri
   const inv = await call('POST', '/team/invitations', o1.tok, { email: multi.email, role: 'VIEWER' });
   await call('POST', '/team/invitations/accept', multi.tok, { token: inv.body.data.token });
@@ -201,7 +201,7 @@ test('RLS/guard keanggotaan: di luar tenant aktif hanya member_email yang dapat 
   const o1 = await reg(); const m = await joinAs(o1, 'MEMBER'); const other = await reg();
   // pengguna memegang konteks tenant LAIN: tidak dapat menaikkan perannya di o1
   await assert.rejects(q({ userId: m.userId, tenantId: other.tenantId }, `UPDATE tenant_memberships SET role = 'OWNER' WHERE tenant_id = $1 AND user_id = $2`, [o1.tenantId, m.userId]), /hanya boleh menyinkronkan member_email/);
-  await assert.rejects(q({ userId: m.userId }, `UPDATE tenant_memberships SET status = 'ACTIVE', role = 'ADMIN' WHERE user_id = $1`, [m.userId]), /hanya boleh menyinkronkan member_email/);
+  await assert.rejects(q({ userId: m.userId }, `UPDATE tenant_memberships SET status = 'ACTIVE', role = 'OWNER' WHERE user_id = $1`, [m.userId]), /hanya boleh menyinkronkan member_email/);
   await assert.rejects(q({ userId: m.userId }, `UPDATE tenant_memberships SET member_email = 'palsu@x.test' WHERE user_id = $1`, [m.userId]), /hanya boleh menyinkronkan member_email/, 'harus sama dengan email akun');
   assert.equal((await q({ userId: other.userId }, `UPDATE tenant_memberships SET member_email = 'x@x.test' WHERE tenant_id = $1 RETURNING 1`, [o1.tenantId])).length, 0, 'baris orang lain tidak terlihat');
 });
@@ -255,7 +255,7 @@ test('ganti nama sesi: unik per tenant, VIEWER 403, tercatat di event, sesi DELE
 });
 
 test('ganti nama workspace: hanya OWNER, nama pada kode workspace ikut berubah, audit', { skip }, async () => {
-  const o = await reg(); const adm = await joinAs(o, 'ADMIN');
+  const o = await reg(); const adm = await joinAs(o, 'MEMBER');
   const code = (await call('PUT', '/team/join-code', o.tok)).body.data.join_code;
   assert.equal((await call('PATCH', '/tenant', adm.tok, { name: 'Nama Baru' })).status, 403);
   assert.equal((await call('PATCH', '/tenant', o.tok, { name: 'x' })).status, 400);
@@ -268,12 +268,12 @@ test('ganti nama workspace: hanya OWNER, nama pada kode workspace ikut berubah, 
 });
 
 test('hapus workspace: password+konfirmasi nama, hanya OWNER; akses berhenti; sesi/webhook/key dimatikan; tenant lain utuh; retensi menghapus data', { skip }, async () => {
-  const o = await reg(); const adm = await joinAs(o, 'ADMIN'); const bystander = await reg();
+  const o = await reg(); const adm = await joinAs(o, 'MEMBER'); const bystander = await reg();
   const key = (await call('POST', '/api-keys', o.tok, { name: 'kunci', scopes: ['sessions:read'] })).body.data.key;
   const s = (await call('POST', '/sessions', o.tok, { session_name: 'Hapus Saya', auto_connect: false })).body.data;
   await q({ tenantId: o.tenantId }, `INSERT INTO webhook_endpoints (tenant_id, url, secret_ciphertext, secret_key_version, secret_hint) VALUES ($1,'https://example.com/h','\\x00',1,'abcd')`, [o.tenantId]);
   const del = (body: any, tok = o.tok) => call('DELETE', '/tenant', tok, body);
-  assert.equal((await del({ password: PW, confirm_name: o.name }, adm.tok)).status, 403, 'ADMIN tidak boleh');
+  assert.equal((await del({ password: PW, confirm_name: o.name }, adm.tok)).status, 403, 'non-OWNER tidak boleh');
   assert.equal((await del({ password: 'salah-salah-12345', confirm_name: o.name })).body.error.code, 'INVALID_PASSWORD');
   assert.equal((await del({ password: PW, confirm_name: 'Nama Salah' })).body.error.code, 'CONFIRMATION_MISMATCH');
   assert.equal((await del({ password: PW })).status, 400);
@@ -307,7 +307,7 @@ test('platform tidak dapat menghapus tenant yang masih ACTIVE (kebijakan RLS)', 
 });
 
 test('pemulihan workspace terhapus: OWNER dengan email+kata sandi, dalam masa tunggu; data kembali, koneksi/webhook/key tidak; di luar masa tunggu ditolak', { skip }, async () => {
-  const o = await reg(); const adm = await joinAs(o, 'ADMIN'); const other = await reg();
+  const o = await reg(); const adm = await joinAs(o, 'MEMBER'); const other = await reg();
   const k = (await call('POST', '/api-keys', o.tok, { name: 'kunci', scopes: ['sessions:read'] })).body.data.key;
   const s = (await call('POST', '/sessions', o.tok, { session_name: 'Pulih', auto_connect: false })).body.data;
   await q({ tenantId: o.tenantId }, `INSERT INTO webhook_endpoints (tenant_id, url, secret_ciphertext, secret_key_version, secret_hint) VALUES ($1,'https://example.com/h','\\x00',1,'abcd')`, [o.tenantId]);
@@ -317,7 +317,7 @@ test('pemulihan workspace terhapus: OWNER dengan email+kata sandi, dalam masa tu
   assert.equal((await list({ email: o.email, password: 'salah-salah-12345' })).status, 401);
   const l = await list({ email: o.email, password: PW });
   assert.equal(l.status, 200); assert.deepEqual(l.body.data.map((x: any) => x.tenant_id), [o.tenantId]); assert.ok(l.body.data[0].restorable_until);
-  assert.deepEqual((await list({ email: adm.email, password: PW })).body.data.filter((x: any) => x.tenant_id === o.tenantId), [], 'ADMIN tidak melihatnya');
+  assert.deepEqual((await list({ email: adm.email, password: PW })).body.data.filter((x: any) => x.tenant_id === o.tenantId), [], 'non-OWNER tidak melihatnya');
   assert.deepEqual((await list({ email: other.email, password: PW })).body.data, [], 'pengguna lain tidak melihatnya');
   assert.equal((await restore({ email: adm.email, password: PW, tenant_id: o.tenantId })).status, 404, 'bukan OWNER = tidak ada');
   assert.equal((await restore({ email: other.email, password: PW, tenant_id: o.tenantId })).status, 404);

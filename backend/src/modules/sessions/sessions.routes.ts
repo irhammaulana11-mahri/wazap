@@ -20,8 +20,8 @@ export interface SessionRoutesOpts {
 }
 
 export async function sessionRoutes(app: FastifyInstance, { sessions, authenticate }: SessionRoutesOpts) {
-  const read = [authenticate, requireAccess('sessions:read', ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'])];
-  const write = [authenticate, requireAccess('sessions:write', ['OWNER', 'ADMIN', 'MEMBER'])];
+  const read = [authenticate, requireAccess('sessions:read', ['OWNER', 'MEMBER', 'VIEWER'])];
+  const write = [authenticate, requireAccess('sessions:write', ['OWNER', 'MEMBER'])];
   const id = (req: FastifyRequest) => IdParam.parse(req.params).sessionId;
 
   app.post('/sessions', { preHandler: write }, async (req, reply) => {

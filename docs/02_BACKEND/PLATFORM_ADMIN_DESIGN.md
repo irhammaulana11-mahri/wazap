@@ -1,6 +1,6 @@
 # Rancangan: Platform Admin (pemilik platform) dan penyederhanaan peran workspace
 
-> **STATUS: USULAN, menunggu keputusan pemilik (bagian 8).** Belum ada kode. Permintaan pemilik (2026-11-21): peran **platform admin / super admin** yang mengelola semua pemilik workspace dan **mengalokasikan kuota** (Batas Sesi WhatsApp, Batas Kecepatan/Rate Limit, Batas Kunci REST API, Batas Anggota Tim) per workspace, dengan tampilan frontend (termasuk status cadangan); dan di dalam workspace hanya **OWNER**, **member/agent**, dan **viewer** (tanpa ADMIN).
+> **STATUS: DIPUTUSKAN SEBAGIAN (2026-11-21), belum ada kode.** Diputuskan pemilik: ADMIN dihapus sekarang (ADMIN lama menjadi MEMBER); kuota diatur penuh oleh platform dan OWNER hanya melihat; UI cadangan hanya-baca; konsol untuk sementara di HOST YANG SAMA (`wazap.bolinggo.org/platform`). Menunggu konfirmasi: paket keamanan untuk konsol di host yang sama (bagian 3A). Permintaan pemilik (2026-11-21): peran **platform admin / super admin** yang mengelola semua pemilik workspace dan **mengalokasikan kuota** (Batas Sesi WhatsApp, Batas Kecepatan/Rate Limit, Batas Kunci REST API, Batas Anggota Tim) per workspace, dengan tampilan frontend (termasuk status cadangan); dan di dalam workspace hanya **OWNER**, **member/agent**, dan **viewer** (tanpa ADMIN).
 
 ## 1. Kondisi saat ini (fakta dari kode)
 -   Peran workspace: `OWNER > ADMIN > MEMBER > VIEWER` (`principal.ts`, CHECK di `tenant_memberships`, `team.service.ts`). `ADMIN` muncul di 12 berkas rute/layanan.
@@ -37,6 +37,15 @@ Perubahan dari sekarang: semua hak `ADMIN` (webhook, API key, alarm, ekspor, aud
 -   **v1.1 (setelah v1 stabil):** kelola akun pemilik: nonaktifkan/aktifkan akun (`users.status`), terbitkan kode pemulihan (menggantikan CLI), TOTP wajib untuk platform admin.
 -   **Transparansi:** setiap perubahan oleh platform tercatat juga di log audit workspace ("diubah oleh platform", tanpa identitas operator pribadi), supaya OWNER tahu kuotanya bukan berubah sendiri.
 
+## 3A. Keamanan konsol di host yang sama (usulan, menunggu konfirmasi)
+Karena konsol berada di `wazap.bolinggo.org` yang juga dipakai pelanggan, kebocoran satu kata sandi tidak boleh cukup untuk menguasai platform. Lapisan (dari terkuat):
+1.  **MFA TOTP wajib di aplikasi** untuk setiap platform admin (RFC 6238, SHA-1, 6 digit, 30 dtk, jendela ±1, dikerjakan dengan `node:crypto` tanpa dependensi baru). Rahasia TOTP disimpan terenkripsi (AES-256-GCM dengan AAD `wazap:totp:v1|user`, sama seperti kredensial lain) dan ikut rotasi kunci. **Pendaftaran perangkat hanya lewat CLI di server**: `npm run admin:platform-admin -- --email ...` mencetak URI `otpauth://` SEKALI di terminal server (dan 10 kode pemulihan sekali pakai, hanya hash yang disimpan). Tidak ada jalur dari internet yang dapat mendaftarkan atau mengganti perangkat. Kode TOTP yang sama tidak dapat dipakai dua kali (langkah waktu terakhir disimpan).
+2.  **Login platform terpisah** dari login pelanggan: `POST /platform/auth/login` (email + kata sandi, hanya untuk akun di `platform_admins`, galat seragam agar tidak membocorkan siapa admin) menghasilkan token MFA berumur 5 menit; `POST /platform/auth/verify` (kode TOTP) menghasilkan token platform berumur 15 menit tanpa refresh, dengan batas sesi mutlak 8 jam. Token workspace tidak pernah dapat menjadi token platform dan sebaliknya (tes silang).
+3.  **Kode TOTP segar pada setiap perubahan** (kuota, tangguhkan, default): isi `otp` di tubuh permintaan; pembaca tidak perlu. Kesalahan 5 kali dalam 15 menit mengunci akun admin itu (sama seperti pola kata sandi pada kanal alarm; pengecekan kunci sebelum verifikasi).
+4.  **Jejak dan pemberitahuan**: audit platform append-only (login berhasil/gagal, setiap perubahan, IP, alasan), dan notifikasi Telegram ke operator untuk login platform dan setiap perubahan (token bot tulis-saja di env API; opsional, fase P4 bila tidak dikerjakan di P1).
+5.  **Jaringan** (tanpa kode, opsional tetapi disarankan karena Anda sudah memakai Cloudflare): **Cloudflare Access dengan cakupan path** pada `wazap.bolinggo.org/platform*` dan `wazap.bolinggo.org/api/v1/platform/*` (kebijakan: hanya surel admin; MFA/OTP dari Cloudflare). Berfungsi di host yang sama karena Access dapat dibatasi per path, dan SPA memanggil API satu origin. Nginx: `/api/v1/platform/` dijawab 404 di `api-wazap.bolinggo.org` (tes); zona batas laju khusus yang ketat untuk path platform.
+**Yang tidak dapat dijanjikan:** di host yang sama, bug di aplikasi (mis. kelemahan XSS pada dashboard pelanggan) tetap berada di origin yang sama dengan konsol. Karena itu MFA dan kode segar per perubahan adalah pagar utama, dan pemisahan ke host admin (`admin-wazap`) tetap menjadi peningkatan yang disarankan setelah v1.
+
 ## 4. Kuota
 -   `tenant_settings` tetap sumber kebenaran (tidak ada tabel kuota baru). **OWNER tidak lagi dapat mengubah kuota**: `PATCH /tenant/settings` dihapus (atau 403 permanen) dan tab Pengaturan menampilkan kuota hanya baca beserta pemakaian dan teks "hubungi pemilik platform untuk menambah kuota".
 -   `LIMIT_CEIL_*` berubah arti: batas mutlak yang tidak dapat dilampaui platform admin pun (pagar salah ketik), bukan hak OWNER.
@@ -51,22 +60,24 @@ Platform admin **tidak dapat**: membaca isi pesan, kontak, chat, kredensial/auth
 
 ## 7. Tampilan frontend dan status cadangan
 -   **Konsol platform** adalah bagian terpisah di frontend (`/platform/*`), terlihat hanya untuk token platform; dashboard workspace tidak memuat menu platform.
--   **Host terpisah (disarankan):** `admin-wazap.bolinggo.org` di belakang **Cloudflare Access** (lapis autentikasi luar, pada tunnel yang sama). Nginx memastikan `/api/v1/platform/` **hanya** dilayani di host admin dan 404 di `wazap.` dan `api-wazap.` (tes). Jadi bahkan kebocoran kredensial platform admin tidak dapat dipakai dari host publik tanpa lolos Cloudflare Access.
+-   **Untuk sementara di host yang sama** (keputusan pemilik): `wazap.bolinggo.org/platform`, dengan paket keamanan bagian 3A. `/api/v1/platform/` dijawab 404 di `api-wazap.bolinggo.org`. Pemisahan ke host admin di belakang Cloudflare Access (path-scoped atau host sendiri) tetap peningkatan yang disarankan.
 -   **Status cadangan (hanya baca):** `backup-run.sh` menulis berkas status JSON (waktu terakhir sukses/gagal, ukuran, `offsite.ok`/`separate-disk.ok`, umur) ke `/var/lib/wazap/status/backup.json` (dibaca API, tanpa kredensial). Tidak ada tombol "jalankan/pulihkan" yang mengeksekusi dari API: itu membuat proses API memegang kredensial cadangan (`BYPASSRLS`). Opsi lanjutan bila diinginkan: API menulis berkas permintaan yang diambil cron/systemd path milik pengguna cadangan (kredensial tetap di luar API).
 -   Frontend dikerjakan agen frontend dengan prompt dari dokumen ini (pola yang sama dengan UI ekspor dan notifikasi): backend dibuat dan diuji lebih dulu, kontrak OpenAPI dan tes perilaku klien mengunci frontend.
 
-## 8. Keputusan yang dibutuhkan dari pemilik
-1.  Lokasi dan perlindungan konsol: host terpisah + Cloudflare Access (disarankan), TOTP di aplikasi dari awal, atau path `/platform` di dashboard yang sama.
-2.  Hapus peran `ADMIN` sekarang (sebelum produksi; ADMIN yang ada dikonversi ke MEMBER) atau tunda.
-3.  Kuota: OWNER hanya-baca dan platform mengatur penuh (disarankan), atau OWNER tetap boleh mengubah di dalam alokasi platform.
-4.  Cakupan UI cadangan: status hanya-baca (disarankan) atau ditambah tombol jalankan sekarang lewat berkas permintaan.
+## 8. Keputusan pemilik
+| # | Keputusan | Status |
+|---|---|---|
+| 1 | Lokasi dan perlindungan konsol | host yang sama untuk sementara; paket keamanan 3A (MFA TOTP + login terpisah + kode segar per perubahan + Cloudflare Access path-scoped opsional) **menunggu konfirmasi** |
+| 2 | Hapus peran `ADMIN` sekarang, ADMIN lama menjadi MEMBER | **DIPUTUSKAN** |
+| 3 | Kuota diatur penuh oleh platform, OWNER hanya melihat | **DIPUTUSKAN** |
+| 4 | UI cadangan: status hanya-baca | **DIPUTUSKAN** |
 
 ## 9. Fase kerja (tiap fase selesai hanya dengan implementasi, tes, dokumen, bukti)
 -   **P0** Peran: migrasi 0021, hapus ADMIN di kode/tes/OpenAPI/frontend/dokumen. (Sebelum tenant sungguhan.)
--   **P1** Backend platform: `platform_admins`, `platform_defaults`, `platform_audit_logs` (RLS FORCE, hanya konteks platform), token `typ: platform`, guard dan tes silang, modul `platform/`, CLI admin, penegakan penangguhan (bagian 5), kuota per workspace dan OWNER hanya-baca, status cadangan, pembaruan tes penjaga konteks platform. Migrasi 0022.
--   **P2** Gerbang jaringan: vhost host admin, `/api/v1/platform/` 404 di host lain (diuji di `test-tunnel-vhost.sh`), panduan Cloudflare Access.
+-   **P1** Backend platform: `platform_admins` (+ rahasia TOTP terenkripsi, kode pemulihan, langkah waktu terakhir), `platform_defaults`, `platform_audit_logs` (RLS FORCE, hanya konteks platform), token `typ: platform`, guard dan tes silang, modul `platform/`, CLI admin, penegakan penangguhan (bagian 5), kuota per workspace dan OWNER hanya-baca, status cadangan, pembaruan tes penjaga konteks platform. Migrasi 0022.
+-   **P2** Gerbang jaringan: `/api/v1/platform/` 404 di host API (diuji di `test-tunnel-vhost.sh`), zona batas laju path platform, panduan Cloudflare Access path-scoped.
 -   **P3** Frontend: prompt agen, konsol platform, UI kuota hanya-baca di Pengaturan, perubahan pilihan peran (tanpa ADMIN).
--   **P4** (opsional) TOTP, kelola akun pemilik, tombol cadangan lewat berkas permintaan.
+-   **P4** (opsional) notifikasi Telegram login/perubahan platform, kelola akun pemilik, pemisahan ke host admin.
 
 ## 10. Bukti selesai yang akan diminta
 Tes silang token (workspace tidak bisa ke `/platform`, platform tidak bisa ke rute workspace); tes isolasi (platform admin tidak pernah menerima isi pesan/kontak/kredensial; uji skema respons); tes penangguhan menyeluruh (login, refresh, token, API key, realtime, engine, webhook, antrean, alarm; aktivasi ulang memulihkan); tes kuota per workspace dan OWNER 403/hanya-baca; tes audit platform dan jejak di audit workspace; tes migrasi 0021 (ADMIN menjadi MEMBER) dan tes penjaga konteks platform; tes vhost (`/api/v1/platform/` hanya di host admin); regresi seluruh suite.

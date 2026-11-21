@@ -20,7 +20,7 @@ if [ "${SKIP_BACKUP_CHECK:-0}" != 1 ]; then
   echo "cadangan: $(basename "$nb") (${age} jam)"
 fi
 say "2. Build backend"
-( cd backend && npm ci --no-audit --no-fund && npm run build )
+( cd backend && npm ci --include=dev --no-audit --no-fund && npm run build )   # --include=dev: tsc adalah paket dev; NODE_ENV=production di shell (mis. setelah memuat api.env) akan melewatkannya
 say "3. Migrasi (role migrator)"
 ( cd backend && set -a && . "$ENVDIR/api.env" && set +a && npm run migrate:prod )
 # schema_migrations dimiliki migrator, tetapi ALTER DEFAULT PRIVILEGES memberi hak DML ke app pada tabel ini (DB_ROLES.md). App tidak membutuhkannya dan dapat

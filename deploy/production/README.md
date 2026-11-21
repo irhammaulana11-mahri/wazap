@@ -69,12 +69,21 @@ Pengaman bawaan:
 -   Dengan `listen 127.0.0.1:80`, permintaan dari internet ke IP server tidak sampai ke vhost kita (Cloudflare tidak dapat dilewati); pemeriksaan alamat koneksi asli (403) adalah lapis kedua.
 -   IP pengunjung dibaca dari `CF-Connecting-IP` hanya bila koneksi dari loopback, sehingga throttling login, batas laju, dan audit memakai IP pengunjung. Tanpa header itu semua pengunjung terlihat `127.0.0.1` (diperiksa `verify.sh` lewat log akses).
 
+**Aturan yang wajib diikuti (semua pernah menimbulkan masalah nyata di server pertama):**
+1.  **Jangan memakai `sudo` untuk `npm`, `release.sh`, `make-env.sh`, atau `pm2`.** Hanya langkah yang ditandai `sudo` di panduan ini. `release.sh` dengan sudo membuat proses WAZAP hidup di PM2 milik **root** (API berjalan sebagai root, `pm2 status` pengguna biasa tidak memuatnya, dan alarm "proses hilang" menyala), serta membuat `node_modules`, `dist`, `api.env`, dan berkas frontend milik root sehingga rilis berikutnya gagal dengan izin. Bila sudah terlanjur: `sudo pm2 delete wazap-api wazap-engine && sudo pm2 save --force`, `sudo chown -R $(id -un):$(id -gn) /var/www/wazap /var/www/wazap-web /var/lib/wazap`, lalu `release.sh` tanpa sudo.
+2.  **Siapkan folder dulu** (sebelum `make-env.sh`): `sudo install -d -o $(id -un) -g $(id -gn) /var/lib/wazap /var/backups/wazap /var/www/wazap-web`. Tanpa ini `make-env.sh` gagal `mkdir: Permission denied`.
+3.  **Jangan memuat `api.env` ke shell interaktif** (`set -a; . api.env`): `NODE_ENV=production` ikut terekspor dan `npm ci` melewatkan paket dev (`tsc: not found`). Selalu di dalam subshell: `( set -a; . /var/lib/wazap/env/api.env; set +a; perintah )`. `release.sh` sudah memakai `npm ci --include=dev` sebagai pengaman, tetapi kebiasaan ini tetap berlaku.
+4.  **Cek berkas kredensial DB** sebelum `make-env.sh`: `ls -l $HOME/wazap-db.env` harus milik Anda (bukan root). `db-setup.sh` meminta sudo hanya untuk `psql`; berkas hasilnya milik pengguna.
+5.  **Lokasi cadangan di drive terpisah:** `release.sh` membaca `BACKUP_DIR` dari `~/.config/wazap-backup/backup.env`. Jalankan `backup-run.sh` (bukan `deploy/ops/backup.sh`) sebelum rilis berikutnya agar cek "cadangan segar maks 2 jam" lulus.
+6.  **Jangan menghapus berkas sementara kredensial (`shred`) sebelum `make-env.sh` berhasil**, dan jangan menjalankan `db-setup.sh` kedua kali (menolak bila role sudah ada; kata sandi lama tidak dapat dibaca ulang).
+
 **T1. Siapkan server** (tanpa publikasi): langkah 0 sampai 4 di "Urutan" (kode, DB, env, kunci master), lalu
 ```bash
-sudo install -d -o $(id -un) -g $(id -gn) /var/www/wazap /var/lib/wazap /var/backups/wazap   # /var/www/wazap sudah ada (root): preflight menampilkan isinya; ambil alih hanya bila kosong
+sudo install -d -o $(id -un) -g $(id -gn) /var/www/wazap /var/lib/wazap /var/backups/wazap /var/www/wazap-web   # /var/www/wazap sudah ada (root): preflight menampilkan isinya; ambil alih hanya bila kosong
 sudo deploy/production/bin/install-nginx.sh tunnel     # vhost :80 untuk dua nama; nginx -t dan rollback otomatis; situs lain tidak diubah
 SKIP_BACKUP_CHECK=1 deploy/production/bin/release.sh
-pm2 save                                                # pm2 startup sudah terpasang untuk pengguna ini (preflight)
+pm2 startup                                             # salin dan jalankan perintah sudo yang dicetak pm2 (hanya sekali per server); cek: systemctl is-enabled pm2-$(id -un)
+pm2 save                                                # menyimpan SEMUA proses PM2 pengguna ini (juga aplikasi lain di server bersama)
 VERIFY_LOCAL=1 VERIFY_TUNNEL=1 deploy/production/bin/verify.sh   # sisi origin: harus lulus SEBELUM dipublikasikan
 ```
 **T2. Publikasikan lewat tunnel** (Cloudflare Zero Trust, Networks, Tunnels, pilih tunnel yang sudah ada). Cek dulu jenisnya:
@@ -98,7 +107,7 @@ DRY_RUN=1 deploy/production/bin/db-setup.sh     # lihat dulu langkahnya (tidak m
 deploy/production/bin/db-setup.sh               # membuat database wazap_prod, role wazap_migrator dan wazap_app, kata sandi acak
 ```
 Aman untuk server bersama: menolak bila database atau role sudah ada, hanya membuat objek `wazap_*`, tidak menyentuh `antrian_db`/`bimbel_kraksaan_db`. Kata sandi ditulis ke `~/wazap-db.env` (0600) dan TIDAK dicetak. Hak app pada `schema_migrations` dicabut otomatis oleh `release.sh`. Cadangan role `wazap_backup`: langkah 8.
-**4. Env dan kunci master.**
+**4. Env dan kunci master.** Prasyarat: folder sudah disiapkan (aturan 2) dan `ls -l $HOME/wazap-db.env` milik Anda.
 ```bash
 DB_ENV_SOURCE=$HOME/wazap-db.env deploy/production/bin/make-env.sh
 shred -u $HOME/wazap-db.env
@@ -112,11 +121,16 @@ sudo certbot renew --dry-run
 printf '#!/bin/sh\nsystemctl reload nginx\n' | sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx >/dev/null && sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
 sudo deploy/production/bin/install-nginx.sh https        # HSTS 300 dtk dulu. Lewat Cloudflare: sudo CLOUDFLARE=1 ... (lihat bagian Cloudflare)
 ```
-**6. Rilis pertama** (DB kosong; belum ada cadangan, PM2 belum punya proses):
+**6. Rilis pertama** (DB kosong; belum ada cadangan, PM2 belum punya proses). JANGAN dengan sudo (aturan 1):
 ```bash
 SKIP_BACKUP_CHECK=1 deploy/production/bin/release.sh
 pm2 save && pm2 startup    # jalankan perintah sudo yang dicetak pm2 agar proses hidup lagi setelah reboot
 ```
+**6b. Admin platform pertama** (setelah rilis; pengguna harus sudah mendaftar lewat dashboard; jalankan di terminal pribadi, rahasia TOTP dan kode pemulihan dicetak SEKALI dan jangan ditempel ke chat atau dialihkan ke berkas):
+```bash
+cd /var/www/wazap/backend && ( set -a; . /var/lib/wazap/env/api.env; set +a; node dist/runtime/platform-admin-cli.js create --email EMAIL_ANDA )
+```
+Masuk lewat `https://wazap.bolinggo.org/platform/login` (halaman terpisah dari `/login`, sengaja tanpa tautan dari aplikasi pelanggan; simpan sebagai bookmark). Detail: RUNBOOK P18.
 **7. Verifikasi.** Dari mesin LAIN: `deploy/production/bin/verify.sh`. Di server: `VERIFY_LOCAL=1 VERIFY_AUTH=1 deploy/production/bin/verify.sh` (membuat satu akun uji; hapus lewat dashboard). Harus "SEMUA LULUS". `VERIFY_THROTTLE=1` mengunci IP penguji sementara: jalankan dari IP yang bukan IP admin. Setelah lulus dan Anda yakin domain stabil, naikkan HSTS: `HSTS_MAX_AGE=31536000 sudo -E deploy/production/bin/install-nginx.sh https`.
 **8. Cadangan (WAJIB sebelum tenant sungguhan).** Memakai `backup-setup.sh` dan `backup-run.sh`, BUKAN `deploy/ops/setup-backup-role.sql`: skrip lama memberi `pg_read_all_data` (peran seluruh klaster), sehingga di server bersama kredensial cadangan dapat membaca `antrian_db` dan `bimbel_kraksaan_db` (terbukti di gladi). Role baru hanya punya SELECT pada schema WAZAP.
 ```bash
@@ -126,7 +140,12 @@ deploy/production/bin/backup-run.sh                  # uji sekali; periksa ~/.lo
 # edit ~/.config/wazap-backup/backup.env: isi SALAH SATU OFFSITE_* (salinan di luar host) dan, disarankan, GPG_RECIPIENT; uji ulang
 crontab -e   # tambah:  17 2 * * * /var/www/wazap/deploy/production/bin/backup-run.sh
 # latihan pemulihan pada cadangan nyata (butuh superuser, hasilnya database sementara yang dihapus otomatis):
-sudo -u postgres env PGHOST=/var/run/postgresql APP_PGHOST=127.0.0.1 deploy/ops/restore-drill.sh /var/backups/wazap/<berkas>.dump
+# dump berizin 0600 milik pengguna aplikasi, jadi user postgres tidak dapat membacanya: salin ke folder sementara milik postgres (nama berkas EKSPLISIT, tanpa glob), lalu hapus salinannya
+DUMP="$(ls -1t "$BACKUP_DIR"/*.dump | head -n1)"; B="$(basename "$DUMP")"      # BACKUP_DIR dari ~/.config/wazap-backup/backup.env
+D="$(sudo mktemp -d /tmp/drill.XXXXXX)"; sudo chown postgres:postgres "$D"; sudo chmod 700 "$D"
+sudo install -o postgres -g postgres -m 600 "$DUMP" "$D/$B"; sudo install -o postgres -g postgres -m 600 "$DUMP.sha256" "$D/$B.sha256"
+sudo -u postgres env PGHOST=/var/run/postgresql deploy/ops/restore-drill.sh "$D/$B"     # harus berakhir "PEMULIHAN TERBUKTI UTUH"
+sudo rm -rf "$D"; ls /tmp | grep -c drill                                              # harus 0: tidak ada salinan data produksi tertinggal
 ```
 **Cadangan di drive terpisah (disk/NFS lain di server yang sama).** Periksa drive dulu: `BACKUP_MOUNTPOINT=/mnt/data deploy/production/bin/preflight.sh` (bagian 12: titik mount, perangkat berbeda dari `/` dan data PostgreSQL, dapat ditulis, ruang, `nofail` dan UUID di `/etc/fstab`). Lalu pasang dengan:
 ```bash
@@ -134,7 +153,7 @@ BACKUP_MOUNTPOINT=/mnt/data BACKUP_DIR=/mnt/data/wazap/backups deploy/production
 ```
 `backup-run.sh` lalu MEMBATALKAN cadangan dan mengirim PAGE bila drive tidak ter-mount (tanpa pagar ini, drive yang lepas membuat cadangan menumpuk diam-diam di disk OS), atau ruang bebas kurang dari 500 MB. **Batas perlindungan:** drive terpisah di server yang sama melindungi dari kegagalan SATU disk, tetapi tidak dari kehilangan seluruh server (kebakaran, pencurian, ransomware, kesalahan operator, listrik). Pastikan itu perangkat FISIK berbeda (bukan partisi lain pada disk yang sama). Salinan di luar host tetap disarankan; log mencatat INFO (bukan PERINGATAN) bila cadangan di perangkat terpisah. Penyimpanan media pelanggan (gambar/berkas) belum menjadi fitur aplikasi: lihat PRODUCTION_READINESS.md.
 Yang dicadangkan dan tidak: database `wazap_prod` (data tenant dan **auth state WhatsApp terenkripsi**) dicadangkan otomatis. **Kunci master (`CREDENTIAL_ENCRYPTION_KEYS`), `JWT_SECRET`, dan kata sandi DB TIDAK ada di cadangan database** (sengaja): simpan di password manager + salinan offline (langkah 4). Tanpa kunci master, cadangan DB tidak dapat membuka satu pun sesi WhatsApp. Konfigurasi Nginx dan skrip ada di repo; Public Hostname tunnel ada di dashboard Cloudflare (catat tujuannya). RPO = 24 jam (tanpa WAL/PITR). Kegagalan cadangan atau salinan luar host mengirim PAGE ke Telegram (notify.sh); tanpa salinan luar host, log mencatat PERINGATAN tiap hari.
-**9. Pemantau.** Cara cepat: `DRY_RUN=1 deploy/production/bin/monitor-setup.sh` lalu `deploy/production/bin/monitor-setup.sh` (menanyakan token bot, ID grup, URL heartbeat dengan input tersembunyi; menulis berkas di bawah, mengirim pesan uji, memasang cron). Rincian isi berkas: `~/.config/wazap-monitor/monitor.env` (0600): `MON_API_URL=http://127.0.0.1:3000`, `MON_WORKER_URL=http://127.0.0.1:8101`, `MON_PM2_API=wazap-api`, `MON_PM2_WORKER=wazap-engine`, `MON_BACKUP_DIR=/var/backups/wazap`, `MON_TLS_HOST=wazap.bolinggo.org:443`, `MON_DISK_PATHS="/ /var/lib/postgresql"`, token Telegram, dan `MON_HEARTBEAT_URL` (layanan luar, mis. Healthchecks.io). Cron tiap menit `deploy/ops/monitor-check.sh`. Ulangi uji kegagalan di `MONITORING_ALERTING.md` bagian 11 pada server ini.
+**9. Pemantau.** Cara cepat: `DRY_RUN=1 deploy/production/bin/monitor-setup.sh` lalu `deploy/production/bin/monitor-setup.sh` (menanyakan token bot, ID grup, URL heartbeat dengan input tersembunyi; menulis berkas di bawah, mengirim pesan uji, memasang cron). Rincian isi berkas: `~/.config/wazap-monitor/monitor.env` (0600): `MON_API_URL=http://127.0.0.1:3000`, `MON_WORKER_URL=http://127.0.0.1:8101`, `MON_PM2_API=wazap-api`, `MON_PM2_WORKER=wazap-engine`, `MON_BACKUP_DIR` (diambil otomatis dari `backup.env`, mis. `/srv/backup-data/wazap/backups`), `MON_PUBLIC_URL=https://wazap.bolinggo.org`, `MON_TLS_HOST` kosong di mode tunnel, `MON_DISK_PATHS="/ <titik mount cadangan>"`, token Telegram, dan `MON_HEARTBEAT_URL` (layanan luar, mis. Healthchecks.io). Cron tiap menit `deploy/ops/monitor-check.sh`. Ulangi uji kegagalan di `MONITORING_ALERTING.md` bagian 11 pada server ini.
 **10. Uji nyata.** Pairing WhatsApp sungguhan, kirim dan terima pesan, webhook ke penerima nyata, kanal alarm Telegram, ekspor kecil.
 
 ## Rilis berikutnya

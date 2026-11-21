@@ -28,6 +28,10 @@ Paket penyiapan: `deploy/production/README.md`. Domain: dashboard `wazap.bolingg
 -   **Satu host = satu titik gagal** (API, worker, PostgreSQL, Nginx di satu mesin). Pulih lewat cadangan, bukan failover.
 -   Pemantauan tahap 2 (metrik dari DB: antrean, outbox, RLS) belum ada; hanya sinyal luar DB.
 
+## Fitur yang belum ada (diminta pemilik)
+-   **Penyimpanan media pelanggan (gambar/berkas).** Aplikasi tidak menyimpan berkas ke disk: pesan keluar mengirim media lewat URL yang diunduh saat kirim, pesan masuk hanya menyimpan metadata dan URL. Menyimpan media masuk atau menyediakan hosting media memerlukan fitur baru (lokasi penyimpanan, kuota per workspace, retensi, privasi, cadangan, tautan akses bertanda tangan). Belum direncanakan; perlu keputusan produk.
+-   **Penyimpanan cadangan** di drive terpisah di server yang sama (ADR-051) melindungi dari kegagalan satu disk, bukan dari kehilangan server; salinan luar host tetap disarankan.
+
 ## Risiko produk (bukan teknis)
 WAZAP memakai WhatsApp Web tidak resmi (Baileys). Nomor dapat dibatasi atau diblokir WhatsApp, terutama pada pengiriman massal atau pola mirip spam; ini di luar kendali kode. Sampaikan ke pelanggan, dan jangan menjanjikan jaminan ketersediaan nomor.
 

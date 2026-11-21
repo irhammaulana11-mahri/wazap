@@ -10,9 +10,11 @@
 # Pemakaian:   DRY_RUN=1 deploy/production/bin/backup-setup.sh   lalu   deploy/production/bin/backup-setup.sh
 # Env: DB_NAME(wazap_prod) SCHEMA(gateway) MIGRATOR_ROLE(wazap_migrator) BACKUP_ROLE(wazap_backup) DB_HOST(127.0.0.1) DB_PORT(5432)
 #      CONF_DIR($HOME/.config/wazap-backup) BACKUP_DIR(/var/backups/wazap) RETENTION_DAYS(14) PSQL_CMD("sudo -u postgres psql")
+#      BACKUP_MOUNTPOINT (titik mount drive terpisah, mis. /mnt/data; BACKUP_DIR harus di bawahnya, mis. /mnt/data/wazap/backups). Bila diisi, drive HARUS ter-mount saat setup
+#      dan tiap backup-run.sh (cadangan dibatalkan + PAGE bila lepas, agar tidak menumpuk di disk OS).
 set -euo pipefail
 DB="${DB_NAME:-wazap_prod}"; SCHEMA="${SCHEMA:-gateway}"; MIG="${MIGRATOR_ROLE:-wazap_migrator}"; BK="${BACKUP_ROLE:-wazap_backup}"
-HOST="${DB_HOST:-127.0.0.1}"; PORT="${DB_PORT:-5432}"; CONF="${CONF_DIR:-$HOME/.config/wazap-backup}"; BDIR="${BACKUP_DIR:-/var/backups/wazap}"; KEEP="${RETENTION_DAYS:-14}"
+HOST="${DB_HOST:-127.0.0.1}"; PORT="${DB_PORT:-5432}"; CONF="${CONF_DIR:-$HOME/.config/wazap-backup}"; BDIR="${BACKUP_DIR:-/var/backups/wazap}"; KEEP="${RETENTION_DAYS:-14}"; BMNT="${BACKUP_MOUNTPOINT:-}"
 PSQL="${PSQL_CMD:-sudo -u postgres psql}"
 for v in "$DB" "$SCHEMA" "$MIG" "$BK"; do [[ "$v" =~ ^[a-z_][a-z0-9_]*$ ]] || { echo "nama tidak valid: $v" >&2; exit 2; }; done
 q(){ $PSQL -X -q -At -v ON_ERROR_STOP=1 "$@"; }
@@ -25,6 +27,11 @@ fi
 q -d postgres -c "select 1" >/dev/null || { echo "tidak dapat menjalankan psql sebagai superuser (PSQL_CMD='$PSQL')" >&2; exit 2; }
 [ "$(q -d postgres -c "select count(*) from pg_database where datname='$DB'")" = 1 ] || { echo "database $DB tidak ada (jalankan db-setup.sh dulu)" >&2; exit 2; }
 [ "$(q -d postgres -c "select count(*) from pg_roles where rolname='$BK'")" = 0 ] || { echo "role $BK sudah ada: berhenti (tidak ada yang diubah)" >&2; exit 2; }
+if [ -n "$BMNT" ]; then
+  mountpoint -q "$BMNT" || { echo "BACKUP_MOUNTPOINT $BMNT bukan titik mount aktif (drive belum ter-mount?)" >&2; exit 2; }
+  case "$BDIR/" in "$BMNT"/*) ;; *) echo "BACKUP_DIR ($BDIR) harus berada di bawah BACKUP_MOUNTPOINT ($BMNT)" >&2; exit 2 ;; esac
+  [ "$(stat -c %d "$BMNT")" != "$(stat -c %d /)" ] || echo "PERINGATAN: $BMNT satu perangkat dengan / (bukan disk terpisah)" >&2
+fi
 PW="$(openssl rand -hex 24)"
 q -d postgres <<SQL >/dev/null
 CREATE ROLE $BK LOGIN PASSWORD '$PW' NOSUPERUSER BYPASSRLS NOCREATEDB NOCREATEROLE;
@@ -49,6 +56,8 @@ PGPORT=$PORT
 PGPASSFILE=$CONF/pgpass
 SCHEMA=$SCHEMA
 BACKUP_DIR=$BDIR
+BACKUP_MOUNTPOINT=$BMNT
+BACKUP_MIN_FREE_MB=500
 RETENTION_DAYS=$KEEP
 # Enkripsi (disarankan untuk salinan di luar host): isi dengan ID kunci publik GPG penerima (kunci publik diimpor ke keyring pengguna ini; kunci PRIVAT disimpan di tempat lain).
 GPG_RECIPIENT=

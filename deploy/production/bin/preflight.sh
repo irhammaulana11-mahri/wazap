@@ -147,5 +147,21 @@ if [ -d /var/www/wazap ]; then n="$(ls -A /var/www/wazap 2>/dev/null | wc -l)"; 
 for d in /var/www/wazap-web /var/www/certbot /var/lib/wazap /var/backups/wazap /etc/nginx/wazap; do [ -e "$d" ] && wn "$d sudah ada ($(stat -c '%U:%G %a' "$d" 2>/dev/null))" || ok "$d belum ada"; done
 inf "siapkan dengan: sudo install -d -o $(id -un) -g $(id -gn) /var/www/wazap /var/lib/wazap /var/backups/wazap"
 
+sec "12. Drive untuk cadangan (isi BACKUP_MOUNTPOINT=/mnt/xxx untuk pemeriksaan drive tertentu)"
+if have lsblk; then lsblk -o NAME,TYPE,SIZE,FSTYPE,MOUNTPOINT,MODEL,ROTA 2>/dev/null | grep -vE 'loop|snap' | sed 's/^/  INFO        /'; fi
+have findmnt && findmnt -rn -o TARGET,SOURCE,FSTYPE,OPTIONS 2>/dev/null | grep -E ' (ext4|xfs|btrfs|nfs|nfs4|cifs|exfat|ntfs3?|fuseblk) ' | sed 's/^/  INFO        mount: /' | cut -c1-170
+inf "PENTING: 'disk lain' yang hanyalah partisi lain pada disk FISIK yang sama (kolom NAME: sda1 dan sda2) TIDAK melindungi dari kegagalan disk. Perangkat fisik terpisah = baris TYPE=disk yang berbeda."
+if [ -n "${BACKUP_MOUNTPOINT:-}" ]; then M="$BACKUP_MOUNTPOINT"
+  if mountpoint -q "$M" 2>/dev/null; then ok "$M adalah titik mount aktif"
+    [ "$(stat -c %d "$M")" != "$(stat -c %d /)" ] && ok "$M perangkat berbeda dari / (bukan folder biasa di disk OS)" || ng "$M satu perangkat dengan / : bukan drive terpisah"
+    [ "$(stat -c %d "$M")" != "$(stat -c %d /var/lib/postgresql 2>/dev/null || echo 0)" ] && ok "$M perangkat berbeda dari data PostgreSQL" || wn "$M satu perangkat dengan data PostgreSQL"
+    t="$M/.wazap-tulis-$$"; ( : > "$t" ) 2>/dev/null && { rm -f "$t"; ok "dapat ditulis oleh $(id -un)"; } || ng "$M tidak dapat ditulis oleh $(id -un) (sudo chown/chmod; NFS: periksa root_squash dan hak ekspor)"
+    a="$(df -Pm "$M" | awk 'NR==2{print $4}')"; [ "$a" -ge 20000 ] && ok "ruang bebas ${a} MB" || wn "ruang bebas hanya ${a} MB"
+    ft="$(findmnt -rn -o FSTYPE "$M" 2>/dev/null)"; inf "sistem berkas $M: ${ft:-?}"; case "$ft" in nfs*|cifs) wn "$ft: jaringan; mount yang putus menghentikan cadangan (dijaga BACKUP_MOUNTPOINT) dan NFS root_squash dapat menolak tulis" ;; esac
+    grep -E "[[:space:]]$M[[:space:]]" /etc/fstab 2>/dev/null | grep -q nofail && ok "/etc/fstab: opsi nofail ada (server tetap boot bila drive hilang)" || wn "/etc/fstab tidak memuat $M dengan 'nofail': drive yang hilang dapat membuat boot gagal ke mode darurat; pakai UUID dan nofail"
+    grep -E "[[:space:]]$M[[:space:]]" /etc/fstab 2>/dev/null | grep -q '^UUID=' && ok "/etc/fstab memakai UUID (nama perangkat tidak berubah antar boot)" || wn "/etc/fstab tidak memakai UUID untuk $M (nama /dev/sdX dapat bergeser antar boot)"
+  else ng "$M BUKAN titik mount aktif (drive belum ter-mount?); cadangan akan menumpuk di disk OS bila folder dibuat begitu saja"; fi
+fi
+
 printf '\n== RINGKASAN: %d GAGAL, %d PERINGATAN\n' "$nf" "$nw"
 if [ "$nf" = 0 ]; then echo "Tidak ada penghalang. Tinjau PERINGATAN, lalu lanjut ke README langkah 0."; exit 0; else echo "Perbaiki semua GAGAL sebelum memasang."; exit 1; fi

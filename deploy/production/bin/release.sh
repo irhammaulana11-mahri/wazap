@@ -21,6 +21,12 @@ say "2. Build backend"
 ( cd backend && npm ci --no-audit --no-fund && npm run build )
 say "3. Migrasi (role migrator)"
 ( cd backend && set -a && . "$ENVDIR/api.env" && set +a && npm run migrate:prod )
+# schema_migrations dimiliki migrator, tetapi ALTER DEFAULT PRIVILEGES memberi hak DML ke app pada tabel ini (DB_ROLES.md). App tidak membutuhkannya dan dapat
+# mengubah checksum migrasi bila dibobol. Pemilik boleh mencabutnya: idempoten, dijalankan tiap rilis.
+( set -a; . "$ENVDIR/api.env"; set +a
+  PGPASSWORD="$DB_MIGRATE_PASSWORD" psql -X -q -h "$DB_HOST" -p "$DB_PORT" -U "$DB_MIGRATE_USERNAME" -d "$DB_DATABASE" -v ON_ERROR_STOP=1 \
+    -c "REVOKE ALL ON $DB_SCHEMA.schema_migrations FROM $DB_USERNAME" ) || die "gagal mencabut hak app pada schema_migrations"
+echo "hak app pada schema_migrations dicabut"
 say "4. Restart pekerja lalu API"
 start_or_restart wazap-engine; for i in $(seq 1 30); do curl -sf "http://127.0.0.1:$WP/health/ready" >/dev/null && break; sleep 2; [ "$i" = 30 ] && die "pekerja tidak siap"; done; echo "pekerja siap"
 start_or_restart wazap-api; for i in $(seq 1 30); do curl -sf "http://127.0.0.1:$AP/health/ready" >/dev/null && break; sleep 2; [ "$i" = 30 ] && die "API tidak siap"; done; echo "API siap"

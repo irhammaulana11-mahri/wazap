@@ -10,6 +10,7 @@ Tanpa rahasia di folder ini. Rahasia dibuat di server, `/var/lib/wazap/env/` (06
 
 | Berkas | Fungsi |
 |---|---|
+| `bin/db-setup.sh` | membuat database dan role (migrator/app) dengan kata sandi acak; menolak bila sudah ada |
 | `bin/make-env.sh` | membuat `api.env` dan `worker.env` (JWT dan kunci master BARU, DB dari berkas sumber); tidak menimpa |
 | `bin/run.sh`, `ecosystem.config.cjs` | peluncur PM2 (`wazap-api`, `wazap-engine`); satu instans, bukan cluster |
 | `nginx/*.tpl`, `bin/render-nginx.sh` | vhost dua host + penampung 443 (templat; tidak diedit tangan di /etc); `CATCHALL_443=0` bila sudah ada default_server di 443 |
@@ -68,7 +69,7 @@ Pengaman bawaan:
 
 **T1. Siapkan server** (tanpa publikasi): langkah 0 sampai 4 di "Urutan" (kode, DB, env, kunci master), lalu
 ```bash
-sudo install -d -o $(id -un) -g $(id -gn) /var/www/wazap /var/lib/wazap /var/backups/wazap
+sudo install -d -o $(id -un) -g $(id -gn) /var/www/wazap /var/lib/wazap /var/backups/wazap   # /var/www/wazap sudah ada (root): preflight menampilkan isinya; ambil alih hanya bila kosong
 sudo deploy/production/bin/install-nginx.sh tunnel     # vhost :80 untuk dua nama; nginx -t dan rollback otomatis; situs lain tidak diubah
 SKIP_BACKUP_CHECK=1 deploy/production/bin/release.sh
 pm2 save                                                # pm2 startup sudah terpasang untuk pengguna ini (preflight)
@@ -89,11 +90,16 @@ VERIFY_BEHIND_CDN=1 VERIFY_LOCAL=1 VERIFY_TUNNEL=1 VERIFY_AUTH=1 deploy/producti
 **0. Server.** Jalankan `preflight.sh` (bagian "Data yang dibutuhkan") sampai tanpa GAGAL. Ubuntu LTS, Node 22, PostgreSQL 18, Nginx, PM2, certbot, git; pengguna non-root khusus (mis. `wazap`) yang punya sudo hanya untuk langkah bertanda sudo. Firewall: izinkan 22, 80, 443 saja (`ufw default deny incoming`). PostgreSQL mendengarkan loopback.
 **1. DNS.** Rekaman A (dan AAAA bila ada IPv6) untuk `wazap` dan `api-wazap` ke IP publik server. Periksa: `dig +short wazap.bolinggo.org api-wazap.bolinggo.org`. Port 80 dan 443 harus terjangkau dari internet (tantangan ACME memakai 80).
 **2. Kode.** `git clone <repo> /var/www/wazap && cd /var/www/wazap && git checkout <tag-atau-commit-rilis>`. Rilis hanya dari commit yang lulus `ci-test.sh` (atau CI GitHub hijau).
-**3. Database.** Buat database dan role `wazap_migrator` + `wazap_app` sesuai `docs/07_DEPLOYMENT/DB_ROLES.md`; verifikasi `backend/scripts/verify-db-roles.sh`. Tulis kredensialnya ke berkas sementara 0600 (mis. `/tmp/wazap-db.env`, 8 variabel `DB_*`).
+**3. Database** (skrip; digladi pada PostgreSQL 18 sementara: DB dan role dibuat, migrasi sebagai migrator, `verify-db-roles.sh` lulus penuh, API dan worker siap dengan `DB_ROLE_CHECK=enforce`):
+```bash
+DRY_RUN=1 deploy/production/bin/db-setup.sh     # lihat dulu langkahnya (tidak mengubah apa pun)
+deploy/production/bin/db-setup.sh               # membuat database wazap_prod, role wazap_migrator dan wazap_app, kata sandi acak
+```
+Aman untuk server bersama: menolak bila database atau role sudah ada, hanya membuat objek `wazap_*`, tidak menyentuh `antrian_db`/`bimbel_kraksaan_db`. Kata sandi ditulis ke `~/wazap-db.env` (0600) dan TIDAK dicetak. Hak app pada `schema_migrations` dicabut otomatis oleh `release.sh`. Cadangan role `wazap_backup`: langkah 8.
 **4. Env dan kunci master.**
 ```bash
-DB_ENV_SOURCE=/tmp/wazap-db.env deploy/production/bin/make-env.sh
-shred -u /tmp/wazap-db.env
+DB_ENV_SOURCE=$HOME/wazap-db.env deploy/production/bin/make-env.sh
+shred -u $HOME/wazap-db.env
 ```
 **SEKARANG** simpan `CREDENTIAL_ENCRYPTION_KEYS` (dari `/var/lib/wazap/env/api.env`) ke password manager + salinan offline, dan catat sidik jari yang dicetak. Kunci hilang = semua sesi WhatsApp harus dipair ulang; ini tidak bisa dipulihkan dari cadangan DB.
 **5. Nginx tahap HTTP, lalu sertifikat.**

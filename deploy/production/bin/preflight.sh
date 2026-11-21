@@ -65,6 +65,7 @@ sec "6. Nginx dan bentrok vhost"
 if have nginx; then
   inf "$(nginx -v 2>&1)"
   if [ -n "$S" ]; then T="$($S nginx -T 2>/dev/null)"; else T="$(nginx -T 2>/dev/null)"; fi
+  T="$(printf '%s\n' "$T" | sed -e 's/[[:space:]]*#.*$//')"   # baris komentar (mis. "# listen 443 ssl default_server;" di berkas default Ubuntu) tidak boleh dihitung
   if [ -n "$T" ]; then
     echo "$T" | grep -q 'sites-enabled' && ok "konfigurasi memuat /etc/nginx/sites-enabled (install-nginx.sh memakai tata letak ini)" || wn "konfigurasi TIDAK memuat sites-enabled: install-nginx.sh tidak akan aktif; sesuaikan (conf.d?)"
     for h in "$DASH" "$API"; do echo "$T" | grep -E '^[[:space:]]*server_name' | grep -qw "$h" && ng "server_name $h SUDAH ada di konfigurasi Nginx: akan bentrok" || ok "server_name $h belum dipakai"; done
@@ -115,11 +116,15 @@ for h in "$DASH" "$API"; do a="$(dig4 "$h")"; b="$(dig6 "$h")"
   fi
 done
 cf=0; for h in "$DASH" "$API"; do for ip in "$(dig4 "$h")" "$(dig6 "$h")"; do [ -n "$ip" ] && is_cf "$ip" && cf=1; done; done
-if [ "$cf" = 1 ]; then wn "DNS $DASH/$API menunjuk ke IP CLOUDFLARE (proxy aktif atau Tunnel). Akibat: tanpa CLOUDFLARE=1 semua pengunjung terlihat satu IP (IP Cloudflare): throttling login, batas laju, dan audit per-IP SALAH. Pasang dengan CLOUDFLARE=1 (README bagian Cloudflare); mode SSL Cloudflare harus 'Full (strict)'; batas 100 dtk per permintaan (ekspor sangat besar bisa 524); certbot HTTP-01 hanya jalan bila proxy meneruskan /.well-known (atau pakai Origin Certificate/DNS-01)"
-  if ! echo "$listen" | awk '$4 ~ /:443$/' | grep -q .; then wn "DNS lewat Cloudflare TETAPI origin tidak mendengarkan 443: situs yang sudah ada kemungkinan memakai mode SSL 'Flexible' (Cloudflare ke origin lewat HTTP:80). JANGAN mengubah mode SSL SE-ZONA ke Full/Strict: situs lain akan error 521/525. Pakai Configuration Rule per-hostname hanya untuk $DASH dan $API (README bagian Cloudflare)"; fi
-  { have cloudflared || systemctl is-active cloudflared >/dev/null 2>&1; } && inf "cloudflared terdeteksi: bila memakai Cloudflare TUNNEL, port 80/443 publik TIDAK perlu dibuka dan topologi README berbeda (asal tunnel -> http://127.0.0.1:80); beri tahu saya sebelum lanjut" || inf "cloudflared tidak terdeteksi di server ini: bila proxy memakai 'orange cloud', origin Nginx tetap harus terjangkau dari IP Cloudflare di 80/443"
+tun=0; { have cloudflared || systemctl is-active cloudflared >/dev/null 2>&1; } && tun=1
+if [ "$cf" = 1 ] && [ "$tun" = 1 ]; then
+  ok "DNS lewat Cloudflare dan cloudflared terdeteksi: jalur TUNNEL (README bagian 'Jalur untuk server ini'). Tanpa port 443/sertifikat/mode SSL Cloudflare; pasang dengan: sudo deploy/production/bin/install-nginx.sh tunnel; Service tunnel: http://127.0.0.1:80"
+  systemctl is-active cloudflared >/dev/null 2>&1 && ok "cloudflared aktif" || wn "cloudflared terpasang tetapi tidak aktif"
+  inf "peringatan 443/Flexible/CLOUDFLARE=1 TIDAK berlaku di mode tunnel (hanya untuk proxy ke IP publik)"
+elif [ "$cf" = 1 ]; then wn "DNS $DASH/$API menunjuk ke IP CLOUDFLARE tanpa cloudflared di server ini (proxy ke IP publik). Akibat: tanpa CLOUDFLARE=1 semua pengunjung terlihat satu IP (IP Cloudflare): throttling login, batas laju, dan audit per-IP SALAH. Pasang dengan CLOUDFLARE=1; JANGAN mengubah mode SSL SE-ZONA (situs lain bisa error); batas 100 dtk per permintaan"
+  if ! echo "$listen" | awk '$4 ~ /:443$/' | grep -q .; then wn "origin tidak mendengarkan 443 padahal DNS lewat Cloudflare: situs yang ada kemungkinan memakai mode SSL 'Flexible'; pakai Configuration Rule per-hostname, bukan mode se-zona (README)"; fi
 else inf "DNS tidak menunjuk ke Cloudflare (rentang IP yang dikenal)"; fi
-inf "IP publik asli (di balik NAT/cloud) hanya Anda yang tahu; port 80/443 harus terbuka dari internet (uji dari jaringan lain setelah Nginx tahap http: curl -I http://$DASH)"
+[ "$tun" = 1 ] || inf "IP publik asli (di balik NAT/cloud) hanya Anda yang tahu; port 80/443 harus terbuka dari internet (uji dari jaringan lain setelah Nginx tahap http: curl -I http://$DASH)"
 if have ufw; then $S ufw status 2>/dev/null | head -1 | sed 's/^/  INFO        ufw: /'; r="$($S ufw status 2>/dev/null | grep -E "(^| )(80|443|80,443|Nginx|WWW)" | tr -s " " | tr "\n" ";")"; [ -n "$r" ] && inf "ufw aturan 80/443: $r" || inf "ufw: tidak terlihat aturan untuk 80/443 (butuh sudo, atau belum ada: 443 harus dibuka sebelum certbot/Full)"; fi
 inf "iptables/nftables dan firewall penyedia (security group) tidak dapat diperiksa dari sini: pastikan 80 dan 443 terbuka, 5432/$AP/$WP tertutup dari luar"
 
@@ -138,7 +143,8 @@ done
 t6="$(curl -6 -sS -o /dev/null -m 6 -w '%{http_code}' -I https://api.telegram.org/ 2>/dev/null)"; [ -n "$t6" ] && inf "IPv6 ke Telegram: $t6" || inf "IPv6 ke Telegram tidak terjangkau (aman: pengirim memakai IPv4; ini penyebab CONNECTION_FAILED acak sebelum diperbaiki)"
 
 sec "11. Direktori yang akan dipakai"
-for d in /var/www/wazap /var/www/wazap-web /var/www/certbot /var/lib/wazap /var/backups/wazap /etc/nginx/wazap; do [ -e "$d" ] && wn "$d sudah ada ($(stat -c '%U:%G %a' "$d" 2>/dev/null))" || ok "$d belum ada"; done
+if [ -d /var/www/wazap ]; then n="$(ls -A /var/www/wazap 2>/dev/null | wc -l)"; if [ "$n" = 0 ]; then inf "/var/www/wazap ada tetapi KOSONG (aman dipakai; ambil alih dengan: sudo chown $(id -un):$(id -gn) /var/www/wazap)"; else wn "/var/www/wazap berisi $n entri ($(ls -A /var/www/wazap | head -5 | tr '\n' ' ')): jangan tumpuk di atasnya; pakai direktori lain atau periksa dulu"; fi; fi
+for d in /var/www/wazap-web /var/www/certbot /var/lib/wazap /var/backups/wazap /etc/nginx/wazap; do [ -e "$d" ] && wn "$d sudah ada ($(stat -c '%U:%G %a' "$d" 2>/dev/null))" || ok "$d belum ada"; done
 inf "siapkan dengan: sudo install -d -o $(id -un) -g $(id -gn) /var/www/wazap /var/lib/wazap /var/backups/wazap"
 
 printf '\n== RINGKASAN: %d GAGAL, %d PERINGATAN\n' "$nf" "$nw"

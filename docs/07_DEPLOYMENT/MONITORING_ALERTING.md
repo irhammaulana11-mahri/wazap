@@ -61,6 +61,7 @@ Keparahan: **PAGE** = bangunkan orang (layanan terhenti atau data berisiko); **W
 | A24 | Login brute force | 429 `RATE_LIMITED` pada login > 50 per 10 mnt dari satu IP | 10 mnt | INFO→WARN bila berlanjut 1 jam | P8 |
 | A25 | CI merah di `main` | workflow gagal | langsung | WARN | (lihat bagian 7) |
 | A26 | Pemantau sendiri diam | heartbeat luar tidak diterima | 5 mnt | PAGE | bagian 5 |
+| A27 | URL publik tidak terjangkau (Cloudflare, tunnel, Nginx) | `GET $MON_PUBLIC_URL/health/live` bukan 200 *(sementara)*; hanya aktif bila `MON_PUBLIC_URL` diisi (mode tunnel) | 3 mnt | PAGE | P17 |
 
 Aturan pengurangan bising: satu alarm yang sama tidak dikirim ulang lebih sering dari tiap 30 mnt (PAGE: tiap 15 mnt); kirim pesan "pulih" saat kondisi bersih; A24 mengelompokkan per IP.
 

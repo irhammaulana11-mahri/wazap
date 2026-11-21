@@ -156,6 +156,21 @@ jobs:
           grep -q 'server_name wazap.bolinggo.org;' "$T/out/wazap.conf"
           grep -q 'server_name api-wazap.bolinggo.org;' "$T/out/wazap.conf"
 
+      - name: Vhost tunnel Cloudflare dirender dan lolos `nginx -t`
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq nginx >/dev/null
+          T="$(mktemp -d)"; mkdir -p "$T/web" "$T/out"
+          TUNNEL=1 WEB_ROOT="$T/web" ACCESS_LOG="$T/acc.log" deploy/production/bin/render-nginx.sh "$T/out" 300
+          # pengunjung tidak boleh melewati Cloudflare: hanya loopback yang dilayani, dan IP pengunjung dari CF-Connecting-IP
+          grep -q 'real_ip_header CF-Connecting-IP' "$T/out/wazap.conf"
+          grep -q 'return 403' "$T/out/wazap.conf"
+          if grep -hv '^[[:space:]]*#' "$T/out/wazap.conf" | grep -qE 'listen[[:space:]]+(127\.0\.0\.1|\[::1\]):80'; then echo 'GAGAL: listen 127.0.0.1:80 mengambil SEMUA permintaan loopback milik situs lain'; exit 1; fi
+          if grep -hv '^[[:space:]]*#' "$T/out/wazap.conf" "$T/out/wazap-locations.conf" | grep -qF 'proxy_add_x_forwarded_for'; then echo 'GAGAL: X-Forwarded-For ditambah, bukan ditimpa'; exit 1; fi
+          sed -i -e 's/listen 80;/listen 18081;/' -e 's/listen \[::\]:80;/listen [::1]:18081;/' "$T/out/wazap.conf"
+          printf 'pid %s/nginx.pid;\nevents {}\nhttp { access_log off; client_body_temp_path %s/b; proxy_temp_path %s/p; fastcgi_temp_path %s/f; uwsgi_temp_path %s/u; scgi_temp_path %s/s; include %s/out/wazap.conf; }\n' "$T" "$T" "$T" "$T" "$T" "$T" "$T" > "$T/nginx.conf"
+          nginx -t -c "$T/nginx.conf" -e "$T/error.log"
+
   hygiene:
     name: Higiene repo (rahasia dan berkas lingkungan)
     runs-on: ubuntu-24.04

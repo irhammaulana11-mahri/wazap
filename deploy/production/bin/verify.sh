@@ -5,6 +5,7 @@
 #   VERIFY_THROTTLE=1 (24 login salah dengan X-Forwarded-For palsu: membuktikan IP tak dapat dipalsukan; MENGUNCI IP penguji sementara, jalankan dari IP yang tidak dipakai admin)
 #   ORIGIN_IP=<IP server>: uji LANGSUNG ke server (melewati CDN/Cloudflare) memakai nama host yang sama; WAJIB dijalankan bila DNS lewat Cloudflare.
 #   VERIFY_BEHIND_CDN=1: uji lewat Cloudflare; melewati pemeriksaan milik tepi (TLS 1.1, versi/ pengalihan HTTP, umur sertifikat tepi).
+#   VERIFY_TUNNEL=1 (bersama VERIFY_LOCAL=1, DI server): periksa sisi origin tunnel: Host lewat loopback, pengaman non-loopback 403, IP pengunjung di log akses.
 # Env: DASH_HOST API_HOST WORKER_HEALTH_PORT(8101) API_PORT(3000)
 set -u
 D="$(cd "$(dirname "$0")/.." && pwd)"; ROOT="$(cd "$D/../.." && pwd)"
@@ -75,5 +76,20 @@ if [ "${VERIFY_LOCAL:-0}" = 1 ]; then
   for p in /worker/health/ready /engine/health/ready; do curl -sS --max-time 15 "https://$DASH$p" | grep -q 'sessions_running\|engine_id' && { bad "health pekerja terekspos di $p"; WL=1; }; done
   [ "${WL:-0}" = 0 ] && ok "health pekerja tidak terekspos lewat Nginx"
   stat -c %a /var/lib/wazap/env/api.env /var/lib/wazap/env/worker.env 2>/dev/null | grep -qv '^600$' && bad "izin berkas env bukan 600" || ok "berkas env 0600"
+fi
+if [ "${VERIFY_TUNNEL:-0}" = 1 ]; then
+  echo "== Di server: sisi origin Cloudflare Tunnel (Nginx :80)"
+  oc(){ curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -H "Host: $1" "${@:2}" 2>/dev/null || true; }
+  chk "dashboard lewat loopback (Host $DASH)" "$(oc "$DASH" http://127.0.0.1/)" 200
+  chk "/health/ready lewat loopback" "$(oc "$DASH" http://127.0.0.1/health/ready)" 200
+  chk "host API / = 404" "$(oc "$API" http://127.0.0.1/)" 404
+  mip="$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -n1)"
+  if [ -n "$mip" ]; then chk "koneksi NON-loopback ke vhost kita ditolak 403 (Cloudflare tidak dapat dilewati; sumber $mip)" "$(oc "$DASH" "http://$mip/")" 403; else bad "IP lokal tidak terdeteksi untuk uji non-loopback"; fi
+  cc "https://$DASH/health/live?verify=$RANDOM" >/dev/null; sleep 1
+  L=/var/log/nginx/wazap-access.log
+  if [ -r "$L" ]; then ln="$(grep ' /health/live ' "$L" | tail -n1)"
+    case "$ln" in *"remote=127.0.0.1 "*|"") bad "log akses: IP pengunjung = 127.0.0.1 atau tidak ada (cloudflared tidak meneruskan CF-Connecting-IP? $ln)" ;; *"cf=-"*) bad "log akses: header CF-Connecting-IP kosong ($ln)" ;; *) ok "IP pengunjung terbaca di log akses: ${ln%% GET*}" ;; esac
+  else bad "log akses $L tidak terbaca (pengguna harus anggota grup adm)"; fi
+  systemctl is-active cloudflared >/dev/null 2>&1 && ok "cloudflared aktif" || bad "cloudflared tidak aktif"
 fi
 [ $fail = 0 ] && echo "SEMUA LULUS" || echo "ADA YANG GAGAL"; exit $fail

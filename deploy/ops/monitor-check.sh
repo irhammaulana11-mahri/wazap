@@ -3,7 +3,7 @@
 # Env (semua opsional kecuali yang bertanda *):
 #   MON_API_URL(http://127.0.0.1:3000)  MON_WORKER_URL(kosong=lewati)  MON_PM2_API MON_PM2_WORKER (nama proses PM2; kosong=lewati)
 #   MON_BACKUP_DIR(kosong=lewati) MON_BACKUP_MAX_AGE_H(26)  MON_DISK_PATHS("/")  MON_TLS_HOST(host:port, kosong=lewati)
-#   MON_LOG_FILES(berkas log dipisah spasi)  MON_HEARTBEAT_URL(ping dead-man's switch)  MON_STATE_DIR  NOTIFY(path notify.sh)
+#   MON_PUBLIC_URL(URL publik, mis. https://wazap.bolinggo.org; kosong=lewati)  MON_LOG_FILES(berkas log dipisah spasi)  MON_HEARTBEAT_URL(ping dead-man's switch)  MON_STATE_DIR  NOTIFY(path notify.sh)
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; NOTIFY="${NOTIFY:-$HERE/notify.sh}"
 ENV_FILE="${MON_ENV_FILE:-$HOME/.config/wazap-monitor/monitor.env}"; [ -f "$ENV_FILE" ] && { set -a; . "$ENV_FILE"; set +a; }
@@ -32,6 +32,9 @@ code() { local c; c="$(curl -s -o /dev/null -m 5 -w '%{http_code}' "$1" 2>/dev/n
 live="$(code "$API/health/live")"; ready="$(code "$API/health/ready")"
 alarm A1 PAGE $([ "$live" = 200 ] && echo 0 || echo 1) 120 "API mati (/health/live=$live)" "Playbook P1"
 alarm A2 PAGE $([ "$live" = 200 ] && [ "$ready" != 200 ] && echo 1 || echo 0) 180 "API tidak siap (/health/ready=$ready)" "Playbook P1 (DB bermasalah atau sedang shutdown)"
+# A27 jalur publik ujung ke ujung (Cloudflare -> tunnel -> Nginx -> API), diminta lewat URL publik. Satu-satunya sinyal bila cloudflared/Cloudflare/Nginx mati
+# sementara API lokal sehat (A1 memeriksa lewat loopback dan tidak melihatnya). Kosong = lewati.
+if [ -n "${MON_PUBLIC_URL:-}" ]; then pu="$(code "$MON_PUBLIC_URL/health/live")"; alarm A27 PAGE $([ "$pu" = 200 ] && echo 0 || echo 1) 180 "URL publik tidak terjangkau ($MON_PUBLIC_URL/health/live=$pu)" "Playbook P17 (cloudflared, Cloudflare, atau Nginx)"; fi
 # Worker (bila ada endpoint kesehatan)
 if [ -n "${MON_WORKER_URL:-}" ]; then w="$(code "$MON_WORKER_URL/health/ready")"; alarm A4 PAGE $([ "$w" = 200 ] && echo 0 || echo 1) 120 "Worker tidak siap (/health/ready=$w)" "Playbook P4"; fi
 

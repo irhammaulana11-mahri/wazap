@@ -14,11 +14,11 @@ Paket penyiapan: `deploy/production/README.md`. Domain: dashboard `wazap.bolingg
 | Cadangan | latihan pemulihan penuh pada data staging lulus (skrip dan pagar) |
 
 ## Gerbang (WAJIB lulus sebelum tenant sungguhan)
-1.  **Server, DNS, TLS** (Anda): server berIP publik, A/AAAA untuk kedua nama, port 80/443 terbuka, sertifikat Let's Encrypt, `verify.sh` "SEMUA LULUS" dari luar.
+1.  **Server, DNS, TLS** (Anda): bila memakai **Cloudflare Tunnel** (server ini): `preflight.sh` tanpa GAGAL, vhost tunnel terpasang, dua Public Hostname mengarah ke `http://localhost:80`, `verify.sh` lulus dari luar dan di server (`VERIFY_TUNNEL=1`); tanpa port publik/sertifikat. Bila IP publik: A/AAAA, port 80/443, sertifikat Let's Encrypt.
 2.  **Cadangan di server**: role `wazap_backup` dibuat dan diuji pada server ini, `backup.sh` terjadwal harian, **salinan di luar host**, `restore-drill.sh` lulus pada cadangan nyata. Tanpa salinan di luar host, kerusakan disk = kehilangan semua data. Catatan: tanpa WAL/PITR, RPO = interval cadangan (24 jam).
 3.  **Kunci master tersimpan di dua tempat** (password manager + offline) dan sidik jarinya dicatat SEBELUM aplikasi dijalankan. Kehilangan = semua sesi WhatsApp harus dipair ulang.
 4.  **Rilis lulus uji pada commit yang dirilis**: CI GitHub hijau (saat ini terblokir masalah penagihan akun, bukan kode, jadi CI belum pernah memeriksa kode terbaru) ATAU `ci-test.sh` lokal lulus dan hasilnya dicatat.
-5.  **Pemantau terpasang di server produksi**: cron `monitor-check.sh`, kanal Telegram, **heartbeat dari luar host** (tanpa ini, host mati total tidak menghasilkan alarm apa pun), dan uji kegagalan diulang di server ini (termasuk A1 API mati dan disk, yang belum pernah diuji).
+5.  **Pemantau terpasang di server produksi**: cron `monitor-check.sh`, kanal Telegram, **heartbeat dari luar host** (tanpa ini, host mati total tidak menghasilkan alarm apa pun) dan, di mode tunnel, **A27** (`MON_PUBLIC_URL`) serta notifikasi *Tunnel Health* Cloudflare (tanpa itu `cloudflared` mati = situs tak terjangkau tanpa alarm), dan uji kegagalan diulang di server ini (termasuk A1 API mati dan disk, yang belum pernah diuji).
 6.  **Uji nyata di produksi**: pairing WhatsApp, kirim/terima, webhook ke penerima nyata, kanal alarm, satu ekspor kecil.
 
 ## Belum pernah diuji (risiko diterima untuk pilot, tutup sebelum menaikkan beban)

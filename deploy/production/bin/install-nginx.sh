@@ -2,6 +2,7 @@
 # Memasang vhost produksi ke Nginx SISTEM (sudo). Idempoten; HANYA menambah berkas wazap*, situs lain tidak diubah.
 # Dua tahap karena sertifikat belum ada pada pemasangan pertama:
 #   sudo install-nginx.sh http   -> hanya port 80 (ACME + pengalihan). Lalu jalankan certbot (README langkah 6).
+#   sudo install-nginx.sh tunnel -> UNTUK CLOUDFLARE TUNNEL: vhost HTTP:80 hanya dari loopback (cloudflared); tanpa sertifikat/443/certbot. Satu langkah.
 #   sudo install-nginx.sh https  -> vhost TLS penuh (butuh sertifikat); `nginx -t` sebelum reload, rollback bila gagal.
 # Env: CLOUDFLARE(0|1; 1 bila DNS lewat proxy Cloudflare: IP pengunjung dibaca dari CF-Connecting-IP, hanya dari rentang Cloudflare resmi)
 #      DASH_HOST API_HOST CERT_DIR API_PORT HSTS_MAX_AGE(300; naikkan ke 31536000 setelah verify.sh lulus dan Anda yakin)
@@ -42,7 +43,13 @@ E2
     [ -s "$tmp/cloudflare-realip.conf" ] && install -m 644 "$tmp/cloudflare-realip.conf" "$LOCDIR/cloudflare-realip.conf"
     sed -i "s#$tmp#$LOCDIR#g" "$tmp/wazap.conf"; cp "$tmp/wazap.conf" "$CONF.new"; rm -rf "$tmp"
     ;;
-  *) echo "mode: http|https" >&2; exit 1 ;;
+  tunnel)
+    tmp="$(mktemp -d)"; TUNNEL=1 DASH_HOST="$DASH" API_HOST="$API" WEB_ROOT="$WEB" "$D/bin/render-nginx.sh" "$tmp" "${HSTS_MAX_AGE:-300}"
+    install -m 644 "$tmp/wazap-locations.conf" "$LOCDIR/wazap-locations.conf"
+    sed -i "s#$tmp#$LOCDIR#g" "$tmp/wazap.conf"; cp "$tmp/wazap.conf" "$CONF.new"; rm -rf "$tmp"
+    touch /var/log/nginx/wazap-access.log
+    ;;
+  *) echo "mode: http|https|tunnel" >&2; exit 1 ;;
 esac
 [ -e "$CONF" ] && cp -p "$CONF" "$CONF.bak.$(date +%s)"
 mv "$CONF.new" "$CONF"; ln -sf "$CONF" /etc/nginx/sites-enabled/wazap

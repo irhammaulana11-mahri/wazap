@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { MainLayout } from './components/layout/MainLayout';
 
 import { DashboardPage } from './pages/DashboardPage';
@@ -145,15 +146,17 @@ const AppRoutes: React.FC = () => {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ToastProvider>
-          <ConfirmProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </ConfirmProvider>
-        </ToastProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <ConfirmProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </ConfirmProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

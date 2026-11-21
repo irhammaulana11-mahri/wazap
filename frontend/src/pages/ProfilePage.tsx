@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { useTheme } from '../context/ThemeContext';
 import { RecoveryCodeModal } from '../components/auth/RecoveryCodeModal';
 import {
   User,
@@ -35,12 +36,16 @@ import {
   HelpCircle,
   CheckCircle2,
   Info,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
   const { user, tenant, role, memberships, recovery, refetchUser, logout } = useAuth();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -412,6 +417,77 @@ export const ProfilePage: React.FC = () => {
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">{roleInfo.desc}</p>
               </div>
+            </div>
+          </div>
+
+          {/* Theme Preference Settings */}
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Preferensi Tema Tampilan</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Sesuaikan tema antarmuka dashboard sesuai kenyamanan visual Anda.
+                </p>
+              </div>
+              <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 self-start sm:self-auto">
+                Aktif: {theme === 'system' ? `Sistem (${resolvedTheme === 'dark' ? 'Gelap' : 'Terang'})` : theme === 'dark' ? 'Gelap' : 'Terang'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`flex items-center gap-3 p-3.5 rounded-2xl border transition text-left cursor-pointer ${
+                  theme === 'light'
+                    ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20'
+                    : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
+                }`}
+              >
+                <div className={`p-2 rounded-xl ${theme === 'light' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                  <Sun className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">Mode Terang</span>
+                  <span className="text-[11px] text-slate-500 block">Tampilan cerah standar</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`flex items-center gap-3 p-3.5 rounded-2xl border transition text-left cursor-pointer ${
+                  theme === 'dark'
+                    ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20'
+                    : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
+                }`}
+              >
+                <div className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                  <Moon className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">Mode Gelap</span>
+                  <span className="text-[11px] text-slate-500 block">Nyaman untuk mata malam hari</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTheme('system')}
+                className={`flex items-center gap-3 p-3.5 rounded-2xl border transition text-left cursor-pointer ${
+                  theme === 'system'
+                    ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20'
+                    : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
+                }`}
+              >
+                <div className={`p-2 rounded-xl ${theme === 'system' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                  <Monitor className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-900 block">Ikuti Sistem</span>
+                  <span className="text-[11px] text-slate-500 block">Otomatis sinkron OS</span>
+                </div>
+              </button>
             </div>
           </div>
 

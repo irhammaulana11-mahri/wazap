@@ -2,6 +2,12 @@
 
 ## Unreleased --- Konsol platform admin, kuota hanya-baca, dan peran tanpa ADMIN (2026-11-21)
 
+-   Baru: Pengaturan Tema Gelap / Terang (Dark / Light Mode) lintas peran (`ThemeContext.tsx`).
+    -   Penyedia tema terpadu (`ThemeContext.tsx`) dengan 3 pilihan mode: Mode Terang (`light`), Mode Gelap (`dark`), dan Otomatis Ikuti Preferensi OS (`system`).
+    -   Pengaturan tema tersedia untuk **seluruh peran pengguna** (`OWNER`, `MEMBER`, `VIEWER`) di aplikasi utama melalui tombol cepat Sun/Moon di Header dan kartu preferensi tampilan interaktif di [ProfilePage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/ProfilePage.tsx).
+    -   Konsol Admin Platform (`PlatformLayout.tsx`) kini mengadopsi arsitektur tata letak standar aplikasi utama (Sidebar Kiri + Top Header + Kanvas Konten Terang/Gelap) yang dilengkapi tombol beralih tema langsung di header operator.
+    -   Tailwind v4 `@custom-variant dark (&:where(.dark, .dark *))` terpasang di `index.css` untuk reaktivitas CSS mulus tanpa reload halaman.
+
 -   Baru (ADR-053): Peran tanpa ADMIN di seluruh aplikasi frontend (`frontend/src`).
     -   Tipe data peran disederhanakan menjadi tepat tiga nilai: `Role = 'OWNER' | 'MEMBER' | 'VIEWER'`.
     -   Seluruh penggunaan token `ADMIN` dan helper `isOwnerOrAdmin` dihapus sepenuhnya dari kode frontend.

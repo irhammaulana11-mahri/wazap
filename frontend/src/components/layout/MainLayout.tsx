@@ -8,7 +8,7 @@ export const MainLayout: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-slate-50/70 font-sans text-slate-900 antialiased selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="flex min-h-screen bg-slate-50/70 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 antialiased selection:bg-emerald-100 selection:text-emerald-900 transition-colors">
       {/* Sidebar Desktop & Mobile Drawer */}
       <Sidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 

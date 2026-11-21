@@ -43,6 +43,7 @@ export function createAlertSender(deps: { db: GatewayDb; crypto: CredentialCrypt
   async function claim(limit: number): Promise<Claimed[]> {
     return db.tx({ platform: true }, async (c) => (await c.query(
       `WITH c AS (SELECT id FROM alert_deliveries WHERE status = 'PENDING' AND next_attempt_at <= now() AND (locked_until IS NULL OR locked_until < now())
+                    AND EXISTS (SELECT 1 FROM tenants t WHERE t.id = alert_deliveries.tenant_id AND t.status = 'ACTIVE')   -- workspace ditangguhkan: tidak mengirim (ADR-054)
                   ORDER BY next_attempt_at LIMIT $1 FOR UPDATE SKIP LOCKED)
        UPDATE alert_deliveries d SET locked_until = now() + make_interval(secs => $2) FROM c WHERE d.id = c.id
        RETURNING d.id, d.tenant_id, d.channel_id, d.rule_code, d.payload, d.attempts`, [limit, o.claimSeconds ?? Math.ceil(config.ALERTS_TIMEOUT_MS / 1000) + 30]))

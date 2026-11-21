@@ -552,5 +552,10 @@ Seluruh `/api/v1/platform/*`. Token platform (`Authorization: Bearer`) BERBEDA d
 | PATCH | `/platform/defaults` | `{...kuota, reason, otp}`; tidak mengubah workspace yang ada |
 | GET | `/platform/audit?tenant_id&action&page&page_size` | jejak audit platform, terbaru dulu |
 | GET | `/platform/backup-status` | `{configured, available, status:{updated_at,last_success_at,last_failure_at,last_failure_reason,last_file,last_size_bytes,location,offsite_ok_at}, age_hours, stale, max_age_hours, reason}`; hanya-baca dari berkas yang ditulis `backup-run.sh` |
-| (P1c) | `/platform/workspaces/:id/suspend`, `/activate` | tangguhkan/aktifkan (belum) |
+| POST | `/platform/workspaces/:id/suspend` | `{reason(3..500), otp}` -> `{id,status:SUSPENDED,suspended_at,sessions_affected}`. TOTP segar, alasan wajib, pra-periksa tanpa mengonsumsi kode. `409 INVALID_STATE` bila sudah ditangguhkan, `404` bila tidak ada/terhapus. Dapat dipulihkan, tidak menghapus data |
+| POST | `/platform/workspaces/:id/activate` | `{reason, otp}` -> `{id,status:ACTIVE,suspended_at:null,sessions_affected}`; `409 INVALID_STATE` bila tidak ditangguhkan |
+
+### Penangguhan workspace (ADR-054): perilaku yang dapat diamati
+
+Workspace `SUSPENDED` (oleh platform): token akses, API key, refresh, pindah workspace, dan penerimaan undangan ke workspace itu ditolak seketika (`401`/`404`); `POST /auth/login` ke workspace itu menjawab `403 WORKSPACE_SUSPENDED` ("Workspace ditangguhkan. Hubungi pemilik platform.") HANYA setelah kata sandi benar (kata sandi salah tetap `401 INVALID_CREDENTIALS` seragam); pengguna yang punya workspace lain tetap dapat masuk ke yang lain. Koneksi Socket.IO diputus (`auth.expired`) pada penyapuan berikutnya (`REALTIME_REVALIDATE_SECONDS`, bawaan 30 dtk). Sesi WhatsApp diputus lewat jalur putus biasa (alasan `tenant_suspended`, kredensial utuh); pengiriman webhook dan notifikasi alarm ditahan, TIDAK dibuang. Saat diaktifkan: akses pulih seketika (token lama berfungsi lagi), sesi yang sebelumnya berniat tersambung disambungkan lagi otomatis (alasan `tenant_reactivated`; yang sengaja diputus pengguna tidak ikut), webhook dan alarm yang tertahan lanjut. Tercatat sebagai `tenant.suspended`/`tenant.reactivated` di audit workspace (`actor.email=platform`, tanpa alasan).
 

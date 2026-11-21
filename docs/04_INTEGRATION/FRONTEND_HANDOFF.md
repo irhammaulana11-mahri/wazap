@@ -567,3 +567,8 @@ Semua respons memakai amplop `{success, data}` (daftar ini TIDAK berpaginasi: `d
 -   `GET /alerts/deliveries?limit=1..100` -> `[{id,channel_id,channel_name,rule_code,status:'PENDING'|'SENT'|'DEAD',attempts,last_status_code,last_error_code,sent_at,created_at}]`.
 -   `ALERTS_ENABLED=false` di server: `catalog.enabled=false`, operasi tulis 503 `NOT_CONFIGURED`, baca tetap jalan.
 -   Cara memperoleh token bot Telegram dan `chat_id` (untuk teks bantuan di UI): @BotFather `/newbot` -> token; kirim satu pesan ke bot, lalu buka `https://api.telegram.org/bot<TOKEN>/getUpdates` untuk `chat.id` (grup biasanya diawali `-`; kanal publik bisa `@namakanal`). URL Slack: Incoming Webhook (`https://hooks.slack.com/services/...`); Discord: URL webhook ditambah `/slack`.
+
+### Workspace ditangguhkan (ADR-054)
+
+Bila pemilik platform menangguhkan workspace, SEMUA permintaan dengan token workspace itu menjadi `401` (bukan `403`), sehingga UI akan mengarahkan ke halaman masuk. Saat pengguna masuk lagi, `POST /auth/login` menjawab **`403 WORKSPACE_SUSPENDED`** ("Workspace ditangguhkan. Hubungi pemilik platform."): tampilkan pesan itu apa adanya di halaman masuk (jangan menampilkan "kata sandi salah" atau "tidak ada workspace aktif"). Pengguna yang punya workspace lain dapat masuk ke yang lain (login tanpa `tenant_id` memilih workspace aktif pertama). Socket.IO menerima `auth.expired` lalu terputus. Setelah diaktifkan kembali, pengguna cukup masuk lagi (sesi WhatsApp yang tadinya tersambung tersambung otomatis; tidak perlu scan QR).
+

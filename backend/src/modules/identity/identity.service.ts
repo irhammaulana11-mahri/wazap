@@ -117,6 +117,11 @@ export function createIdentityService(db: GatewayDb) {
           const jr = (await c.query(`SELECT status, expires_at > now() AS live FROM tenant_join_requests WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`, [user.id])).rows[0];
           if (jr?.status === 'PENDING' && jr.live) throw new AppError('JOIN_PENDING', 403, 'Permintaan bergabung Anda menunggu persetujuan admin workspace');
           if (jr && !(jr.status === 'PENDING' && jr.live) && jr.status !== 'APPROVED') throw new AppError('JOIN_REJECTED', 403, 'Permintaan bergabung Anda ditolak atau kedaluwarsa');
+          // Kata sandi benar: boleh memberi tahu bahwa workspace-nya ditangguhkan (ADR-054) alih-alih pesan umum yang menyiratkan akun bermasalah.
+          const sus = (await c.query(
+            `SELECT 1 FROM tenant_memberships m JOIN tenants t ON t.id = m.tenant_id WHERE m.user_id = $1 AND m.status = 'ACTIVE' AND t.status = 'SUSPENDED' AND ($2::uuid IS NULL OR t.id = $2) LIMIT 1`,
+            [user.id, input.tenantId ?? null])).rows[0];
+          if (sus) throw new AppError('WORKSPACE_SUSPENDED', 403, 'Workspace ditangguhkan. Hubungi pemilik platform.');
           throw new AppError('NO_ACTIVE_TENANT', 403, 'Tidak ada workspace aktif untuk akun ini');
         }
         await c.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);

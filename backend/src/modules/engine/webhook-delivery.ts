@@ -96,6 +96,7 @@ export function createWebhookDeliverer(deps: { db: GatewayDb; crypto: Credential
         `WITH c AS (
            SELECT id FROM webhook_deliveries
            WHERE status = 'PENDING' AND next_attempt_at <= now() AND (locked_until IS NULL OR locked_until < now())
+             AND EXISTS (SELECT 1 FROM tenants t WHERE t.id = webhook_deliveries.tenant_id AND t.status = 'ACTIVE')   -- workspace ditangguhkan: pengiriman ditahan (tidak dibuang), lanjut saat diaktifkan (ADR-054)
            ORDER BY next_attempt_at LIMIT $1 FOR UPDATE SKIP LOCKED)
          UPDATE webhook_deliveries d SET locked_until = now() + make_interval(secs => $2) FROM c WHERE d.id = c.id
          RETURNING d.id, d.tenant_id, d.endpoint_id, d.event_id, d.event_type, d.payload, d.attempts, d.max_attempts`,

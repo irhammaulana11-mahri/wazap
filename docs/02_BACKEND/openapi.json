@@ -9850,6 +9850,276 @@
         }
       }
     },
+    "/api/v1/platform/workspaces/{id}/suspend": {
+      "post": {
+        "operationId": "post_platform_workspaces_id_suspend",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Tangguhkan workspace (dapat dipulihkan; TOTP segar dan alasan wajib)",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache. Akses HTTP, realtime, API key, dan refresh langsung berhenti; sesi WhatsApp diputus lewat jalur putus biasa (kredensial utuh); webhook dan alarm ditahan. Semua data tetap. 409 INVALID_STATE bila sudah ditangguhkan.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "otp": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 10
+                  }
+                },
+                "required": [
+                  "reason",
+                  "otp"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "SUSPENDED"
+                          ]
+                        },
+                        "suspended_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "sessions_affected": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "suspended_at",
+                        "sessions_affected"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/workspaces/{id}/activate": {
+      "post": {
+        "operationId": "post_platform_workspaces_id_activate",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Aktifkan kembali workspace ditangguhkan (TOTP segar dan alasan wajib)",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache. Akses pulih seketika; sesi yang berniat tersambung disambungkan lagi (yang sengaja diputus pengguna tidak ikut); webhook dan alarm yang tertahan lanjut. 409 INVALID_STATE bila tidak sedang ditangguhkan.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "otp": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 10
+                  }
+                },
+                "required": [
+                  "reason",
+                  "otp"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "SUSPENDED"
+                          ]
+                        },
+                        "suspended_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "sessions_affected": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "suspended_at",
+                        "sessions_affected"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
     "/api/v1/platform/defaults": {
       "get": {
         "operationId": "get_platform_defaults",

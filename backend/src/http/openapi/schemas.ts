@@ -206,4 +206,4 @@ export const PlatformBackupStatus = z.looseObject({
     last_file: z.string().nullable().optional(), last_size_bytes: z.number().nullable().optional(), location: z.enum(['offsite', 'separate_disk', 'same_disk']), offsite_ok_at: z.string().nullable().optional(),
   }).nullable(),
 });
-
+export const PlatformSuspension = z.looseObject({ id: z.string(), status: z.enum(['ACTIVE', 'SUSPENDED']), suspended_at: z.string().nullable(), sessions_affected: z.number().int() });

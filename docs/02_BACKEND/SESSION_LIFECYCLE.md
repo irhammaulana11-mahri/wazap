@@ -107,3 +107,7 @@ Setiap baris `wa_session_events` yang punya `to_status` menghasilkan event outbo
 ke webhook dan Socket.IO (`session.status` + alias `created|connected|disconnected|
 reconnecting`). Rotasi QR tidak mengubah status sehingga tidak membuat event outbox; engine
 mengirim sinyal realtime `session.qr` (tanpa isi QR) saat QR disimpan.
+
+## Penangguhan workspace (ADR-054): alasan transisi baru
+
+`tenant_suspended` (sesi berjalan diputus lewat DISCONNECTING; sesi menunggu penempatan langsung DISCONNECTED; `desired_state` menjadi DISCONNECTED dan niat tersambung ditandai di `wa_sessions.resume_connect`), `tenant_reactivated` (DISCONNECTED/ERROR bertanda -> PENDING_ASSIGNMENT, `desired_state` CONNECTED), dan `resume_after_release` (langkah pemulihan control-plane: sesi DISCONNECTED ber-`desired_state` CONNECTED ditempatkan ulang). Yang terakhir menutup balapan "diaktifkan saat sesi masih DISCONNECTING": sesi dituntaskan ke DISCONNECTED oleh salah satu dari tiga jalur (control-plane `finalize`, `session-runner`, pemulihan engine) dengan `desired_state` yang sudah CONNECTED lagi. Keadaan DISCONNECTED + CONNECTED tidak pernah dihasilkan alur pengguna.

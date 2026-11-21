@@ -5,6 +5,7 @@ import { AppError } from '../../http/errors.js';
 import type { GatewayDb } from '../../database/gateway.js';
 import { config } from '../../config/env.js';
 import { LIMIT_KEYS, LIMIT_SPEC, readLimits, type LimitKey } from '../tenant/settings.service.js';
+import { transitionSession } from '../sessions/lifecycle.js';
 import { auditPlatform } from './platform.audit.js';
 import type { PlatformAdmin, RequestMeta } from './platform.service.js';
 
@@ -158,6 +159,75 @@ export function createWorkspaceOps(db: GatewayDb, deps: { requireOtp: (admin: Pl
           `INSERT INTO audit_logs (tenant_id, actor_user_id, actor_email, actor_role, action, target_type, target_id, details, ip, request_id)
            VALUES ($1::uuid, NULL, 'platform', NULL, 'tenant.quota_changed', 'tenant', $1::text, $2::jsonb, NULL, $3)`, [tenantId, JSON.stringify({ changes, source: 'platform' }), meta.requestId?.slice(0, 64) ?? null]);
         return readLimits(c, tenantId);
+      });
+    },
+
+    /**
+     * Tangguhkan workspace (ADR-054), DAPAT DIPULIHKAN dan tidak merusak: sesi WhatsApp diputus dengan jalur putus biasa (kredensial utuh; yang berniat tersambung ditandai
+     * `resume_connect`), akses HTTP/realtime/API key/refresh langsung berhenti (semua jalur autentikasi mensyaratkan tenant ACTIVE), pengiriman webhook dan alarm ditahan.
+     * Semua data tetap. Kode TOTP segar dan alasan wajib; pra-periksa sebelum kode dikonsumsi.
+     */
+    async suspendWorkspace(admin: PlatformAdmin, tenantId: string, reason: string, otp: string, meta: RequestMeta = {}) {
+      if (!UUID_RE.test(tenantId)) throw notFound();
+      const check = async (c: pg.PoolClient, lock: boolean) => {
+        const t = (await c.query(`SELECT status FROM tenants WHERE id = $1${lock ? ' FOR UPDATE' : ''}`, [tenantId])).rows[0] as { status: string } | undefined;
+        if (!t || t.status === 'DELETED') throw notFound();
+        if (t.status !== 'ACTIVE') throw new AppError('INVALID_STATE', 409, 'Workspace sudah ditangguhkan');
+      };
+      await db.tx({ platform: true }, (c) => check(c, false));
+      await deps.requireOtp(admin, otp, 'suspend', meta);
+      return db.tx({ platform: true }, async (c) => {
+        await check(c, true);
+        const row = (await c.query(`UPDATE tenants SET status = 'SUSPENDED', suspended_at = now() WHERE id = $1 RETURNING id, status, suspended_at`, [tenantId])).rows[0];
+        const sessions = (await c.query(`SELECT id, status, desired_state FROM wa_sessions WHERE tenant_id = $1 AND status NOT IN ('DELETING','DELETED') ORDER BY id FOR UPDATE`, [tenantId])).rows as { id: string; status: string; desired_state: string }[];
+        let stopped = 0, marked = 0;
+        for (const s of sessions) {
+          if (s.desired_state === 'CONNECTED' && !['CREATED', 'LOGGED_OUT'].includes(s.status)) { await c.query(`UPDATE wa_sessions SET resume_connect = true WHERE id = $1`, [s.id]); marked++; }
+          if (['CREATED', 'DISCONNECTED', 'DISCONNECTING', 'LOGGED_OUT', 'ERROR'].includes(s.status)) {
+            await c.query(`UPDATE wa_sessions SET desired_state = 'DISCONNECTED' WHERE id = $1`, [s.id]);
+          } else {
+            const t = await transitionSession(c, { sessionId: s.id, tenantId, to: s.status === 'PENDING_ASSIGNMENT' ? 'DISCONNECTED' : 'DISCONNECTING', actor: 'SYSTEM', reason: 'tenant_suspended', set: { desired_state: 'DISCONNECTED' } });
+            if (t) stopped++;
+          }
+        }
+        await auditPlatform(c, { adminUserId: admin.userId, adminEmail: admin.email, action: 'tenant.suspended', tenantId, details: { sessions_stopped: stopped, sessions_marked_resume: marked }, reason, ...meta });
+        await c.query(
+          `INSERT INTO audit_logs (tenant_id, actor_user_id, actor_email, actor_role, action, target_type, target_id, details, ip, request_id)
+           VALUES ($1::uuid, NULL, 'platform', NULL, 'tenant.suspended', 'tenant', $1::text, $2::jsonb, NULL, $3)`, [tenantId, JSON.stringify({ source: 'platform' }), meta.requestId?.slice(0, 64) ?? null]);
+        return { id: row.id as string, status: row.status as string, suspended_at: row.suspended_at as Date | null, sessions_affected: stopped };
+      });
+    },
+
+    /** Aktifkan kembali workspace ditangguhkan: akses pulih seketika; sesi yang berniat tersambung disambungkan lagi (yang sengaja diputus pengguna tidak ikut). */
+    async activateWorkspace(admin: PlatformAdmin, tenantId: string, reason: string, otp: string, meta: RequestMeta = {}) {
+      if (!UUID_RE.test(tenantId)) throw notFound();
+      const check = async (c: pg.PoolClient, lock: boolean) => {
+        const t = (await c.query(`SELECT status FROM tenants WHERE id = $1${lock ? ' FOR UPDATE' : ''}`, [tenantId])).rows[0] as { status: string } | undefined;
+        if (!t || t.status === 'DELETED') throw notFound();
+        if (t.status !== 'SUSPENDED') throw new AppError('INVALID_STATE', 409, 'Workspace tidak sedang ditangguhkan');
+      };
+      await db.tx({ platform: true }, (c) => check(c, false));
+      await deps.requireOtp(admin, otp, 'activate', meta);
+      return db.tx({ platform: true }, async (c) => {
+        await check(c, true);
+        const row = (await c.query(`UPDATE tenants SET status = 'ACTIVE', suspended_at = NULL WHERE id = $1 RETURNING id, status, suspended_at`, [tenantId])).rows[0];
+        const sessions = (await c.query(`SELECT id, status FROM wa_sessions WHERE tenant_id = $1 AND resume_connect ORDER BY id FOR UPDATE`, [tenantId])).rows as { id: string; status: string }[];
+        let resumed = 0;
+        for (const s of sessions) {
+          if (['DISCONNECTED', 'ERROR'].includes(s.status)) {
+            const t = await transitionSession(c, { sessionId: s.id, tenantId, to: 'PENDING_ASSIGNMENT', actor: 'SYSTEM', reason: 'tenant_reactivated', set: { desired_state: 'CONNECTED' }, onlyFrom: ['DISCONNECTED', 'ERROR'] });
+            if (t) resumed++;
+          } else if (s.status === 'DISCONNECTING') {
+            // Masih melepas koneksi: niat disambung kembali dicatat; control-plane menempatkan ulang setelah lease dilepas (finalize).
+            await c.query(`UPDATE wa_sessions SET desired_state = 'CONNECTED' WHERE id = $1`, [s.id]); resumed++;
+          }
+        }
+        await c.query(`UPDATE wa_sessions SET resume_connect = false WHERE tenant_id = $1 AND resume_connect`, [tenantId]);
+        await auditPlatform(c, { adminUserId: admin.userId, adminEmail: admin.email, action: 'tenant.reactivated', tenantId, details: { sessions_resumed: resumed }, reason, ...meta });
+        await c.query(
+          `INSERT INTO audit_logs (tenant_id, actor_user_id, actor_email, actor_role, action, target_type, target_id, details, ip, request_id)
+           VALUES ($1::uuid, NULL, 'platform', NULL, 'tenant.reactivated', 'tenant', $1::text, $2::jsonb, NULL, $3)`, [tenantId, JSON.stringify({ source: 'platform' }), meta.requestId?.slice(0, 64) ?? null]);
+        return { id: row.id as string, status: row.status as string, suspended_at: row.suspended_at as Date | null, sessions_affected: resumed };
       });
     },
 

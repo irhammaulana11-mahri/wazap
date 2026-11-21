@@ -93,6 +93,26 @@ export function createControlPlane(db: GatewayDb, engines: EngineService, log: C
     return { disconnected, deleted };
   }
 
+  /**
+   * Sesi DISCONNECTED yang desired_state-nya CONNECTED ditempatkan ulang. Keadaan itu TIDAK pernah dihasilkan alur pengguna (disconnect() menyetel DISCONNECTED; connect() dari
+   * DISCONNECTED langsung ke PENDING_ASSIGNMENT), tetapi muncul bila workspace diaktifkan kembali (ADR-054) selagi sesinya masih DISCONNECTING: niat disambung dipulihkan, lalu sesi
+   * dituntaskan ke DISCONNECTED oleh SALAH SATU dari tiga jalur (control-plane, session-runner, pemulihan engine). Satu langkah di sini menutup ketiganya.
+   */
+  async function resumeWanted(): Promise<number> {
+    const rows = await db.tx({ platform: true }, async (c) =>
+      (await c.query(`SELECT id FROM wa_sessions WHERE status = 'DISCONNECTED' AND desired_state = 'CONNECTED' ORDER BY updated_at LIMIT $1`, [BATCH])).rows as { id: string }[]);
+    let n = 0;
+    for (const r of rows) {
+      try {
+        await db.tx({ platform: true }, async (c) => {
+          const t = await transitionSession(c, { sessionId: r.id, tenantId: null, to: 'PENDING_ASSIGNMENT', actor: 'SYSTEM', reason: 'resume_after_release', onlyFrom: ['DISCONNECTED'] });
+          if (t) n++;
+        });
+      } catch (err) { log.error({ err, sessionId: r.id }, 'gagal memulihkan niat sambung sesi'); }
+    }
+    return n;
+  }
+
   async function assignPending(): Promise<{ assigned: number; noCapacity: number }> {
     // Adil antar tenant: round-robin per tenant (urutan ke-n tiap tenant lebih dulu daripada ke-(n+1)).
     const pending = await db.tx({ platform: true }, async (c) =>
@@ -136,12 +156,13 @@ export function createControlPlane(db: GatewayDb, engines: EngineService, log: C
     const eng = await engines.sweep();
     const leasesExpired = await expireLeases();
     const finalized = await finalize();
+    await resumeWanted();
     const messages = await queue.reap();
     const a = await assignPending();
     return { engines: eng, leasesExpired, finalized, assigned: a.assigned, noCapacity: a.noCapacity, messages };
   }
 
-  return { reconcile, expireLeases, finalize, assignPending };
+  return { reconcile, expireLeases, finalize, resumeWanted, assignPending };
 }
 export type ControlPlane = ReturnType<typeof createControlPlane>;
 

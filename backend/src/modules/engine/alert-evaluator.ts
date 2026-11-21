@@ -9,7 +9,7 @@ import { config } from '../../config/env.js';
  * `payload` hanya berisi FAKTA tersanitasi (nama sesi, angka, host), bukan nomor telepon atau isi pesan.
  */
 const INSERT = (rule: string, candidates: string) => `
-  WITH rl AS (SELECT tenant_id, threshold, cooldown_minutes, channel_ids FROM alert_rules WHERE rule_code = '${rule}' AND enabled AND cardinality(channel_ids) > 0),
+  WITH rl AS (SELECT r.tenant_id, r.threshold, r.cooldown_minutes, r.channel_ids FROM alert_rules r JOIN tenants tn ON tn.id = r.tenant_id AND tn.status = 'ACTIVE' WHERE r.rule_code = '${rule}' AND r.enabled AND cardinality(r.channel_ids) > 0),   -- tenant ditangguhkan tidak dievaluasi (ADR-054)
   cand AS (${candidates})
   INSERT INTO alert_deliveries (tenant_id, channel_id, rule_code, object_key, window_key, payload)
   SELECT cand.tenant_id, ch.id, '${rule}', cand.object_key, cand.window_key, cand.facts

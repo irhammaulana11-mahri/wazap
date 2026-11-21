@@ -143,3 +143,13 @@ Yang dicadangkan dan tidak: database `wazap_prod` (data tenant dan **auth state 
 -   Perubahan konfigurasi Nginx: ubah templat di repo, render ulang lewat `install-nginx.sh https`; jangan edit `/etc/nginx/sites-available/wazap` langsung.
 -   `bolinggo.org` mungkin memuat layanan lain: HSTS sengaja tanpa `includeSubDomains`/`preload`.
 -   Batas laju aplikasi in-memory per proses: jangan jalankan lebih dari satu instans API.
+
+## Konsol platform: gerbang jaringan dan Cloudflare Access (ADR-054)
+
+Templat Nginx sudah memastikan: `/api/v1/platform/` hanya dilayani di host dashboard (`wazap.bolinggo.org`) dengan batas laju 2 r/s (burst 10), dan **404 di host API** (`api-wazap.bolinggo.org`). Terbukti oleh `bin/test-tunnel-vhost.sh` dan `verify.sh`. **Lapis luar yang disarankan (konfigurasi di Cloudflare, tanpa kode): Cloudflare Access dengan cakupan path** pada host yang sama:
+1.  Cloudflare Zero Trust, Access, Applications, tambah aplikasi *Self-hosted*. Domain `wazap.bolinggo.org`, dua path: `/platform*` dan `/api/v1/platform/*`.
+2.  Kebijakan *Allow*: hanya surel pemilik platform (satu per admin). Metode login: kode satu kali ke surel, atau penyedia identitas yang sudah Anda pakai. Durasi sesi pendek (mis. 8 jam).
+3.  Jangan mencakup path lain (dashboard pelanggan dan API tetap publik). `/api/v1/auth/*` dan `/api/v1/platform/*` TIDAK sama: hanya yang kedua dipagari.
+4.  Verifikasi: `VERIFY_BEHIND_CDN=1 deploy/production/bin/verify.sh` harus menampilkan "dihadang Cloudflare Access (302/403)" untuk `/api/v1/platform/me`; dari peramban yang sudah masuk Access, konsol berfungsi normal (fetch satu origin membawa cookie Access).
+Access menambah gerbang MFA/OTP dari Cloudflare DI LUAR MFA TOTP aplikasi; keduanya wajib dilewati. Bila Access dimatikan, konsol tetap dilindungi TOTP aplikasi, login terpisah, dan batas laju.
+

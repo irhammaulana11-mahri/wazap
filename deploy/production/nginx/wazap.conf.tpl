@@ -8,6 +8,7 @@
 
 limit_req_zone $binary_remote_addr zone=wazap_api:10m rate=30r/s;
 limit_req_zone $binary_remote_addr zone=wazap_auth:10m rate=5r/s;
+limit_req_zone $binary_remote_addr zone=wazap_platform:10m rate=2r/s;
 
 map $http_upgrade $wazap_connection_upgrade { default upgrade; '' close; }
 
@@ -53,6 +54,16 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Host  "";
     proxy_set_header Forwarded         "";
+
+    # Konsol platform (ADR-054): hanya di host dashboard (satu origin dengan UI konsol), dengan batas laju yang JAUH lebih ketat (2 r/s, burst 10) dan isi kecil.
+    # Cloudflare Access dengan cakupan path disarankan di depan /platform* dan /api/v1/platform/* (README). `^~` mencegah regex lain mengambil rute ini.
+    location ^~ /api/v1/platform/ {
+        limit_req zone=wazap_platform burst=10 nodelay;
+        limit_req_status 429;
+        client_max_body_size 64k;
+        proxy_read_timeout 30s;
+        proxy_pass http://wazap_api;
+    }
 
     include @LOC_FILE@;
 
@@ -102,6 +113,9 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Host  "";
     proxy_set_header Forwarded         "";
+
+    # Konsol platform TIDAK dilayani di host API (ADR-054): kebocoran kredensial platform admin tidak dapat dipakai dari host integrasi. Dijawab 404 seperti rute yang tidak ada.
+    location ^~ /api/v1/platform/ { default_type application/json; return 404 '{"success":false,"error":{"code":"NOT_FOUND","message":"Route not found","details":[]}}'; }
 
     include @LOC_FILE@;
 

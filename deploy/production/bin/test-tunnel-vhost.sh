@@ -45,6 +45,14 @@ setup bawaan 127.0.0.1:80 specific && {
   curl -s -o /dev/null -H "$H" -H 'CF-Connecting-IP: 9.9.9.9' "$U/api/v1/x?token=RAHASIA123"
   chk "token di query tidak masuk log akses" "$(grep -c RAHASIA123 "$T/acc.log")" 0
   grep -q 'remote=9.9.9.9 conn=127.0.0.1' "$T/acc.log" && ok "log akses mencatat IP pengunjung dan alamat koneksi asli" || bad "log akses tidak memuat remote=9.9.9.9 conn=127.0.0.1"
+  chk "konsol platform diteruskan ke upstream di host dashboard (ADR-054)" "$(body -H "$H" $U/api/v1/platform/auth/login)" 'XFF=127.0.0.1'
+  r="$(curl -s -m 5 -w '|%{http_code}' -H 'Host: api-wazap.bolinggo.org' $U/api/v1/platform/me)"
+  case "$r" in *'"NOT_FOUND"'*'|404') ok "konsol platform TIDAK dilayani di host API: 404 JSON seperti rute yang tidak ada" ;; *) bad "host API menjawab konsol platform: $r" ;; esac
+  case "$r" in *XFF=*) bad "permintaan konsol platform di host API SAMPAI ke upstream" ;; *) ok "permintaan konsol platform di host API tidak sampai ke upstream" ;; esac
+  n429=0; for i in $(seq 1 30); do c="$(curl -s -m 5 -o /dev/null -w '%{http_code}' -H "$H" $U/api/v1/platform/me)"; [ "$c" = 429 ] && n429=$((n429+1)); done
+  [ "$n429" -ge 1 ] && ok "batas laju platform (2 r/s, burst 10) menolak lonjakan: $n429 dari 30 permintaan 429" || bad "batas laju platform tidak menolak apa pun dari 30 permintaan beruntun"
+  m429=0; for i in $(seq 1 30); do c="$(curl -s -m 5 -o /dev/null -w '%{http_code}' -H "$H" $U/api/v1/sessions)"; [ "$c" = 429 ] && m429=$((m429+1)); done
+  chk "rute API biasa tidak ikut dibatasi zona platform (30 permintaan beruntun)" "$m429" 0
   stop; }
 
 echo "== 2. Varian wildcard (TUNNEL_LISTEN=80) di samping situs lain yang juga wildcard"

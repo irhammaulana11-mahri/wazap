@@ -152,6 +152,10 @@ jobs:
           sed -i "s#$T/out/wazap.conf#$T/cf/wazap.conf#" "$T/nginx.conf"
           nginx -t -c "$T/nginx.conf" -e "$T/error.log"
           grep -q 'cloudflare-realip.conf;' "$T/cf/wazap.conf"
+          # konsol platform (ADR-054): dilayani di host dashboard dengan batas laju ketat, DITOLAK 404 di host API
+          test "$(grep -c 'location ^~ /api/v1/platform/' "$T/out/wazap.conf")" = 2
+          grep -q 'zone=wazap_platform' "$T/out/wazap.conf"
+          awk '/server_name api-wazap/{f=1} f&&/location \^~ \/api\/v1\/platform\//{print; exit}' "$T/out/wazap.conf" | grep -q 'return 404'
           # satu origin untuk dashboard; host API tidak boleh melayani dashboard
           grep -q 'server_name wazap.bolinggo.org;' "$T/out/wazap.conf"
           grep -q 'server_name api-wazap.bolinggo.org;' "$T/out/wazap.conf"

@@ -40,6 +40,9 @@ chk "dashboard: /api tanpa token ditolak 401" "$(cc "https://$DASH/api/v1/auth/m
 chk "host API: /api tanpa token ditolak 401" "$(cc "https://$API/api/v1/auth/me")" 401
 chk "host API tidak melayani dashboard (/ = 404)" "$(cc "https://$API/")" 404
 chk "rute API tidak ada = 404 (bukan 502)" "$(cc "https://$DASH/api/v1/tidak-ada")" 404
+chk "konsol platform TIDAK dilayani di host API (404, ADR-054)" "$(cc "https://$API/api/v1/platform/me")" 404
+pc="$(cc "https://$DASH/api/v1/platform/me")"
+case "$pc" in 401) ok "konsol platform di host dashboard menolak tanpa token (401)" ;; 302|403) ok "konsol platform di host dashboard dihadang Cloudflare Access ($pc): lapisan luar aktif" ;; *) bad "konsol platform di host dashboard: status tak terduga $pc (harus 401, atau 302/403 bila Cloudflare Access aktif)" ;; esac
 # Peramban lain TIDAK boleh mendapat izin CORS dari host API (CORS_ORIGINS kosong)
 acao="$(curl -sSI --max-time 15 "${RES[@]}" -H 'Origin: https://jahat.example' "https://$API/api/v1/auth/me" | grep -i '^access-control-allow-origin:' || true)"
 [ -z "$acao" ] && ok "tidak ada Access-Control-Allow-Origin untuk origin asing" || bad "CORS terbuka: $acao"

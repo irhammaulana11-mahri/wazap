@@ -58,10 +58,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
       label: 'Owner',
       badge: 'bg-amber-50 text-amber-800 border-amber-300',
     },
-    ADMIN: {
-      label: 'Admin',
-      badge: 'bg-blue-50 text-blue-800 border-blue-300',
-    },
     MEMBER: {
       label: 'Member',
       badge: 'bg-emerald-50 text-emerald-800 border-emerald-300',

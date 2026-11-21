@@ -722,14 +722,6 @@ export const api = {
     return res.data;
   },
 
-  updateTenantSettings: async (patch: { max_sessions?: number; max_api_keys?: number; max_members?: number; messages_per_minute?: number }) => {
-    const res = await request<ApiResponse<TenantSettingsData>>('/api/v1/tenant/settings', {
-      method: 'PATCH',
-      body: JSON.stringify(patch),
-    });
-    return res.data;
-  },
-
   renameTenant: async (name: string) => {
     const res = await request<ApiResponse<TenantRenameResponseData>>('/api/v1/tenant', {
       method: 'PATCH',

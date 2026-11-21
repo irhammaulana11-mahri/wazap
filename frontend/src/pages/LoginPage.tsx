@@ -37,8 +37,10 @@ export const LoginPage: React.FC = () => {
       navigate('/');
     } catch (err: any) {
       setErrorCode(err.code || '');
-      if (err.code === 'JOIN_PENDING') {
-        setError('Permintaan bergabung Anda masih menunggu persetujuan Owner / Admin workspace.');
+      if (err.code === 'WORKSPACE_SUSPENDED') {
+        setError('Workspace ditangguhkan. Hubungi pemilik platform.');
+      } else if (err.code === 'JOIN_PENDING') {
+        setError('Permintaan bergabung Anda masih menunggu persetujuan Owner workspace.');
       } else if (err.code === 'JOIN_REJECTED') {
         setError('Permintaan bergabung Anda ditolak atau telah kedaluwarsa. Silakan ajukan permintaan bergabung baru.');
       } else if (err.code === 'NO_ACTIVE_TENANT') {

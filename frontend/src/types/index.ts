@@ -1,6 +1,6 @@
 // API Contract Types matching docs/02_BACKEND/API_CONTRACT.md and docs/04_INTEGRATION/FRONTEND_HANDOFF.md
 
-export type Role = 'OWNER' | 'ADMIN' | 'MEMBER' | 'VIEWER';
+export type Role = 'OWNER' | 'MEMBER' | 'VIEWER';
 
 export interface ApiResponseMeta {
   page?: number;
@@ -375,6 +375,8 @@ export interface TenantSettingsData {
   ceilings: TenantSettingsLimits;
   minimums: TenantSettingsLimits;
   used: { sessions: number; api_keys: number; members: number };
+  editable?: boolean;
+  managed_by?: string;
   updated_at: string;
 }
 

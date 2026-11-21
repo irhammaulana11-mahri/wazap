@@ -23,7 +23,6 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { role } = useAuth();
   const isOwner = role === 'OWNER';
-  const isOwnerOrAdmin = role === 'OWNER' || role === 'ADMIN';
 
   const primaryItems = [
     { to: '/', label: 'Overview', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -34,15 +33,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const integrationItems = [
     { to: '/connections', label: 'Koneksi & API', icon: <Network className="w-4 h-4" /> },
     { to: '/usage', label: 'Penggunaan & Kuota', icon: <BarChart3 className="w-4 h-4" /> },
-    { to: '/team', label: 'Anggota Tim', icon: <ShieldCheck className="w-4 h-4" /> },
+    ...(isOwner
+      ? [{ to: '/team', label: 'Anggota Tim', icon: <ShieldCheck className="w-4 h-4" /> }]
+      : []),
   ];
 
   const configurationItems = [
     { to: '/profile', label: 'Profil Saya', icon: <User className="w-4 h-4" /> },
-    ...(isOwnerOrAdmin
+    ...(isOwner
       ? [{ to: '/audit-logs', label: 'Log Audit', icon: <ClipboardList className="w-4 h-4" /> }]
       : []),
-    ...(isOwnerOrAdmin
+    ...(isOwner
       ? [{ to: '/settings', label: 'Pengaturan', icon: <Settings className="w-4 h-4" /> }]
       : []),
   ];

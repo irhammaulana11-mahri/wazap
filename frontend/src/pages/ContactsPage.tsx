@@ -22,7 +22,7 @@ import { Link } from 'react-router-dom';
 
 export const ContactsPage: React.FC = () => {
   const { role } = useAuth();
-  const canExport = role === 'OWNER' || role === 'ADMIN';
+  const canExport = role === 'OWNER';
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);

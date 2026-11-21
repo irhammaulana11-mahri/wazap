@@ -27,6 +27,16 @@ import { JoinPage } from './pages/JoinPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { RestoreWorkspacePage } from './pages/RestoreWorkspacePage';
 
+// Platform Admin Modules (ADR-054)
+import { platformSession } from './services/platformApi';
+import { PlatformLayout } from './components/platform/PlatformLayout';
+import { PlatformLoginPage } from './pages/platform/PlatformLoginPage';
+import { PlatformWorkspacesPage } from './pages/platform/PlatformWorkspacesPage';
+import { PlatformWorkspaceDetailPage } from './pages/platform/PlatformWorkspaceDetailPage';
+import { PlatformDefaultsPage } from './pages/platform/PlatformDefaultsPage';
+import { PlatformAuditPage } from './pages/platform/PlatformAuditPage';
+import { PlatformBackupPage } from './pages/platform/PlatformBackupPage';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -55,6 +65,16 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+const PlatformProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isPlatformAuth = !!platformSession.get();
+
+  if (!isPlatformAuth) {
+    return <Navigate to="/platform/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const AppRoutes: React.FC = () => {
   const { isAuthenticated } = useAuth();
 
@@ -74,7 +94,25 @@ const AppRoutes: React.FC = () => {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/restore-workspace" element={<RestoreWorkspacePage />} />
 
-      {/* Protected routes */}
+      {/* Platform Admin Routes */}
+      <Route path="/platform/login" element={<PlatformLoginPage />} />
+      <Route
+        path="/platform"
+        element={
+          <PlatformProtectedRoute>
+            <PlatformLayout />
+          </PlatformProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/platform/workspaces" replace />} />
+        <Route path="workspaces" element={<PlatformWorkspacesPage />} />
+        <Route path="workspaces/:id" element={<PlatformWorkspaceDetailPage />} />
+        <Route path="defaults" element={<PlatformDefaultsPage />} />
+        <Route path="audit" element={<PlatformAuditPage />} />
+        <Route path="backup" element={<PlatformBackupPage />} />
+      </Route>
+
+      {/* Protected customer routes */}
       <Route
         element={
           <ProtectedRoute>

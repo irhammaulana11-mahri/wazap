@@ -11,7 +11,7 @@ type TabType = 'sessions' | 'apikeys' | 'webhooks';
 export const ConnectionsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { role } = useAuth();
-  const isOwnerOrAdmin = role === 'OWNER' || role === 'ADMIN';
+  const isOwner = role === 'OWNER';
 
   // Read active tab from URL query params (default: 'sessions')
   const initialTab = (searchParams.get('tab') as TabType) || 'sessions';
@@ -68,7 +68,7 @@ export const ConnectionsPage: React.FC = () => {
             <span>Kunci API (REST)</span>
           </button>
 
-          {isOwnerOrAdmin && (
+          {isOwner && (
             <button
               onClick={() => handleTabChange('webhooks')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition ${

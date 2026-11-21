@@ -41,7 +41,7 @@ export const TeamPage: React.FC = () => {
   const { user, role } = useAuth();
   const { showToast } = useToast();
   const { confirm } = useConfirm();
-  const isOwnerOrAdmin = role === 'OWNER' || role === 'ADMIN';
+  const isOwner = role === 'OWNER';
 
   // Navigation tab: 'members' | 'invitations' | 'join-requests'
   const [activeTab, setActiveTab] = useState<'members' | 'invitations' | 'join-requests'>('members');
@@ -128,7 +128,7 @@ export const TeamPage: React.FC = () => {
   } = useQuery({
     queryKey: ['team-join-code'],
     queryFn: () => api.getJoinCode(),
-    enabled: isOwnerOrAdmin,
+    enabled: isOwner,
   });
 
   // Join Requests query
@@ -144,7 +144,7 @@ export const TeamPage: React.FC = () => {
         page_size: joinReqPageSize,
         status: joinReqStatus === 'ALL' ? undefined : joinReqStatus,
       }),
-    enabled: isOwnerOrAdmin,
+    enabled: isOwner,
   });
 
   const joinRequests = joinRequestsResponse?.data || [];
@@ -349,7 +349,7 @@ export const TeamPage: React.FC = () => {
             Kelola anggota workspace, bagikan tautan undangan, dan atur kode pendaftaran resmi.
           </p>
         </div>
-        {isOwnerOrAdmin && (
+        {isOwner && (
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -399,7 +399,7 @@ export const TeamPage: React.FC = () => {
           </span>
         </button>
 
-        {isOwnerOrAdmin && (
+        {isOwner && (
           <>
             <button
               onClick={() => setActiveTab('invitations')}
@@ -449,7 +449,7 @@ export const TeamPage: React.FC = () => {
           <div className="divide-y divide-slate-100">
             {members.map((m) => {
               const isSelf = m.is_me || m.user_id === user?.id;
-              const canModify = isOwnerOrAdmin && (!isSelf || role === 'OWNER');
+              const canModify = isOwner && !isSelf;
 
               return (
                 <div
@@ -489,7 +489,6 @@ export const TeamPage: React.FC = () => {
                         }
                         className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-xl bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        <option value="ADMIN">ADMIN</option>
                         <option value="MEMBER">MEMBER</option>
                         <option value="VIEWER">VIEWER</option>
                       </select>
@@ -498,8 +497,6 @@ export const TeamPage: React.FC = () => {
                         className={`text-xs font-bold px-3 py-1 rounded-full ${
                           m.role === 'OWNER'
                             ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                            : m.role === 'ADMIN'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
                             : 'bg-slate-100 text-slate-700'
                         }`}
                       >
@@ -580,7 +577,7 @@ export const TeamPage: React.FC = () => {
       )}
 
       {/* TAB 2: Undangan */}
-      {activeTab === 'invitations' && isOwnerOrAdmin && (
+      {activeTab === 'invitations' && isOwner && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -661,7 +658,7 @@ export const TeamPage: React.FC = () => {
       )}
 
       {/* TAB 3: Permintaan Bergabung & Kode Workspace (Fase H3 / ADR-036) */}
-      {activeTab === 'join-requests' && isOwnerOrAdmin && (
+      {activeTab === 'join-requests' && isOwner && (
         <div className="space-y-6">
           {/* Card: Kode Workspace */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6">
@@ -968,9 +965,6 @@ export const TeamPage: React.FC = () => {
                   >
                     <option value="MEMBER">MEMBER (Kirim pesan & kelola sesi)</option>
                     <option value="VIEWER">VIEWER (Hanya pantau dashboard & riwayat)</option>
-                    {role === 'OWNER' && (
-                      <option value="ADMIN">ADMIN (Kelola tim & konfigurasi)</option>
-                    )}
                   </select>
                 </div>
 
@@ -1296,10 +1290,7 @@ export const TeamPage: React.FC = () => {
                   <option value="MEMBER">MEMBER (Kirim pesan & kelola sesi)</option>
                   <option value="VIEWER">VIEWER (Hanya pantau dashboard & pesan)</option>
                   {role === 'OWNER' && (
-                    <>
-                      <option value="ADMIN">ADMIN (Kelola staf, API key & webhook)</option>
-                      <option value="OWNER">OWNER (Pemilik bersama penuh)</option>
-                    </>
+                    <option value="OWNER">OWNER (Pemilik bersama penuh)</option>
                   )}
                 </select>
                 <p className="text-[11px] text-slate-500 leading-relaxed mt-1">

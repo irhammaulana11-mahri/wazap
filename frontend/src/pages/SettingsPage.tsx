@@ -46,8 +46,8 @@ export const SettingsPage: React.FC = () => {
   const { role, tenant, refetchUser } = useAuth();
   const { showToast } = useToast();
   const isOwner = role === 'OWNER';
-  const canExport = role === 'OWNER' || role === 'ADMIN';
-  const canManageAlerts = role === 'OWNER' || role === 'ADMIN';
+  const canExport = isOwner;
+  const canManageAlerts = isOwner;
 
   // Active Tab: 'quota' | 'general' | 'data' | 'danger'
   const activeTab = searchParams.get('tab') || 'quota';
@@ -68,14 +68,6 @@ export const SettingsPage: React.FC = () => {
     queryFn: () => api.getExportPolicy(),
     staleTime: 60_000,
   });
-
-  // Form Quota states
-  const [maxSessions, setMaxSessions] = useState<number>(5);
-  const [maxApiKeys, setMaxApiKeys] = useState<number>(5);
-  const [maxMembers, setMaxMembers] = useState<number>(5);
-  const [messagesPerMinute, setMessagesPerMinute] = useState<number>(60);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
 
   // Workspace Name State
   const [workspaceName, setWorkspaceName] = useState(tenant?.name || '');
@@ -101,74 +93,11 @@ export const SettingsPage: React.FC = () => {
     queryFn: api.getTenantSettings,
   });
 
-  // Sync state from fetched data
-  useEffect(() => {
-    if (settings?.limits) {
-      setMaxSessions(settings.limits.max_sessions);
-      setMaxApiKeys(settings.limits.max_api_keys);
-      setMaxMembers(settings.limits.max_members);
-      setMessagesPerMinute(settings.limits.messages_per_minute);
-    }
-  }, [settings]);
-
   useEffect(() => {
     if (tenant?.name) {
       setWorkspaceName(tenant.name);
     }
   }, [tenant]);
-
-  const handleReset = () => {
-    if (settings?.limits) {
-      setMaxSessions(settings.limits.max_sessions);
-      setMaxApiKeys(settings.limits.max_api_keys);
-      setMaxMembers(settings.limits.max_members);
-      setMessagesPerMinute(settings.limits.messages_per_minute);
-      setErrorMsg('');
-      setSuccessMsg('');
-    }
-  };
-
-  // Check if quota form is modified
-  const isQuotaChanged =
-    settings?.limits &&
-    (maxSessions !== settings.limits.max_sessions ||
-      maxApiKeys !== settings.limits.max_api_keys ||
-      maxMembers !== settings.limits.max_members ||
-      messagesPerMinute !== settings.limits.messages_per_minute);
-
-  // Update Quota Mutation
-  const updateMutation = useMutation({
-    mutationFn: () =>
-      api.updateTenantSettings({
-        max_sessions: Number(maxSessions),
-        max_api_keys: Number(maxApiKeys),
-        max_members: Number(maxMembers),
-        messages_per_minute: Number(messagesPerMinute),
-      }),
-    onSuccess: () => {
-      setSuccessMsg('Alokasi kuota workspace berhasil diperbarui dan diterapkan ke seluruh infrastruktur gateway.');
-      setErrorMsg('');
-      queryClient.invalidateQueries({ queryKey: ['tenant-settings'] });
-      queryClient.invalidateQueries({ queryKey: ['usage-summary'] });
-      setTimeout(() => setSuccessMsg(''), 5000);
-    },
-    onError: (err: any) => {
-      if (err.code === 'LIMIT_BELOW_USAGE') {
-        setErrorMsg('Batas kuota tidak boleh diset lebih rendah dari jumlah sumber daya yang sedang aktif dipakai.');
-      } else {
-        setErrorMsg(err.message || 'Gagal memperbarui pengaturan kuota tenant.');
-      }
-      setSuccessMsg('');
-    },
-  });
-
-  const handleSubmitQuota = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isOwner) return;
-    setErrorMsg('');
-    setSuccessMsg('');
-    updateMutation.mutate();
-  };
 
   const handleRenameWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,351 +274,149 @@ export const SettingsPage: React.FC = () => {
       {/* TAB 1: ALOKASI KUOTA GATEWAY */}
       {activeTab === 'quota' && (
         <div className="space-y-6 animate-in fade-in duration-150">
-          {/* Read-Only Notice for Non-Owners */}
-          {!isOwner && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 flex items-start gap-3">
-              <Lock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <span className="font-bold block">Akses Mode Baca-Saja (Read-Only)</span>
-                <p className="leading-relaxed text-amber-700">
-                  Hanya pengguna dengan peran <strong>OWNER</strong> yang memiliki wewenang untuk mengubah alokasi batas kuota tenant. Anda hanya dapat melihat batas dan pemakaian saat ini.
-                </p>
-              </div>
+          {/* Read-Only Notice */}
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-900 flex items-start gap-3 shadow-2xs">
+            <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <span className="font-bold block">Kuota Dikelola oleh Pemilik Platform</span>
+              <p className="leading-relaxed text-blue-700">
+                Kuota diatur oleh pemilik platform. Hubungi pemilik platform untuk menambah atau mengubahnya.
+              </p>
             </div>
-          )}
+          </div>
 
-          {/* Feedback Notifications */}
-          {successMsg && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 flex items-center gap-2.5 animate-in fade-in duration-150">
-              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-semibold">{successMsg}</span>
-            </div>
-          )}
-
-          {errorMsg && (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-center gap-2.5 animate-in fade-in duration-150">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-              <span className="font-semibold">{errorMsg}</span>
-            </div>
-          )}
-
-          {/* Quota Cards Form */}
-          <form onSubmit={handleSubmitQuota} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* 1. Max WhatsApp Sessions */}
-              <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
-                      <Smartphone className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm">Batas Sesi WhatsApp</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Jumlah sesi perangkat aktif bersamaan</p>
-                    </div>
+          {/* Quota Usage Cards (Read-Only) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* 1. Max WhatsApp Sessions */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                    <Smartphone className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                    Dipakai: <strong className="text-emerald-700">{used?.sessions ?? 0}</strong>
-                  </span>
-                </div>
-
-                {/* Progress Bar Usage vs Limit */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                    <span>Terpakai saat ini: {used?.sessions ?? 0} dari {maxSessions}</span>
-                    <span>{Math.round(((used?.sessions ?? 0) / Math.max(1, maxSessions)) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        (used?.sessions ?? 0) > maxSessions ? 'bg-rose-500' : 'bg-emerald-500'
-                      }`}
-                      style={{
-                        width: `${Math.min(100, (((used?.sessions ?? 0) / Math.max(1, maxSessions)) * 100))}%`,
-                      }}
-                    />
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">Batas Sesi WhatsApp</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Jumlah sesi perangkat aktif bersamaan</p>
                   </div>
                 </div>
-
-                {/* Interactive Slider & Stepper */}
-                <div className="space-y-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={minimums?.max_sessions ?? 1}
-                      max={ceilings?.max_sessions ?? 50}
-                      value={maxSessions}
-                      onChange={(e) => setMaxSessions(Number(e.target.value))}
-                      disabled={!isOwner}
-                      className="flex-1 accent-emerald-600 cursor-pointer disabled:cursor-not-allowed"
-                    />
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <input
-                        type="number"
-                        value={maxSessions}
-                        onChange={(e) => setMaxSessions(Number(e.target.value))}
-                        disabled={!isOwner}
-                        min={minimums?.max_sessions ?? 1}
-                        max={ceilings?.max_sessions ?? 50}
-                        className="w-16 px-2 py-1.5 border border-slate-200 rounded-xl text-center text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:bg-slate-50"
-                      />
-                      <span className="text-xs text-slate-500 font-semibold">Sesi</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                    <span>Min: {minimums?.max_sessions ?? 1}</span>
-                    <span>Maks Operator: {ceilings?.max_sessions ?? 50}</span>
-                  </div>
-
-                  {maxSessions < (used?.sessions ?? 0) && (
-                    <p className="text-[11px] text-rose-600 font-medium">
-                      ⚠️ Batas kuota tidak boleh lebih rendah dari sesi aktif ({used?.sessions ?? 0}).
-                    </p>
-                  )}
-                </div>
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                  Dipakai: <strong className="text-emerald-700">{used?.sessions ?? 0}</strong> / {limits?.max_sessions ?? 5}
+                </span>
               </div>
 
-              {/* 2. Messages Rate Limit Throughput */}
-              <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
-                      <Activity className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm">Batas Kecepatan (Rate Limit)</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Throughput pesan keluar per menit</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 shrink-0">
-                    Anti-Ban WA
-                  </span>
+              {/* Progress Bar Usage vs Limit */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                  <span>Terpakai saat ini: {used?.sessions ?? 0} dari {limits?.max_sessions ?? 5}</span>
+                  <span>{Math.round(((used?.sessions ?? 0) / Math.max(1, limits?.max_sessions ?? 5)) * 100)}%</span>
                 </div>
-
-                {/* Rate Limit Description */}
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-600 leading-relaxed">
-                  Menjaga throughput gateway tetap aman menggunakan algoritma <em>Token Bucket</em> agar nomor WhatsApp tidak terdeteksi spam.
-                </div>
-
-                {/* Interactive Slider & Stepper */}
-                <div className="space-y-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={minimums?.messages_per_minute ?? 10}
-                      max={ceilings?.messages_per_minute ?? 300}
-                      step={5}
-                      value={messagesPerMinute}
-                      onChange={(e) => setMessagesPerMinute(Number(e.target.value))}
-                      disabled={!isOwner}
-                      className="flex-1 accent-blue-600 cursor-pointer disabled:cursor-not-allowed"
-                    />
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <input
-                        type="number"
-                        value={messagesPerMinute}
-                        onChange={(e) => setMessagesPerMinute(Number(e.target.value))}
-                        disabled={!isOwner}
-                        min={minimums?.messages_per_minute ?? 10}
-                        max={ceilings?.messages_per_minute ?? 300}
-                        className="w-20 px-2 py-1.5 border border-slate-200 rounded-xl text-center text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:bg-slate-50"
-                      />
-                      <span className="text-xs text-slate-500 font-semibold">msg/mnt</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                    <span>Min: {minimums?.messages_per_minute ?? 10}</span>
-                    <span>Maks Operator: {ceilings?.messages_per_minute ?? 300}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Max API Keys */}
-              <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
-                      <Key className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm">Batas Kunci REST API</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Jumlah token integrasi sistem eksternal</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                    Dipakai: <strong className="text-amber-700">{used?.api_keys ?? 0}</strong>
-                  </span>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                    <span>Terpakai saat ini: {used?.api_keys ?? 0} dari {maxApiKeys}</span>
-                    <span>{Math.round(((used?.api_keys ?? 0) / Math.max(1, maxApiKeys)) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        (used?.api_keys ?? 0) > maxApiKeys ? 'bg-rose-500' : 'bg-amber-500'
-                      }`}
-                      style={{
-                        width: `${Math.min(100, (((used?.api_keys ?? 0) / Math.max(1, maxApiKeys)) * 100))}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Interactive Slider & Stepper */}
-                <div className="space-y-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={minimums?.max_api_keys ?? 1}
-                      max={ceilings?.max_api_keys ?? 20}
-                      value={maxApiKeys}
-                      onChange={(e) => setMaxApiKeys(Number(e.target.value))}
-                      disabled={!isOwner}
-                      className="flex-1 accent-amber-600 cursor-pointer disabled:cursor-not-allowed"
-                    />
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <input
-                        type="number"
-                        value={maxApiKeys}
-                        onChange={(e) => setMaxApiKeys(Number(e.target.value))}
-                        disabled={!isOwner}
-                        min={minimums?.max_api_keys ?? 1}
-                        max={ceilings?.max_api_keys ?? 20}
-                        className="w-16 px-2 py-1.5 border border-slate-200 rounded-xl text-center text-sm font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none disabled:bg-slate-50"
-                      />
-                      <span className="text-xs text-slate-500 font-semibold">Kunci</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                    <span>Min: {minimums?.max_api_keys ?? 1}</span>
-                    <span>Maks Operator: {ceilings?.max_api_keys ?? 20}</span>
-                  </div>
-
-                  {maxApiKeys < (used?.api_keys ?? 0) && (
-                    <p className="text-[11px] text-rose-600 font-medium">
-                      ⚠️ Batas kuota tidak boleh lebih rendah dari kunci aktif ({used?.api_keys ?? 0}).
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* 4. Max Team Members */}
-              <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
-                      <Users className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm">Batas Anggota Tim</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Kapasitas akun staf dalam organisasi</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                    Dipakai: <strong className="text-purple-700">{used?.members ?? 0}</strong>
-                  </span>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="space-y-1.5 pt-1">
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                    <span>Terpakai saat ini: {used?.members ?? 0} dari {maxMembers}</span>
-                    <span>{Math.round(((used?.members ?? 0) / Math.max(1, maxMembers)) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        (used?.members ?? 0) > maxMembers ? 'bg-rose-500' : 'bg-purple-500'
-                      }`}
-                      style={{
-                        width: `${Math.min(100, (((used?.members ?? 0) / Math.max(1, maxMembers)) * 100))}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Interactive Slider & Stepper */}
-                <div className="space-y-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="range"
-                      min={minimums?.max_members ?? 1}
-                      max={ceilings?.max_members ?? 25}
-                      value={maxMembers}
-                      onChange={(e) => setMaxMembers(Number(e.target.value))}
-                      disabled={!isOwner}
-                      className="flex-1 accent-purple-600 cursor-pointer disabled:cursor-not-allowed"
-                    />
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <input
-                        type="number"
-                        value={maxMembers}
-                        onChange={(e) => setMaxMembers(Number(e.target.value))}
-                        disabled={!isOwner}
-                        min={minimums?.max_members ?? 1}
-                        max={ceilings?.max_members ?? 25}
-                        className="w-16 px-2 py-1.5 border border-slate-200 rounded-xl text-center text-sm font-bold text-slate-900 focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:bg-slate-50"
-                      />
-                      <span className="text-xs text-slate-500 font-semibold">Akun</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                    <span>Min: {minimums?.max_members ?? 1}</span>
-                    <span>Maks Operator: {ceilings?.max_members ?? 25}</span>
-                  </div>
-
-                  {maxMembers < (used?.members ?? 0) && (
-                    <p className="text-[11px] text-rose-600 font-medium">
-                      ⚠️ Batas kuota tidak boleh lebih rendah dari anggota aktif ({used?.members ?? 0}).
-                    </p>
-                  )}
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      (used?.sessions ?? 0) >= (limits?.max_sessions ?? 5) ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`}
+                    style={{
+                      width: `${Math.min(100, (((used?.sessions ?? 0) / Math.max(1, limits?.max_sessions ?? 5)) * 100))}%`,
+                    }}
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Action Bar for OWNER */}
-            {isOwner && (
-              <div className="p-5 bg-white rounded-3xl border border-slate-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex items-center gap-2.5 text-xs text-slate-600">
-                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <span>
-                    Perubahan kuota langsung diterapkan secara atomik tanpa perlu me-restart proses gateway.
-                  </span>
+            {/* 2. Messages Rate Limit Throughput */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">Batas Kecepatan (Rate Limit)</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Throughput pesan keluar per menit</p>
+                  </div>
                 </div>
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 shrink-0">
+                  {limits?.messages_per_minute ?? 60} msg/mnt
+                </span>
+              </div>
 
-                <div className="flex items-center gap-2.5 self-end sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    disabled={updateMutation.isPending || !isQuotaChanged}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold transition disabled:opacity-40"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Kembalikan Nilai</span>
-                  </button>
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-600 leading-relaxed">
+                Menjaga throughput gateway tetap stabil menggunakan algoritma <em>Token Bucket</em> anti-ban WhatsApp.
+              </div>
+            </div>
 
-                  <button
-                    type="submit"
-                    disabled={updateMutation.isPending || !isQuotaChanged}
-                    className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-sm disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>
-                      {updateMutation.isPending ? 'Menyimpan Kuota...' : 'Terapkan Pengaturan Kuota'}
-                    </span>
-                  </button>
+            {/* 3. Max API Keys */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
+                    <Key className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">Batas Kunci REST API</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Jumlah token integrasi sistem eksternal</p>
+                  </div>
+                </div>
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                  Dipakai: <strong className="text-amber-700">{used?.api_keys ?? 0}</strong> / {limits?.max_api_keys ?? 5}
+                </span>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                  <span>Terpakai saat ini: {used?.api_keys ?? 0} dari {limits?.max_api_keys ?? 5}</span>
+                  <span>{Math.round(((used?.api_keys ?? 0) / Math.max(1, limits?.max_api_keys ?? 5)) * 100)}%</span>
+                </div>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      (used?.api_keys ?? 0) >= (limits?.max_api_keys ?? 5) ? 'bg-amber-500' : 'bg-amber-500'
+                    }`}
+                    style={{
+                      width: `${Math.min(100, (((used?.api_keys ?? 0) / Math.max(1, limits?.max_api_keys ?? 5)) * 100))}%`,
+                    }}
+                  />
                 </div>
               </div>
-            )}
-          </form>
+            </div>
+
+            {/* 4. Max Team Members */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">Batas Anggota Tim</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Kapasitas akun staf dalam organisasi</p>
+                  </div>
+                </div>
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                  Dipakai: <strong className="text-purple-700">{used?.members ?? 0}</strong> / {limits?.max_members ?? 5}
+                </span>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                  <span>Terpakai saat ini: {used?.members ?? 0} dari {limits?.max_members ?? 5}</span>
+                  <span>{Math.round(((used?.members ?? 0) / Math.max(1, limits?.max_members ?? 5)) * 100)}%</span>
+                </div>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      (used?.members ?? 0) >= (limits?.max_members ?? 5) ? 'bg-amber-500' : 'bg-purple-500'
+                    }`}
+                    style={{
+                      width: `${Math.min(100, (((used?.members ?? 0) / Math.max(1, limits?.max_members ?? 5)) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -777,7 +504,7 @@ export const SettingsPage: React.FC = () => {
               )}
             </div>
 
-            {/* Retention Stat Cards (Visible for ALL roles: OWNER, ADMIN, MEMBER, VIEWER) */}
+            {/* Retention Stat Cards (Visible for ALL roles: OWNER, MEMBER, VIEWER) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
                 <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
@@ -822,7 +549,7 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Ekspor Bagian: OWNER / ADMIN */}
+            {/* Ekspor Bagian: OWNER */}
             <div className="pt-2">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -968,7 +695,7 @@ export const SettingsPage: React.FC = () => {
                       </div>
                       <h5 className="text-xs font-bold text-slate-900">Anggota Tim & Hak Akses</h5>
                       <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                        Daftar seluruh anggota workspace, email terdaftar, peran (OWNER, ADMIN, MEMBER, VIEWER), dan waktu bergabung.
+                        Daftar seluruh anggota workspace, email terdaftar, peran (OWNER, MEMBER, VIEWER), dan waktu bergabung.
                       </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
@@ -1009,7 +736,7 @@ export const SettingsPage: React.FC = () => {
               </div>
               <h3 className="text-base font-bold text-slate-900">Akses Dibatasi</h3>
               <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
-                Hanya pemilik workspace (OWNER) dan administrator (ADMIN) yang memiliki wewenang untuk mengelola kanal dan aturan notifikasi alarm.
+                Hanya pemilik workspace (OWNER) yang memiliki wewenang untuk mengelola kanal dan aturan notifikasi alarm.
               </p>
             </div>
           )}

@@ -177,13 +177,7 @@ export const ProfilePage: React.FC = () => {
       label: 'Owner (Pemilik Workspace)',
       badge: 'bg-amber-50 text-amber-800 border-amber-300',
       icon: <Crown className="w-4 h-4 text-amber-600" />,
-      desc: 'Memiliki wewenang mutlak atas alokasi kuota workspace, tim staf & admin, kunci API & webhooks, serta audit log.',
-    },
-    ADMIN: {
-      label: 'Administrator Workspace',
-      badge: 'bg-blue-50 text-blue-800 border-blue-300',
-      icon: <ShieldCheck className="w-4 h-4 text-blue-600" />,
-      desc: 'Wewenang administratif untuk mengelola anggota tim, kunci API, webhooks, dan memantau sesi serta jejak log audit.',
+      desc: 'Memiliki wewenang mutlak atas alokasi kuota workspace, tim staf, kunci API & webhooks, serta audit log.',
     },
     MEMBER: {
       label: 'Anggota Operasional (Member)',
@@ -443,7 +437,6 @@ export const ProfilePage: React.FC = () => {
                   <tr>
                     <th className="py-3 px-4">Fitur & Kemampuan Sistem</th>
                     <th className="py-3 px-3 text-center">OWNER</th>
-                    <th className="py-3 px-3 text-center">ADMIN</th>
                     <th className="py-3 px-3 text-center">MEMBER</th>
                     <th className="py-3 px-3 text-center">VIEWER</th>
                   </tr>
@@ -455,7 +448,6 @@ export const ProfilePage: React.FC = () => {
                     </td>
                     <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-slate-300">-</td>
                   </tr>
                   <tr className={role === 'MEMBER' ? 'bg-emerald-50/30' : ''}>
@@ -464,33 +456,29 @@ export const ProfilePage: React.FC = () => {
                     </td>
                     <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-slate-300">-</td>
                   </tr>
-                  <tr className={role === 'ADMIN' ? 'bg-blue-50/30' : ''}>
+                  <tr className={role === 'OWNER' ? 'bg-amber-50/30' : ''}>
                     <td className="py-3 px-4 font-medium text-slate-800">
                       Manajemen Kunci API & Webhook
                     </td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
-                  </tr>
-                  <tr className={role === 'ADMIN' ? 'bg-blue-50/30' : ''}>
-                    <td className="py-3 px-4 font-medium text-slate-800">
-                      Undang & Atur Anggota Tim
-                    </td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-slate-300">-</td>
                     <td className="py-3 px-3 text-center text-slate-300">-</td>
                   </tr>
                   <tr className={role === 'OWNER' ? 'bg-amber-50/30' : ''}>
                     <td className="py-3 px-4 font-medium text-slate-800">
-                      Ubah Batas Alokasi Kuota Tenant
+                      Undang & Atur Anggota Tim
                     </td>
                     <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-slate-300">-</td>
+                    <td className="py-3 px-3 text-center text-slate-300">-</td>
+                  </tr>
+                  <tr className={role === 'OWNER' ? 'bg-amber-50/30' : ''}>
+                    <td className="py-3 px-4 font-medium text-slate-800">
+                      Alokasi Kuota & Pengaturan Workspace
+                    </td>
+                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-slate-300">-</td>
                     <td className="py-3 px-3 text-center text-slate-300">-</td>
                   </tr>
@@ -498,7 +486,6 @@ export const ProfilePage: React.FC = () => {
                     <td className="py-3 px-4 font-medium text-slate-800">
                       Pantau Log Audit & Analitik
                     </td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
                     <td className="py-3 px-3 text-center text-slate-300">-</td>
                     <td className="py-3 px-3 text-center text-slate-300">-</td>

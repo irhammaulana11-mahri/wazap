@@ -1,6 +1,32 @@
 # Changelog
 
-## Unreleased --- Frontend tab Notifikasi (alarm workspace) (2026-11-20)
+## Unreleased --- Konsol platform admin, kuota hanya-baca, dan peran tanpa ADMIN (2026-11-21)
+
+-   Baru (ADR-053): Peran tanpa ADMIN di seluruh aplikasi frontend (`frontend/src`).
+    -   Tipe data peran disederhanakan menjadi tepat tiga nilai: `Role = 'OWNER' | 'MEMBER' | 'VIEWER'`.
+    -   Seluruh penggunaan token `ADMIN` dan helper `isOwnerOrAdmin` dihapus sepenuhnya dari kode frontend.
+    -   Gating hak administratif (kelola tim, kunci API, webhook, ekspor data, pengaturan workspace, alarm notifikasi) kini sepenuhnya eksklusif untuk peran `OWNER` (`isOwner`).
+    -   Tabel matriks hak akses pada `ProfilePage.tsx` diperbarui hanya mencerminkan OWNER, MEMBER, dan VIEWER. Dropdown pemilihan peran di `TeamPage.tsx` bersih dari opsi ADMIN.
+-   Baru (ADR-054): Perubahan di aplikasi pelanggan untuk kuota dan penangguhan workspace.
+    -   Bilah kuota hanya-baca (`SettingsPage.tsx`): Formulir mutasi kuota dan fungsi pemanggil `PATCH /api/v1/tenant/settings` (`updateTenantSettings`) dihapus dari `api.ts`. Kuota ditampilkan sebagai kartu pemakaian hanya-baca (Read-Only) dengan progress bar dan banner informasi: *"Kuota diatur oleh pemilik platform. Hubungi pemilik platform untuk menambah atau mengubahnya."*.
+    -   Penanganan penangguhan workspace pada login (`LoginPage.tsx`): Respons 403 `WORKSPACE_SUSPENDED` menampilkan pesan ramah: *"Workspace ditangguhkan. Hubungi pemilik platform."*.
+    -   Audit log platform di pelanggan (`AuditLogsPage.tsx`): Entri dengan `actor.email === 'platform'` ditampilkan sebagai **"Pemilik platform"**, aksi platform diterjemahkan ke bahasa Indonesia ("Kuota diubah oleh pemilik platform", "Workspace ditangguhkan", "Workspace diaktifkan kembali"), dan `details.changes` ditampilkan dalam format visual `sebelum -> sesudah`.
+-   Baru (ADR-054): Konsol Platform Admin di rute `/platform/*`.
+    -   Klien API terisolasi (`frontend/src/services/platformApi.ts`):
+        -   Sesi in-memory (`platformSession`): Token platform berumur pendek hanya disimpan di variabel memori RAM; dilarang keras menyentuh `localStorage`, `sessionStorage`, `document.cookie`, atau `indexedDB`.
+        -   Pemisahan total dari auth pelanggan: Request menggunakan header `Authorization: Bearer <platform_token>`, `credentials: 'omit'`, `cache: 'no-store'`, tanpa menyertakan token pelanggan, cookie refresh, atau API key.
+        -   12 fungsi API platform: `login`, `verify`, `me`, `listWorkspaces`, `getWorkspace`, `updateQuotas`, `suspend`, `activate`, `getDefaults`, `updateDefaults`, `listAudit`, `backupStatus`.
+        -   Penanganan galat `ApiError`: Status 401 otomatis membersihkan token platform dan memanggil `unauthorizedHandler` satu kali tanpa percobaan ulang (no refresh). Ekstraksi `retryAfterSec` untuk status 429. Penanganan jaringan putus atau Cloudflare Access dengan kode `NETWORK_OR_ACCESS`.
+    -   Halaman-halaman konsol operator (`frontend/src/pages/platform/`):
+        -   `PlatformLoginPage.tsx`: Otentikasi dua langkah (email/kata sandi -> verifikasi kode TOTP 6-digit atau kode pemulihan sekali pakai) dengan visual terminal operator.
+        -   `PlatformWorkspacesPage.tsx`: Manajemen seluruh workspace tenant dengan pencarian teks, filter status (`ACTIVE`, `SUSPENDED`, `DELETED`, `ALL`), metrik pemakaian sumber daya agregat, dan paginasi.
+        -   `PlatformWorkspaceDetailPage.tsx`: Kartu batas & pemakaian kuota real-time, ringkasan akun pemilik & distribusi anggota per peran, riwayat audit internal workspace, modal Ubah Kuota (dengan validasi rentang dan pemakaian aktif), modal Penangguhan Workspace (suspend), dan modal Pengaktifan Kembali (activate) yang mewajibkan kode TOTP segar dan alasan perubahan.
+        -   `PlatformDefaultsPage.tsx`: Pengawasan dan pembaruan kuota bawaan untuk workspace baru yang akan datang.
+        -   `PlatformAuditPage.tsx`: Pengawasan jejak audit seluruh aktivitas platform dengan filter Tenant ID, filter kode aksi, dan penampil format transisi `sebelum -> sesudah`.
+        -   `PlatformBackupPage.tsx`: Dasbor pemantauan kesehatan cadangan basis data PostgreSQL (baca-saja), usia cadangan, deteksi cadangan kedaluwarsa (stale), dan lokasi penyimpanan (`offsite`, `separate_disk`, `same_disk`).
+    -   Tata letak khusus (`PlatformLayout.tsx`) & perlindungan rute:
+        -   Header bertema operator gelap terpisah, tanpa memuat tautan atau menu pelanggan.
+        -   Rute di `App.tsx` diproteksi secara independen oleh `platformSession.get()`. Navigasi/sidebar pelanggan dijamin bersih tanpa tautan ke `/platform`.
 
 -   Baru (ADR-049): Tab "Notifikasi" pada halaman Pengaturan (`SettingsPage.tsx`, `?tab=notifications`) untuk mengelola kanal dan aturan notifikasi alarm per workspace.
     -   Klien API (`frontend/src/services/api.ts`): Penambahan 9 fungsi API alarm berbasis token di memori dan penanganan `ApiError`:

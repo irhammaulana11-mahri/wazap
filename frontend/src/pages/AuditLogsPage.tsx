@@ -23,7 +23,7 @@ import { ExportDrawer } from '../components/export/ExportDrawer';
 
 export const AuditLogsPage: React.FC = () => {
   const { role } = useAuth();
-  const isAuthorized = role === 'OWNER' || role === 'ADMIN';
+  const isAuthorized = role === 'OWNER';
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -57,8 +57,7 @@ export const AuditLogsPage: React.FC = () => {
         <Lock className="w-12 h-12 text-amber-500 mx-auto" />
         <h2 className="text-lg font-bold text-slate-800">Akses Dibatasi</h2>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Halaman Log Audit hanya dapat diakses oleh peran <strong>OWNER</strong> dan{' '}
-          <strong>ADMIN</strong> workspace untuk kebutuhan kepatuhan dan keamanan data.
+          Halaman Log Audit hanya dapat diakses oleh peran <strong>OWNER</strong> workspace untuk kebutuhan kepatuhan dan keamanan data.
         </p>
       </div>
     );
@@ -92,6 +91,9 @@ export const AuditLogsPage: React.FC = () => {
               className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-700 focus:outline-none"
             >
               <option value="">Semua Aksi</option>
+              <option value="tenant.quota_changed">Kuota Diubah Platform</option>
+              <option value="tenant.suspended">Workspace Ditangguhkan</option>
+              <option value="tenant.reactivated">Workspace Diaktifkan</option>
               <option value="MEMBER_INVITED">Undangan Dikirim</option>
               <option value="MEMBER_JOINED">Anggota Bergabung</option>
               <option value="ROLE_CHANGED">Perubahan Peran</option>
@@ -134,44 +136,87 @@ export const AuditLogsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-mono">
-              {logs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50/70 transition">
-                  <td className="px-6 py-3.5 text-slate-500 whitespace-nowrap">
-                    {new Date(log.created_at).toLocaleString('id-ID')}
-                  </td>
-                  <td className="px-6 py-3.5 font-sans font-medium text-slate-900">
-                    <div>
-                      <span>{log.actor?.email || log.actor?.user_id}</span>
-                      <span className="text-[10px] text-slate-400 block font-mono">
-                        [{log.actor?.role}]
+              {logs.map((log) => {
+                const isPlatformActor = log.actor?.email === 'platform';
+                const actorDisplay = isPlatformActor
+                  ? 'Pemilik platform'
+                  : log.actor?.email || log.actor?.user_id;
+
+                let actionLabel = log.action;
+                if (log.action === 'tenant.quota_changed') {
+                  actionLabel = 'Kuota diubah oleh pemilik platform';
+                } else if (log.action === 'tenant.suspended') {
+                  actionLabel = 'Workspace ditangguhkan';
+                } else if (log.action === 'tenant.reactivated') {
+                  actionLabel = 'Workspace diaktifkan kembali';
+                }
+
+                return (
+                  <tr key={log.id} className="hover:bg-slate-50/70 transition">
+                    <td className="px-6 py-3.5 text-slate-500 whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleString('id-ID')}
+                    </td>
+                    <td className="px-6 py-3.5 font-sans font-medium text-slate-900">
+                      <div>
+                        <span className={isPlatformActor ? 'font-bold text-emerald-800' : ''}>
+                          {actorDisplay}
+                        </span>
+                        {!isPlatformActor && log.actor?.role && (
+                          <span className="text-[10px] text-slate-400 block font-mono">
+                            [{log.actor.role}]
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-3.5">
+                      <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-semibold">
+                        {actionLabel}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-3.5">
-                    <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] font-semibold">
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3.5 font-sans text-slate-600">
-                    <div className="text-xs">
-                      <span className="font-semibold text-slate-800">
-                        {log.target?.type}:
-                      </span>{' '}
-                      <span className="font-mono text-slate-500 text-[11px]">
-                        {log.target?.id ? log.target.id.slice(0, 12) : '-'}
-                      </span>
-                      {log.details && (
-                        <p className="text-[11px] text-slate-400 truncate max-w-xs mt-0.5">
-                          {JSON.stringify(log.details)}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-3.5 text-slate-400 text-[11px] whitespace-nowrap">
-                    {log.ip || '-'}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-3.5 font-sans text-slate-600">
+                      <div className="text-xs">
+                        {log.target?.type && (
+                          <span className="font-semibold text-slate-800">
+                            {log.target.type}:
+                          </span>
+                        )}{' '}
+                        {log.target?.id && (
+                          <span className="font-mono text-slate-500 text-[11px]">
+                            {log.target.id.slice(0, 12)}
+                          </span>
+                        )}
+                        {log.details?.changes ? (
+                          <div className="space-y-0.5 mt-1">
+                            {Object.entries(log.details.changes).map(([k, v]: [string, any]) => (
+                              <div key={k} className="text-[11px] text-slate-600 font-mono">
+                                <span className="font-semibold text-slate-800">{k}:</span>{' '}
+                                <span className="text-slate-400">
+                                  {JSON.stringify(v?.from ?? v?.before ?? '-')}
+                                </span>
+                                {' -> '}
+                                <span className="text-emerald-700 font-bold">
+                                  {JSON.stringify(v?.to ?? v?.after ?? '-')}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : log.details?.reason ? (
+                          <p className="text-[11px] text-slate-600 mt-0.5">
+                            <span className="font-semibold">Alasan:</span> {log.details.reason}
+                          </p>
+                        ) : log.details && (
+                          <p className="text-[11px] text-slate-400 truncate max-w-xs mt-0.5">
+                            {JSON.stringify(log.details)}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-3.5 text-slate-400 text-[11px] whitespace-nowrap">
+                      {log.ip || '-'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 

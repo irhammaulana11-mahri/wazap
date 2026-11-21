@@ -13,7 +13,7 @@ export const SecurityBanners: React.FC = () => {
   const { data: teamData } = useQuery({
     queryKey: ['team-members-owners-check', tenant?.id],
     queryFn: () => api.getTeamMembers(1, 100),
-    enabled: !!tenant?.id && (role === 'OWNER' || role === 'ADMIN'),
+    enabled: !!tenant?.id && role === 'OWNER',
     staleTime: 60000,
   });
 
@@ -29,7 +29,7 @@ export const SecurityBanners: React.FC = () => {
   const showLowRecoveryCodes = recovery && recovery.codes_remaining <= 2;
 
   // Banner 2: 2 OWNER
-  const showTwoOwnerWarning = isSingleOwner && !dismissTwoOwnerBanner && (role === 'OWNER' || role === 'ADMIN');
+  const showTwoOwnerWarning = isSingleOwner && !dismissTwoOwnerBanner && role === 'OWNER';
 
   if (!showRecoveryNotConfirmed && !showLowRecoveryCodes && !showTwoOwnerWarning) {
     return null;

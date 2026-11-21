@@ -75,7 +75,7 @@ export const ChatsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const { role } = useAuth();
-  const canExport = role === 'OWNER' || role === 'ADMIN';
+  const canExport = role === 'OWNER';
 
   // Left View Mode: 'chats' (WhatsApp threads) | 'queue' (Gateway outbox messages log)
   const [leftTab, setLeftTab] = useState<'chats' | 'queue'>('chats');
@@ -305,7 +305,7 @@ export const ChatsPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Ekspor Data Button (OWNER / ADMIN) */}
+          {/* Ekspor Data Button (OWNER) */}
           {canExport && (
             <button
               onClick={() => {

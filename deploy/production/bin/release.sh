@@ -33,7 +33,7 @@ say "4. Restart pekerja lalu API"
 start_or_restart wazap-engine; for i in $(seq 1 30); do curl -sf "http://127.0.0.1:$WP/health/ready" >/dev/null && break; sleep 2; [ "$i" = 30 ] && die "pekerja tidak siap"; done; echo "pekerja siap"
 start_or_restart wazap-api; for i in $(seq 1 30); do curl -sf "http://127.0.0.1:$AP/health/ready" >/dev/null && break; sleep 2; [ "$i" = 30 ] && die "API tidak siap"; done; echo "API siap"
 say "5. Frontend"
-( cd frontend && npm ci --no-audit --no-fund && npm run build )
+( cd frontend && npm ci --include=dev --no-audit --no-fund && npm run build )
 [ -d "$WEB" ] && [ -w "$WEB" ] || die "$WEB tidak dapat ditulis (jalankan install-nginx.sh sekali)"
 rm -rf "$WEB"/assets "$WEB"/index.html && cp -r frontend/dist/. "$WEB"/ && chmod -R a+rX "$WEB"
 echo; echo "Rilis selesai. Jalankan: deploy/production/bin/verify.sh   (di server: VERIFY_LOCAL=1)"

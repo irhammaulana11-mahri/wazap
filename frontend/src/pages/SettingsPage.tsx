@@ -197,14 +197,14 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* Tab Segmented Navigation */}
-        <div className="flex items-center gap-1.5 mt-7 pt-4 border-t border-slate-100 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 mt-7 pt-4 border-t border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab('quota')}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
               activeTab === 'quota'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800'
             }`}
           >
             <Sliders className="w-4 h-4" />
@@ -217,8 +217,8 @@ export const SettingsPage: React.FC = () => {
               onClick={() => setActiveTab('general')}
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
                 activeTab === 'general'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                  ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800'
               }`}
             >
               <Building2 className="w-4 h-4" />
@@ -231,8 +231,8 @@ export const SettingsPage: React.FC = () => {
             onClick={() => setActiveTab('data')}
             className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
               activeTab === 'data'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800'
             }`}
           >
             <Database className="w-4 h-4" />
@@ -245,8 +245,8 @@ export const SettingsPage: React.FC = () => {
               onClick={() => setActiveTab('notifications')}
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
                 activeTab === 'notifications'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                  ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800'
               }`}
             >
               <Bell className="w-4 h-4" />
@@ -261,7 +261,7 @@ export const SettingsPage: React.FC = () => {
               className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
                 activeTab === 'danger'
                   ? 'bg-rose-600 text-white shadow-xs'
-                  : 'text-rose-700 hover:text-rose-900 hover:bg-rose-50'
+                  : 'text-rose-700 dark:text-rose-400 hover:text-rose-900 dark:hover:text-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/40'
               }`}
             >
               <AlertTriangle className="w-4 h-4" />

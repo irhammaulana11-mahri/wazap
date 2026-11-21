@@ -2,10 +2,12 @@
 # Rilis aplikasi di server produksi (tanpa sudo). Urutan WAJIB (ADR-039): build -> cadangan segar -> migrate:prod -> restart pekerja -> restart API -> frontend.
 # Pemakaian (dari checkout git bersih pada tag/commit yang akan dirilis):  deploy/production/bin/release.sh
 # Rilis PERTAMA (DB kosong, belum ada cadangan, PM2 belum punya proses): SKIP_BACKUP_CHECK=1; proses dibuat otomatis dari ecosystem.config.cjs.
-# Env: WAZAP_ENV_DIR(/var/lib/wazap/env) BACKUP_DIR(/var/backups/wazap) BACKUP_MAX_AGE_H(2) SKIP_BACKUP_CHECK(0) WEB_ROOT(/var/www/wazap-web) API_PORT(3000) WORKER_HEALTH_PORT(8101)
+# Env: WAZAP_ENV_DIR(/var/lib/wazap/env) BACKUP_DIR(bawaan: dibaca dari ~/.config/wazap-backup/backup.env, lalu /var/backups/wazap) BACKUP_ENV BACKUP_MAX_AGE_H(2) SKIP_BACKUP_CHECK(0) WEB_ROOT(/var/www/wazap-web) API_PORT(3000) WORKER_HEALTH_PORT(8101)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"; ENVDIR="${WAZAP_ENV_DIR:-/var/lib/wazap/env}"; WEB="${WEB_ROOT:-/var/www/wazap-web}"
-AP="${API_PORT:-3000}"; WP="${WORKER_HEALTH_PORT:-8101}"; BK="${BACKUP_DIR:-/var/backups/wazap}"
+AP="${API_PORT:-3000}"; WP="${WORKER_HEALTH_PORT:-8101}"; BK="${BACKUP_DIR:-}"; BENV="${BACKUP_ENV:-$HOME/.config/wazap-backup/backup.env}"
+# Lokasi cadangan mengikuti konfigurasi yang ditulis backup-setup.sh (mis. drive terpisah); cek cadangan tidak boleh memeriksa folder yang salah.
+[ -n "$BK" ] || { [ -r "$BENV" ] && BK="$(grep -E '^BACKUP_DIR=' "$BENV" | head -1 | cut -d= -f2-)" || true; }; BK="${BK:-/var/backups/wazap}"
 start_or_restart(){ if pm2 describe "$1" >/dev/null 2>&1; then pm2 restart "$1" --update-env >/dev/null; else pm2 start "$ROOT/deploy/production/ecosystem.config.cjs" --only "$1" >/dev/null; fi; }
 say(){ printf '\n== %s\n' "$*"; }; die(){ echo "GAGAL: $*" >&2; exit 1; }
 cd "$ROOT"

@@ -2,3 +2,185 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Global Dark Mode System Theme */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  background-color: #020617;
+  color: #f8fafc;
+}
+
+/* Surfaces and Cards */
+.dark .bg-white {
+  background-color: #0f172a;
+}
+
+.dark .bg-slate-50 {
+  background-color: #020617;
+}
+
+.dark .bg-slate-50\/70,
+.dark .bg-slate-50\/50 {
+  background-color: #020617;
+}
+
+.dark .bg-slate-100 {
+  background-color: #1e293b;
+}
+
+.dark .bg-slate-100\/70 {
+  background-color: #1e293b;
+}
+
+/* Borders */
+.dark .border-slate-100 {
+  border-color: #1e293b;
+}
+
+.dark .border-slate-200,
+.dark .border-slate-200\/90,
+.dark .border-slate-200\/80 {
+  border-color: #334155;
+}
+
+.dark .border-slate-300 {
+  border-color: #475569;
+}
+
+/* Typography Hierarchy in Dark Mode */
+.dark .text-slate-900 {
+  color: #f8fafc;
+}
+
+.dark .text-slate-800 {
+  color: #f1f5f9;
+}
+
+.dark .text-slate-700 {
+  color: #e2e8f0;
+}
+
+.dark .text-slate-600 {
+  color: #cbd5e1;
+}
+
+.dark .text-slate-500 {
+  color: #94a3b8;
+}
+
+.dark .text-slate-400 {
+  color: #94a3b8;
+}
+
+/* Inputs, Textareas, Selects */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]),
+.dark select,
+.dark textarea {
+  background-color: #020617;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b;
+}
+
+/* Hover States on Gray Elements */
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-50\/70:hover,
+.dark .hover\:bg-slate-100:hover,
+.dark .hover\:bg-slate-100\/70:hover {
+  background-color: #1e293b;
+}
+
+.dark .hover\:text-slate-900:hover,
+.dark .hover\:text-slate-800:hover {
+  color: #ffffff;
+}
+
+/* Tables and Dividers */
+.dark thead {
+  background-color: #020617;
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+.dark tbody tr:hover {
+  background-color: rgba(30, 41, 59, 0.5);
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1e293b;
+}
+
+/* Colored Alert Banners & Notices in Dark Mode */
+.dark .bg-blue-50 {
+  background-color: rgba(30, 58, 138, 0.25);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #bfdbfe;
+}
+.dark .text-blue-900,
+.dark .text-blue-800 {
+  color: #dbeafe;
+}
+.dark .text-blue-700 {
+  color: #93c5fd;
+}
+
+.dark .bg-amber-50 {
+  background-color: rgba(120, 53, 15, 0.25);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fde68a;
+}
+.dark .text-amber-900,
+.dark .text-amber-800 {
+  color: #fef3c7;
+}
+.dark .text-amber-700 {
+  color: #fcd34d;
+}
+
+.dark .bg-emerald-50 {
+  background-color: rgba(6, 78, 59, 0.25);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #a7f3d0;
+}
+.dark .text-emerald-900,
+.dark .text-emerald-800 {
+  color: #d1fae5;
+}
+.dark .text-emerald-700 {
+  color: #6ee7b7;
+}
+
+.dark .bg-rose-50,
+.dark .bg-red-50 {
+  background-color: rgba(136, 19, 55, 0.25);
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #fecdd3;
+}
+.dark .text-rose-900,
+.dark .text-rose-800,
+.dark .text-red-600 {
+  color: #ffe4e6;
+}
+.dark .text-rose-700 {
+  color: #fda4af;
+}
+
+.dark .bg-purple-50 {
+  background-color: rgba(88, 28, 135, 0.25);
+  border-color: rgba(168, 85, 247, 0.35);
+  color: #e9d5ff;
+}
+.dark .text-purple-900,
+.dark .text-purple-800 {
+  color: #f3e8ff;
+}
+.dark .text-purple-700 {
+  color: #d8b4fe;
+}

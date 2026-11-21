@@ -116,17 +116,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             </button>
           )}
 
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 sm:gap-2 text-xs font-medium text-slate-500">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 sm:gap-2 text-xs font-medium text-slate-500 dark:text-slate-400">
             <Link
               to="/"
-              className="flex items-center gap-1.5 text-slate-400 hover:text-emerald-600 transition"
+              className="flex items-center gap-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition"
               title="Kembali ke Dashboard Utama"
             >
               <Home className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Home</span>
             </Link>
-            <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-            <span className="font-bold text-slate-800 text-xs sm:text-sm tracking-tight truncate max-w-[170px] sm:max-w-none">
+            <ChevronRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />
+            <span className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm tracking-tight truncate max-w-[170px] sm:max-w-none">
               {getBreadcrumbTitle(location.pathname)}
             </span>
           </nav>
@@ -135,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         {/* Center / Right: System Status & User Inisial Logo */}
         <div className="flex items-center gap-2 sm:gap-3 text-xs">
           {/* System Status Indicators (Desktop) */}
-          <div className="hidden lg:flex items-center gap-2 border-r border-slate-200 pr-3">
+          <div className="hidden lg:flex items-center gap-2 border-r border-slate-200 dark:border-slate-800 pr-3">
             {/* Realtime Status */}
             <div
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition ${

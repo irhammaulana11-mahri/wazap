@@ -145,6 +145,13 @@ jobs:
           nginx -t -c "$T/nginx.conf" -e "$T/error.log"
           grep -qF 'X-Forwarded-For   $remote_addr' "$T/out/wazap-locations.conf" "$T/out/wazap.conf"
           if grep -hv '^[[:space:]]*#' "$T/out/wazap.conf" "$T/out/wazap-locations.conf" | grep -qF 'proxy_add_x_forwarded_for'; then echo 'GAGAL: X-Forwarded-For ditambah, bukan ditimpa'; exit 1; fi
+          # mode Cloudflare: IP pengunjung dari CF-Connecting-IP hanya dari rentang tepercaya; templat harus lolos nginx -t
+          mkdir -p "$T/cf"; printf 'set_real_ip_from 127.0.0.1;\nreal_ip_header CF-Connecting-IP;\nreal_ip_recursive off;\n' > "$T/cf/cloudflare-realip.conf"
+          CLOUDFLARE=1 CERT_DIR="$T" WEB_ROOT="$T/web" deploy/production/bin/render-nginx.sh "$T/cf" 300
+          sed -i -e 's/listen 80;/listen 18080;/' -e 's/listen \[::\]:80;/listen [::1]:18080;/' -e 's/listen 443 ssl;/listen 18443 ssl;/' -e 's/listen \[::\]:443 ssl;/listen [::1]:18443 ssl;/' "$T/cf/wazap.conf"
+          sed -i "s#$T/out/wazap.conf#$T/cf/wazap.conf#" "$T/nginx.conf"
+          nginx -t -c "$T/nginx.conf" -e "$T/error.log"
+          grep -q 'cloudflare-realip.conf;' "$T/cf/wazap.conf"
           # satu origin untuk dashboard; host API tidak boleh melayani dashboard
           grep -q 'server_name wazap.bolinggo.org;' "$T/out/wazap.conf"
           grep -q 'server_name api-wazap.bolinggo.org;' "$T/out/wazap.conf"

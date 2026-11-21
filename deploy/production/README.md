@@ -15,10 +15,47 @@ Tanpa rahasia di folder ini. Rahasia dibuat di server, `/var/lib/wazap/env/` (06
 | `nginx/*.tpl`, `bin/render-nginx.sh` | vhost dua host (templat; tidak diedit tangan di /etc) |
 | `bin/install-nginx.sh` | pasang ke Nginx sistem (**sudo**), dua tahap `http` lalu `https`; `nginx -t` dan rollback otomatis |
 | `bin/release.sh` | rilis tanpa sudo: cek cadangan -> build -> migrasi -> worker -> API -> frontend |
-| `bin/verify.sh` | gerbang dari luar lewat domain sungguhan |
+| `bin/verify.sh` | gerbang dari luar lewat domain sungguhan (`ORIGIN_IP`, `VERIFY_BEHIND_CDN` bila lewat Cloudflare) |
+| `bin/preflight.sh` | pemeriksa read-only sebelum memasang di server yang sudah dipakai aplikasi lain |
+
+## Data yang dibutuhkan (kumpulkan SEBELUM mulai)
+Jalankan dulu pemeriksa read-only di server (tidak mengubah apa pun, tidak mencetak rahasia):
+```bash
+git clone <repo> /var/www/wazap   # atau cukup salin deploy/production/bin/preflight.sh
+SERVER_IP=<ip-publik-server> deploy/production/bin/preflight.sh | tee preflight.txt
+```
+Tempel `preflight.txt` ke percakapan. Ulangi sampai tidak ada **GAGAL** (GitHub/jaringan sesekali gagal sesaat: ulangi). Lalu siapkan jawaban berikut. **JANGAN pernah menempel kata sandi, token, atau isi berkas env ke chat.**
+
+| # | Data | Cara mengecek / dari mana | Dipakai untuk |
+|---|---|---|---|
+| 1 | IP publik server (IPv4, dan IPv6 bila ada) | dari panel penyedia/ISP, bukan dari `ip addr` bila di belakang NAT | rekaman DNS, perbandingan di preflight |
+| 2 | **DNS lewat Cloudflare atau tidak?** (awan oranye / Tunnel / hanya DNS) | panel DNS; preflight mendeteksi; `dig +short wazap.bolinggo.org` (IP 104.x/172.64-71.x/2606:4700 = Cloudflare) | menentukan `CLOUDFLARE=1`, IP pengunjung, sertifikat; **saat ini DNS menunjuk ke Cloudflare** |
+| 3 | Siapa yang memegang port 80/443 (Nginx/Apache/Docker/Traefik) | preflight bagian 5 dan 6 | README mengasumsikan Nginx; selain itu vhost disesuaikan |
+| 4 | Versi Nginx (butuh >= 1.25.1 untuk `http2 on;`) | `nginx -v`; preflight | sintaks vhost |
+| 5 | Nama `server_name` lain yang sudah ada, termasuk `bolinggo.org` itu sendiri | preflight bagian 6 | menghindari bentrok vhost |
+| 6 | Port 3000 dan 8101 bebas? Bila tidak, port pengganti | preflight bagian 5 | `API_PORT`, `WORKER_HEALTH_PORT` |
+| 7 | Versi Node (>= 22) dan cara memasangnya untuk pengguna aplikasi | `node -v`; preflight | build dan jalan; jangan ubah Node sistem milik aplikasi lain |
+| 8 | PostgreSQL: versi (diuji di 18, minimal teknis 14), lokasi (lokal/jauh), nama database yang diinginkan, apakah `max_connections` cukup | preflight bagian 7; `sudo -u postgres psql -c 'show max_connections'` | langkah 3, role, koneksi |
+| 9 | Pengguna Linux pelaksana aplikasi (bukan root), dan apakah PM2 sudah dipakai pengguna itu untuk aplikasi lain | preflight bagian 1 dan 4 | `pm2 save` menyimpan SEMUA proses pengguna itu |
+| 10 | Sertifikat: sudah ada certbot? sertifikat untuk bolinggo.org yang sudah ada? surel untuk pemberitahuan Let's Encrypt | `certbot certificates` (sudo) | langkah 5; surel Anda ketik sendiri saat certbot |
+| 11 | Firewall di server dan di penyedia (security group): 80/443 terbuka dari internet; 5432/3000/8101 tertutup | `sudo ufw status`; panel penyedia; uji dari jaringan lain: `curl -I http://wazap.bolinggo.org` | ACME dan akses pengguna |
+| 12 | Ruang cadangan dan tujuan salinan di luar host (rclone/rsync/objek storage) | `df -h /var/backups`; tentukan tujuan | gerbang 2 |
+| 13 | Layanan heartbeat luar (mis. Healthchecks.io) dan bot Telegram untuk alarm operator | buat akun/bot sendiri; token ditulis langsung ke `monitor.env` | gerbang 5 |
+| 14 | Kontak operator di luar jam kerja | keputusan Anda | siapa yang menerima PAGE |
+
+Data yang TIDAK saya perlukan dan tidak boleh dikirim: kata sandi DB, `CREDENTIAL_ENCRYPTION_KEYS`, `JWT_SECRET`, token bot. Semuanya dibuat atau diketik langsung di server.
+
+## Bila DNS lewat Cloudflare (kondisi saat ini)
+Tanpa langkah ini semua pengunjung terlihat berasal dari satu IP (IP Cloudflare): throttling login, batas laju, dan audit per-IP menjadi salah.
+1.  Pasang vhost dengan `CLOUDFLARE=1`: `sudo CLOUDFLARE=1 deploy/production/bin/install-nginx.sh https`. Skrip mengambil daftar IP resmi Cloudflare, lalu Nginx hanya mempercayai `CF-Connecting-IP` dari rentang itu (pemalsuan header dari sumber lain diabaikan; terbukti di uji). Jalankan ulang tiap beberapa bulan agar daftar IP segar.
+2.  Cloudflare: SSL/TLS mode **Full (strict)** (bukan Flexible: itu menyebabkan redirect berulang dan lalu lintas ke origin tanpa TLS). Sertifikat origin: Let's Encrypt (HTTP-01 jalan bila proxy meneruskan `/.well-known/acme-challenge/`; bila tidak, pakai Cloudflare Origin Certificate atau DNS-01).
+3.  Batas Cloudflare: 100 dtk per permintaan (ekspor yang sangat besar dapat berakhir 524; pecah rentang tanggal), unggahan maksimum 100 MB, WebSocket didukung (aktifkan di Network).
+4.  Disarankan: firewall origin hanya menerima 80/443 dari rentang IP Cloudflare, agar origin tidak dapat dijangkau langsung.
+5.  Verifikasi DUA kali: lewat Cloudflare `VERIFY_BEHIND_CDN=1 deploy/production/bin/verify.sh`, dan langsung ke origin `ORIGIN_IP=<ip-server> deploy/production/bin/verify.sh` (menguji TLS, header, dan sertifikat milik kita sendiri).
+6.  **Cloudflare Tunnel** (bukan awan oranye ke IP publik) topologinya berbeda: port 80/443 publik tidak dibuka dan asal tunnel diarahkan ke Nginx lokal. Bila Anda memakai Tunnel, beri tahu saya sebelum lanjut agar templatnya disesuaikan.
 
 ## Urutan (sekali di server baru)
-**0. Server.** Ubuntu LTS, Node 22, PostgreSQL 18, Nginx, PM2, certbot, git; pengguna non-root khusus (mis. `wazap`) yang punya sudo hanya untuk langkah bertanda sudo. Firewall: izinkan 22, 80, 443 saja (`ufw default deny incoming`). PostgreSQL mendengarkan loopback.
+**0. Server.** Jalankan `preflight.sh` (bagian "Data yang dibutuhkan") sampai tanpa GAGAL. Ubuntu LTS, Node 22, PostgreSQL 18, Nginx, PM2, certbot, git; pengguna non-root khusus (mis. `wazap`) yang punya sudo hanya untuk langkah bertanda sudo. Firewall: izinkan 22, 80, 443 saja (`ufw default deny incoming`). PostgreSQL mendengarkan loopback.
 **1. DNS.** Rekaman A (dan AAAA bila ada IPv6) untuk `wazap` dan `api-wazap` ke IP publik server. Periksa: `dig +short wazap.bolinggo.org api-wazap.bolinggo.org`. Port 80 dan 443 harus terjangkau dari internet (tantangan ACME memakai 80).
 **2. Kode.** `git clone <repo> /var/www/wazap && cd /var/www/wazap && git checkout <tag-atau-commit-rilis>`. Rilis hanya dari commit yang lulus `ci-test.sh` (atau CI GitHub hijau).
 **3. Database.** Buat database dan role `wazap_migrator` + `wazap_app` sesuai `docs/07_DEPLOYMENT/DB_ROLES.md`; verifikasi `backend/scripts/verify-db-roles.sh`. Tulis kredensialnya ke berkas sementara 0600 (mis. `/tmp/wazap-db.env`, 8 variabel `DB_*`).
@@ -34,7 +71,7 @@ sudo deploy/production/bin/install-nginx.sh http
 sudo certbot certonly --webroot -w /var/www/certbot -d wazap.bolinggo.org -d api-wazap.bolinggo.org
 sudo certbot renew --dry-run
 printf '#!/bin/sh\nsystemctl reload nginx\n' | sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx >/dev/null && sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
-sudo deploy/production/bin/install-nginx.sh https        # HSTS 300 dtk dulu
+sudo deploy/production/bin/install-nginx.sh https        # HSTS 300 dtk dulu. Lewat Cloudflare: sudo CLOUDFLARE=1 ... (lihat bagian Cloudflare)
 ```
 **6. Rilis pertama** (DB kosong; belum ada cadangan, PM2 belum punya proses):
 ```bash

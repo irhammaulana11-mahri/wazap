@@ -1,4 +1,6 @@
 # Vhost produksi WAZAP: dashboard (@DASH_HOST@) dan API (@API_HOST@). Dirender oleh bin/render-nginx.sh; JANGAN diedit di /etc.
+# Mode Cloudflare (CLOUDFLARE=1): @REALIP@ memuat cloudflare-realip.conf (set_real_ip_from rentang Cloudflare + real_ip_header CF-Connecting-IP), sehingga
+# $remote_addr = IP pengunjung dan aturan X-Forwarded-For $remote_addr tetap benar. Header itu HANYA dipercaya dari rentang Cloudflare.
 # Placeholder: @DASH_HOST@ @API_HOST@ @CERT_DIR@ @WEB_ROOT@ @API_PORT@ @HSTS_MAX_AGE@ @LOC_FILE@
 # Rancangan (ADR-050): dashboard memproksikan /api dan Socket.IO di host YANG SAMA (satu origin; cookie refresh SameSite=Strict, tanpa CORS).
 # Host API melayani API yang sama untuk integrasi (API key, webhook, Socket.IO); CORS_ORIGINS sengaja kosong, jadi origin lain tidak dapat memakai
@@ -36,6 +38,7 @@ server {
     ssl_session_cache shared:wazap_tls:10m;
     ssl_session_tickets off;
 
+    @REALIP@
     server_tokens off;
     add_header Strict-Transport-Security "max-age=@HSTS_MAX_AGE@" always;   # tanpa includeSubDomains/preload: bolinggo.org mungkin memuat layanan lain
     add_header X-Content-Type-Options "nosniff" always;
@@ -85,6 +88,7 @@ server {
     ssl_session_cache shared:wazap_tls:10m;
     ssl_session_tickets off;
 
+    @REALIP@
     server_tokens off;
     add_header Strict-Transport-Security "max-age=@HSTS_MAX_AGE@" always;
     add_header X-Content-Type-Options "nosniff" always;

@@ -2,6 +2,7 @@
 # Pemeriksaan SEBELUM memasang WAZAP di server yang sudah dipakai aplikasi lain. HANYA MEMBACA: tidak mengubah file, tidak memasang apa pun, tidak mencetak
 # rahasia (tidak membaca berkas env/kunci). Satu-satunya lalu lintas keluar: permintaan HEAD ke 5 host (npm, GitHub, Telegram, WhatsApp, Let's Encrypt).
 # Jalankan DI SERVER sebagai pengguna yang akan menjalankan aplikasi (bukan root):   deploy/production/bin/preflight.sh | tee preflight.txt
+# Mendeteksi (heuristik rentang IP) bila DNS lewat Cloudflare, yang mengubah cara IP pengunjung dibaca.
 # Env: DASH_HOST API_HOST API_PORT(3000) WORKER_HEALTH_PORT(8101)  SERVER_IP (IP publik server yang Anda ketahui; untuk dibandingkan dengan DNS)
 # Keluaran: LULUS / PERINGATAN / GAGAL / INFO. Kode keluar 1 bila ada GAGAL. Tempel preflight.txt ke percakapan (tinjau dulu bila ada nama aplikasi yang tak ingin dibagikan).
 DASH="${DASH_HOST:-wazap.bolinggo.org}"; API="${API_HOST:-api-wazap.bolinggo.org}"; AP="${API_PORT:-3000}"; WP="${WORKER_HEALTH_PORT:-8101}"
@@ -105,6 +106,11 @@ for h in "$DASH" "$API"; do a="$(dig4 "$h")"; b="$(dig6 "$h")"
     [ -n "$b" ] && [ -z "$loc6" ] && ng "$h punya AAAA ($b) tetapi server tidak punya IPv6 global: certbot dan pengunjung IPv6 gagal; hapus AAAA atau aktifkan IPv6"
   fi
 done
+is_cf(){ case "$1" in 104.1[6-9].*|104.2[0-3].*|172.6[4-9].*|172.7[01].*|188.114.9[6-9].*|188.114.1[01][0-9].*|162.15[89].*|141.101.*|108.162.*|198.41.*|103.21.2[44]*|103.22.2*|103.31.*|173.245.*|190.93.2[45]*|197.234.2[45]*|131.0.7[2-5].*|2606:4700:*|2400:cb00:*|2405:b500:*|2405:8100:*|2a06:98c0:*|2c0f:f248:*) return 0 ;; *) return 1 ;; esac; }
+cf=0; for h in "$DASH" "$API"; do for ip in "$(dig4 "$h")" "$(dig6 "$h")"; do [ -n "$ip" ] && is_cf "$ip" && cf=1; done; done
+if [ "$cf" = 1 ]; then wn "DNS $DASH/$API menunjuk ke IP CLOUDFLARE (proxy aktif atau Tunnel). Akibat: tanpa CLOUDFLARE=1 semua pengunjung terlihat satu IP (IP Cloudflare): throttling login, batas laju, dan audit per-IP SALAH. Pasang dengan CLOUDFLARE=1 (README bagian Cloudflare); mode SSL Cloudflare harus 'Full (strict)'; batas 100 dtk per permintaan (ekspor sangat besar bisa 524); certbot HTTP-01 hanya jalan bila proxy meneruskan /.well-known (atau pakai Origin Certificate/DNS-01)"
+  { have cloudflared || systemctl is-active cloudflared >/dev/null 2>&1; } && inf "cloudflared terdeteksi: bila memakai Cloudflare TUNNEL, port 80/443 publik TIDAK perlu dibuka dan topologi README berbeda (asal tunnel -> http://127.0.0.1:80); beri tahu saya sebelum lanjut" || inf "cloudflared tidak terdeteksi di server ini: bila proxy memakai 'orange cloud', origin Nginx tetap harus terjangkau dari IP Cloudflare di 80/443"
+else inf "DNS tidak menunjuk ke Cloudflare (rentang IP yang dikenal)"; fi
 inf "IP publik asli (di balik NAT/cloud) hanya Anda yang tahu; port 80/443 harus terbuka dari internet (uji dari jaringan lain setelah Nginx tahap http: curl -I http://$DASH)"
 if have ufw; then $S ufw status 2>/dev/null | head -1 | sed 's/^/  INFO        ufw: /'; fi
 inf "iptables/nftables dan firewall penyedia (security group) tidak dapat diperiksa dari sini: pastikan 80 dan 443 terbuka, 5432/$AP/$WP tertutup dari luar"

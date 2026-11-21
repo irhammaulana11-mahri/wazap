@@ -3,32 +3,36 @@
 # Dasar: tidak membuat data di produksi. Opsi:  VERIFY_LOCAL=1 (jalankan DI server: periksa port loopback + health pekerja)
 #   VERIFY_AUTH=1  (buat SATU akun uji acak dan periksa cookie/token/WebSocket; akun uji tetap ada, hapus lewat dashboard)
 #   VERIFY_THROTTLE=1 (24 login salah dengan X-Forwarded-For palsu: membuktikan IP tak dapat dipalsukan; MENGUNCI IP penguji sementara, jalankan dari IP yang tidak dipakai admin)
+#   ORIGIN_IP=<IP server>: uji LANGSUNG ke server (melewati CDN/Cloudflare) memakai nama host yang sama; WAJIB dijalankan bila DNS lewat Cloudflare.
+#   VERIFY_BEHIND_CDN=1: uji lewat Cloudflare; melewati pemeriksaan milik tepi (TLS 1.1, versi/ pengalihan HTTP, umur sertifikat tepi).
 # Env: DASH_HOST API_HOST WORKER_HEALTH_PORT(8101) API_PORT(3000)
 set -u
 D="$(cd "$(dirname "$0")/.." && pwd)"; ROOT="$(cd "$D/../.." && pwd)"
 DASH="${DASH_HOST:-wazap.bolinggo.org}"; API="${API_HOST:-api-wazap.bolinggo.org}"; AP="${API_PORT:-3000}"; WP="${WORKER_HEALTH_PORT:-8101}"
+RES=(); if [ -n "${ORIGIN_IP:-}" ]; then RES=(--resolve "$DASH:443:$ORIGIN_IP" --resolve "$API:443:$ORIGIN_IP" --resolve "$DASH:80:$ORIGIN_IP" --resolve "$API:80:$ORIGIN_IP"); fi
+CDN="${VERIFY_BEHIND_CDN:-0}"
 fail=0; ok(){ printf '  LULUS   %s\n' "$1"; }; bad(){ printf '  GAGAL   %s\n' "$1"; fail=1; }
 chk(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 (didapat: $2, diharapkan: $3)"; fi; }
-cc(){ curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "$@" 2>/dev/null || echo 000; }
+cc(){ local c; c="$(curl -sS --max-time 15 "${RES[@]}" -o /dev/null -w '%{http_code}' "$@" 2>/dev/null)"; echo "${c:-000}"; }
 
 for H in "$DASH" "$API"; do
   echo "== TLS dan header: $H"
   chk "HTTPS 200 dengan sertifikat tepercaya" "$(cc "https://$H/health/live")" 200
-  echo | openssl s_client -connect "$H:443" -servername "$H" -tls1_1 2>&1 | grep -q "Cipher is (NONE)\|alert\|no protocols" && ok "TLS 1.1 ditolak" || bad "TLS 1.1 diterima"
-  echo | openssl s_client -connect "$H:443" -servername "$H" -tls1_3 >/dev/null 2>&1 && ok "TLS 1.3 tersedia" || bad "TLS 1.3 tidak tersedia"
-  HD="$(curl -sSI --max-time 15 "https://$H/health/live")"
+  if [ "$CDN" = 1 ]; then echo "  LEWAT   TLS 1.1 (milik tepi CDN; periksa dengan ORIGIN_IP)"; else echo | openssl s_client -connect "${ORIGIN_IP:-$H}:443" -servername "$H" -tls1_1 2>&1 | grep -q "Cipher is (NONE)\|alert\|no protocols" && ok "TLS 1.1 ditolak" || bad "TLS 1.1 diterima"; fi
+  echo | openssl s_client -connect "${ORIGIN_IP:-$H}:443" -servername "$H" -tls1_3 >/dev/null 2>&1 && ok "TLS 1.3 tersedia" || bad "TLS 1.3 tidak tersedia"
+  HD="$(curl -sSI --max-time 15 "${RES[@]}" "https://$H/health/live")"
   echo "$HD" | grep -qi '^strict-transport-security:' && ok "HSTS ada" || bad "HSTS tidak ada"
-  echo "$HD" | grep -qiE '^server: nginx/[0-9]' && bad "versi Nginx bocor" || ok "versi Nginx tidak bocor"
+  if [ "$CDN" = 1 ]; then :; else echo "$HD" | grep -qiE '^server: nginx/[0-9]' && bad "versi Nginx bocor" || ok "versi Nginx tidak bocor"; fi
   echo "$HD" | grep -qi '^x-content-type-options: nosniff' && ok "nosniff" || bad "nosniff tidak ada"
-  r="$(curl -sS --max-time 15 -o /dev/null -w '%{http_code} %{redirect_url}' "http://$H/uji")"
+  r="$(curl -sS --max-time 15 "${RES[@]}" -o /dev/null -w '%{http_code} %{redirect_url}' "http://$H/uji")"
   case "$r" in "301 https://$H/uji") ok "HTTP dialihkan ke HTTPS" ;; *) bad "HTTP tidak dialihkan ke HTTPS ($r)" ;; esac
-  d="$(echo | openssl s_client -connect "$H:443" -servername "$H" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)"
+  d="$(echo | openssl s_client -connect "${ORIGIN_IP:-$H}:443" -servername "$H" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)"
   if [ -n "$d" ]; then days=$(( ($(date -d "$d" +%s) - $(date +%s)) / 86400 )); [ "$days" -ge 14 ] && ok "sertifikat berlaku $days hari lagi" || bad "sertifikat tinggal $days hari"; else bad "sertifikat tidak terbaca"; fi
 done
 
 echo "== Dashboard dan API"
-chk "dashboard / (index.html)" "$(curl -sS --max-time 15 "https://$DASH/" | grep -c '<div id="root"')" 1
-chk "rute SPA /connections" "$(curl -sS --max-time 15 "https://$DASH/connections" | grep -c '<div id="root"')" 1
+chk "dashboard / (index.html)" "$(curl -sS --max-time 15 "${RES[@]}" "https://$DASH/" | grep -c '<div id="root"')" 1
+chk "rute SPA /connections" "$(curl -sS --max-time 15 "${RES[@]}" "https://$DASH/connections" | grep -c '<div id="root"')" 1
 chk "/health/ready lewat dashboard (API+DB)" "$(cc "https://$DASH/health/ready")" 200
 chk "/health/ready lewat host API" "$(cc "https://$API/health/ready")" 200
 chk "dashboard: /api tanpa token ditolak 401" "$(cc "https://$DASH/api/v1/auth/me")" 401
@@ -36,13 +40,13 @@ chk "host API: /api tanpa token ditolak 401" "$(cc "https://$API/api/v1/auth/me"
 chk "host API tidak melayani dashboard (/ = 404)" "$(cc "https://$API/")" 404
 chk "rute API tidak ada = 404 (bukan 502)" "$(cc "https://$DASH/api/v1/tidak-ada")" 404
 # Peramban lain TIDAK boleh mendapat izin CORS dari host API (CORS_ORIGINS kosong)
-acao="$(curl -sSI --max-time 15 -H 'Origin: https://jahat.example' "https://$API/api/v1/auth/me" | grep -i '^access-control-allow-origin:' || true)"
+acao="$(curl -sSI --max-time 15 "${RES[@]}" -H 'Origin: https://jahat.example' "https://$API/api/v1/auth/me" | grep -i '^access-control-allow-origin:' || true)"
 [ -z "$acao" ] && ok "tidak ada Access-Control-Allow-Origin untuk origin asing" || bad "CORS terbuka: $acao"
 
 if [ "${VERIFY_AUTH:-0}" = 1 ]; then
   echo "== Akun, cookie, token, WebSocket (membuat 1 akun uji)"
   EMAIL="verify-$(openssl rand -hex 5)@example.com"; PASS="$(openssl rand -hex 12)Aa1!"
-  R="$(curl -sS --max-time 15 -D /tmp/wzp.h.$$ -H 'content-type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\",\"tenant_name\":\"Verifikasi\"}" "https://$DASH/api/v1/auth/register")"
+  R="$(curl -sS --max-time 15 "${RES[@]}" -D /tmp/wzp.h.$$ -H 'content-type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"$PASS\",\"tenant_name\":\"Verifikasi\"}" "https://$DASH/api/v1/auth/register")"
   TOKEN="$(printf %s "$R" | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')"
   [ -n "$TOKEN" ] && ok "register menghasilkan access token" || bad "register gagal: $(printf %s "$R" | cut -c1-200)"
   CK="$(grep -i '^set-cookie:' /tmp/wzp.h.$$ | head -1)"; rm -f /tmp/wzp.h.$$

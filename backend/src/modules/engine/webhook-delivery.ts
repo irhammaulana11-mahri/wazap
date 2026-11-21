@@ -36,6 +36,9 @@ export function postJson(rawUrl: string, headers: Record<string, string>, body: 
       headers: { ...headers, 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(body)), 'user-agent': 'WAZAP-Webhook/1.0' },
       lookup: createSafeLookup(o.policy, o.resolve) as any,
       agent: false,
+      // Batas bawaan Node 250 ms per alamat membatalkan sambungan IPv4 yang sehat tetapi jauh (RTT > 250 ms), lalu beralih ke IPv6 yang
+      // di banyak host tidak terjangkau: hasilnya CONNECTION_FAILED acak. Tenggat keseluruhan tetap dijaga oleh `deadline` di bawah.
+      ...({ autoSelectFamilyAttemptTimeout: Math.max(1000, Math.min(o.timeoutMs, 5000)) } as object), // opsi net.connect; belum ada di tipe RequestOptions
     }, (res) => {
       let read = 0;
       res.on('data', (b: Buffer) => { read += b.length; if (read > 65_536) res.destroy(); });

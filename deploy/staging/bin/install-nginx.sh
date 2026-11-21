@@ -9,7 +9,7 @@ NAME="${SERVER_NAME:-staging.wazap.test}"; PORT="${TLS_PORT:-8443}"
 TLS_SRC="${WAZAP_ENV_DIR:-$HOMEDIR/.config/wazap-staging}/tls"
 [ -r "$TLS_SRC/fullchain.pem" ] || { echo "buat sertifikat dahulu: deploy/staging/bin/make-cert.sh" >&2; exit 2; }
 [ -f "$ROOT/frontend/dist/index.html" ] || { echo "frontend/dist belum ada (npm run build di frontend)" >&2; exit 2; }
-if ss -ltn "( sport = :$PORT )" | grep -q LISTEN && ! grep -rqs "wazap-staging" /etc/nginx/sites-enabled /etc/nginx/conf.d; then
+if ss -ltn "( sport = :$PORT )" | grep -q LISTEN && ! grep -Rqs "wazap-staging" /etc/nginx/sites-enabled /etc/nginx/conf.d; then
   echo "port $PORT sudah dipakai proses lain" >&2; exit 2; fi
 install -d -m 755 /etc/wazap-staging/tls /var/www/wazap-staging
 install -m 644 "$TLS_SRC/fullchain.pem" /etc/wazap-staging/tls/fullchain.pem

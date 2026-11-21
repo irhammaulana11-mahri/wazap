@@ -336,6 +336,20 @@ test('pengirim: 5xx diulang lalu berhasil; 401/403/404 langsung DEAD; kanal dino
   respond = () => ({ statusCode: 200 });
 });
 
+test('pengirim: tiap percobaan gagal dicatat di log (kode galat, percobaan, hasil) tanpa target atau token', { skip }, async () => {
+  const o = await reg(); const sid = await session(o, 'Uji'); const ch = (await tg(o)).json().data.id; posted = [];
+  await rule(o, 'session.logged_out', { enabled: true, channel_ids: [ch] });
+  const logs: any[] = [];
+  const s2 = createAlertSender({ db, crypto: cr, log: { warn: (obj: any, msg?: string) => logs.push({ ...obj, msg }) }, opts: { post: fakePost, random: () => 0 } });
+  let calls = 0; respond = () => (++calls === 1 ? { errorCode: 'CONNECTION_FAILED' } : { statusCode: 200 });
+  await plat(`INSERT INTO wa_session_events (tenant_id, session_id, event_type, to_status, actor) VALUES ($1,$2,'status','LOGGED_OUT','ENGINE')`, [o.tenantId, sid]);
+  await evaluator.runOnce(); await s2.runOnce(); await new Promise((r) => setTimeout(r, 20)); await s2.runOnce();
+  assert.equal(logs.length, 1, 'hanya percobaan yang gagal dicatat; yang sukses tidak');
+  assert.deepEqual([logs[0].msg, logs[0].attempt, logs[0].outcome, logs[0].errorCode, logs[0].rule], ['pengiriman alarm gagal', 1, 'RETRY', 'CONNECTION_FAILED', 'session.logged_out']);
+  const text = JSON.stringify(logs); assert.ok(!/token|chat_id|bot\d|api\.telegram/i.test(text), 'log tidak boleh memuat target/token');
+  respond = () => ({ statusCode: 200 });
+});
+
 test('pengirim: antrean tertunda untuk kanal yang nonaktif/dihapus menjadi DEAD semu tanpa mengirim dan tanpa menghitung ke breaker', { skip }, async () => {
   const o = await reg(); const sid = await session(o, 'Hilang'); const ch = (await tg(o)).json().data.id; posted = [];
   await rule(o, 'session.logged_out', { enabled: true, channel_ids: [ch] });

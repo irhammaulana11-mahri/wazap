@@ -1,6 +1,6 @@
 # Rancangan pemantauan dan alarm
 
-Status: **tahap 1 diimplementasikan** (`deploy/ops/notify.sh`, `deploy/ops/monitor-check.sh`; kanal Telegram; belum terpasang di server). Tahap 2-3 masih rancangan. Ambang bertanda *(sementara)* berasal dari satu sesi staging dan uji lama yang masih berjalan; finalisasi setelah uji lama selesai (lihat bagian 8). Kanal pengiriman alarm belum diputuskan, rancangan ini netral terhadap kanal.
+Status: **tahap 1 diimplementasikan** (`deploy/ops/notify.sh`, `deploy/ops/monitor-check.sh`; kanal Telegram; belum terpasang di server). Tahap 2-3 masih rancangan. Ambang A4, A6, A16 final dari uji lama 6 jam; A11, A12, A17, A23 tetap *(sementara)* sampai ada data beban (lihat bagian 8). Kanal pengiriman alarm belum diputuskan, rancangan ini netral terhadap kanal.
 
 ## 1. Prinsip
 1. **Alarm = ada tindakan manusia yang harus diambil.** Metrik tanpa tindakan masuk dasbor, bukan alarm.
@@ -38,9 +38,9 @@ Keparahan: **PAGE** = bangunkan orang (layanan terhenti atau data berisiko); **W
 | A1 | API mati | `/health/live` gagal | 2 pemeriksaan berturut (2 mnt) | PAGE | P1 |
 | A2 | API tidak siap | `/health/ready` ≠ 200 | 3 mnt | PAGE | P1 |
 | A3 | Worker crash loop | `worker.restart_time` naik ≥ 3 dalam 10 mnt, atau status `errored` | langsung | PAGE | P2 |
-| A4 | Heartbeat engine basi | `now() - heartbeat_at` > 30 dtk *(sementara; normal ≤ 10)* | 2 mnt | PAGE | P4 |
+| A4 | Heartbeat engine basi | `now() - heartbeat_at` > 30 dtk *(final)* | 2 mnt | PAGE | P4 |
 | A5 | Tidak ada engine HEALTHY | 0 baris `engine_nodes` HEALTHY dengan heartbeat segar | 2 mnt | PAGE | P4 |
-| A6 | Lease hampir habis berulang | `lease_expires_at - now()` < 10 dtk pada ≥ 3 sampel dalam 10 mnt *(sementara; normal 20-29)* | 10 mnt | WARN | P5 |
+| A6 | Lease hampir habis berulang | `lease_expires_at - now()` < 10 dtk pada ≥ 3 sampel dalam 10 mnt *(final)* | 10 mnt | WARN | P5 |
 | A7 | Failover tak terduga | `fencing_token` naik tanpa restart/deploy tercatat | langsung | WARN | P5 |
 | A8 | Sesi LOGGED_OUT | sesi aktif berubah ke LOGGED_OUT | langsung | WARN | P3 |
 | A9 | Sesi tidak kembali CONNECTED | status ≠ CONNECTED setelah restart/deploy | 10 mnt | PAGE | P4 |
@@ -50,7 +50,7 @@ Keparahan: **PAGE** = bangunkan orang (layanan terhenti atau data berisiko); **W
 | A13 | Webhook DEAD naik | baris DEAD baru > 0 per jam per endpoint, atau endpoint `disabled_at` terisi | langsung | WARN | P7 |
 | A14 | Koneksi DB tinggi | koneksi aplikasi ≥ 80% dari (pool maks × proses) | 5 mnt | WARN | P12 |
 | A15 | `idle in transaction` | ada koneksi aplikasi idle in transaction > 60 dtk | 2 mnt | WARN | P12 |
-| A16 | Tren memori | RSS naik monoton > 30% dalam 6 jam *(sementara)* | 6 jam | WARN | P2 |
+| A16 | Tren memori | RSS naik monoton > 30% dalam 6 jam *(final)* | 6 jam | WARN | P2 |
 | A17 | Lonjakan galat log | baris error/fatal > 20 dalam 5 mnt *(sementara; nol selama uji lama)* | 5 mnt | WARN | P1 |
 | A18 | Cadangan gagal | `backup.sh` keluar ≠ 0 | langsung | PAGE | P14 |
 | A19 | Cadangan basi | berkas cadangan terbaru > 26 jam (jadwal harian) | langsung | PAGE | P14 |
@@ -88,7 +88,23 @@ A25 dibaca dari GitHub (`gh run list --branch main --limit 1`) oleh pemantau ata
 ## 8. Penetapan ambang final (setelah uji lama)
 Ambang bertanda *(sementara)* ditetapkan ulang dari data `samples.csv` uji lama 6 jam: sebaran sisa lease, umur heartbeat, jumlah koneksi, laju kenaikan RSS, jumlah baris galat. Aturan: ambang WARN diletakkan di luar maksimum teramati dengan margin, lalu diuji dengan **injeksi kegagalan nyata** (hentikan worker, putus DB, penuhi disk kecil, ubah lease) untuk membuktikan tiap alarm menyala dan pulih. Alarm yang belum pernah terbukti menyala dianggap belum ada.
 
-Baseline sementara (staging, satu sesi): sisa lease 20-30 dtk, heartbeat ≤ 10 dtk, fencing stabil, RSS worker ~99-127 MB dan API ~76-138 MB, koneksi DB maksimum 11, nol baris galat.
+### Hasil uji lama (selesai, 2026-11-20 18:21-00:21 WIB, 358 sampel per menit, sesi CONNECTED di semua sampel, tanpa lalu lintas kirim)
+| Metrik | Min | p50 | p99 | Maks | Awal -> Akhir |
+|---|---|---|---|---|---|
+| Sisa lease (dtk) | 20 | 25 | 30 | 30 | 24 -> 23 |
+| Umur heartbeat (dtk) | 0 | 5 | 10 | 10 | 8 -> 9 |
+| Koneksi DB | 5 | 6 | 8 | 11 | 6 -> 5 |
+| Transaksi idle | 0 | 0 | 0 | 0 | 0 -> 0 |
+| RSS worker (KB) | 76.460 | 103.004 | 129.224 | 129.236 | 124.920 -> 106.708 |
+| RSS API (KB) | 75.012 | 80.784 | 141.276 | 141.280 | 125.656 -> 80.796 |
+| Waktu /ready API (ms) | 3 | 8 | 22 | 30 | 9 -> 8 |
+
+Fencing token tetap 6, jumlah restart PM2 tidak berubah (API 7, worker 5), baris galat log 0 pada API dan worker, antrean terbuka 0. RSS tidak naik monoton: akhir uji lebih rendah daripada awal (tidak ada tanda bocor memori pada beban diam).
+
+Keputusan ambang:
+-   **Final:** A4 (heartbeat > 30 dtk; maksimum teramati 10, margin 3x), A6 (sisa lease < 10 dtk pada >= 3 sampel; minimum teramati 20), A16 (RSS naik monoton > 30% dalam 6 jam; kenaikan teramati 0%).
+-   **Tetap sementara:** A11, A12, A17, A23. Uji ini berjalan tanpa lalu lintas (`kirim_aktif=tidak`), sehingga umur antrean/outbox dan laju galat di bawah beban belum teramati. Tetapkan ulang setelah ada uji beban atau beberapa hari pemakaian nyata.
+-   **Belum terbukti menyala:** seluruh alarm menunggu uji injeksi kegagalan (bagian 11); sampai itu selesai tetap dianggap belum ada.
 
 ## 9. Tahapan implementasi
 1. **Tahap 1 (± setengah hari):** `monitor-check.sh` + `notify.sh` dengan sinyal non-DB (A1-A5 via PM2 dan health, A17-A22, A25, A26) dan kanal berkas log; uji injeksi kegagalan; dokumentasi di RUNBOOK.
@@ -114,3 +130,13 @@ Baseline sementara (staging, satu sesi): sisa lease 20-30 dtk, heartbeat ≤ 10 
 5. **Uji injeksi kegagalan sebelum dianggap terpasang** (alarm yang belum terbukti menyala = belum ada): hentikan API (A1 menyala setelah 2 mnt, pulih saat dijalankan), matikan worker (A3/A4), tulis baris `{"level":50}` > 20 ke log (A17), ubah umur berkas cadangan (A19/A20).
 
 Yang diverifikasi pada tahap ini (dry-run terhadap staging nyata): sehat tidak mengirim apa pun; API mati menyala hanya setelah tahan 120 dtk; pulih mengirim OK; lonjakan log; cadangan basi/checksum salah; tidak mengirim ulang di bawah jeda; berkas env bermode selain 600 ditolak; kegagalan Telegram (HTTP 401) dilaporkan dan token tidak masuk log. **Belum** diuji: pengiriman Telegram sungguhan (menunggu token), kegagalan worker/PM2 nyata dan disk (menunggu uji lama selesai agar tidak mengganggu), heartbeat luar.
+
+Terpasang di staging (2026-11-21): cron tiap menit, `MON_BACKUP_DIR` dikosongkan sementara (A19/A20 dilewati sampai `backup.sh` berjalan di server). **Uji injeksi kegagalan nyata, hasil:**
+| Alarm | Kondisi yang dibuat | Hasil |
+|---|---|---|
+| A3 | `pm2 stop wazap-stg-engine` | PAGE menyala ±1 mnt, pesan OK saat dijalankan lagi |
+| A4 | worker mati (health tidak terjangkau) | PAGE menyala setelah tahan 120 dtk (05:10 setelah henti 05:07), OK saat pulih |
+| A19 | folder cadangan kosong; dump berumur 30 jam (batas 26) | PAGE menyala keduanya, OK saat dump baru |
+| A20 | dump diubah sehingga `.sha256` tidak cocok | PAGE menyala, OK saat diperbaiki |
+| A17 | 25 baris `{"level":50}` ke log | WARN menyala (25 > 20), jumlah dalam jendela 5 mnt |
+Uji A19/A20/A17 memakai konfigurasi dan folder sementara (tanpa Telegram); A3/A4 memakai cron dan Telegram sungguhan. **Belum diuji:** A1 (API mati), A21 (disk), A22 (TLS), heartbeat luar (A26), dan alarm tahap 2.

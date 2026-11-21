@@ -68,6 +68,8 @@ export function createAlertSender(deps: { db: GatewayDb; crypto: CredentialCrypt
          WHERE id = $1::uuid AND status = 'PENDING' AND attempts = $7::int`,
         [d.id, attemptNo, outcome === 'RETRY' ? 'PENDING' : outcome, delayMs, sc ?? null, errorCode, d.attempts]);
       if (u.rowCount !== 1) return;
+      // Percobaan gagal terlihat di log (tanpa target/token): tanpa ini kegagalan sesaat yang berhasil pada percobaan ulang tidak meninggalkan jejak.
+      if (outcome !== 'SENT') deps.log?.warn({ deliveryId: d.id, channelId: d.channelId, tenantId: d.tenantId, rule: d.ruleCode, attempt: attemptNo, outcome, errorCode, statusCode: sc ?? null, durationMs: res.durationMs }, 'pengiriman alarm gagal');
       if (outcome === 'SENT') { await c.query('UPDATE alert_channels SET consecutive_failures = 0 WHERE id = $1 AND consecutive_failures <> 0', [d.channelId]); return; }
       if (outcome === 'DEAD' && !synthetic) {
         const th = config.ALERTS_AUTO_DISABLE_AFTER;

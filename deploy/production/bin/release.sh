@@ -15,8 +15,8 @@ cd "$ROOT"
 echo "Commit: $(git rev-parse --short HEAD) $(git log -1 --format=%s)"
 say "1. Cadangan segar (maks ${BACKUP_MAX_AGE_H:-2} jam) sebelum migrasi"
 if [ "${SKIP_BACKUP_CHECK:-0}" != 1 ]; then
-  nb="$(ls -1t "$BK"/*.dump 2>/dev/null | head -n1 || true)"; [ -n "$nb" ] || die "tidak ada cadangan di $BK (jalankan deploy/ops/backup.sh)"
-  age=$(( ($(date +%s) - $(stat -c %Y "$nb")) / 3600 )); [ "$age" -le "${BACKUP_MAX_AGE_H:-2}" ] || die "cadangan terbaru berumur ${age} jam; jalankan deploy/ops/backup.sh dulu"
+  nb="$(ls -1t "$BK"/*.dump 2>/dev/null | head -n1 || true)"; [ -n "$nb" ] || die "tidak ada cadangan di $BK (jalankan deploy/production/bin/backup-run.sh)"
+  age=$(( ($(date +%s) - $(stat -c %Y "$nb")) / 3600 )); [ "$age" -le "${BACKUP_MAX_AGE_H:-2}" ] || die "cadangan terbaru berumur ${age} jam; jalankan deploy/production/bin/backup-run.sh dulu"
   echo "cadangan: $(basename "$nb") (${age} jam)"
 fi
 say "2. Build backend"

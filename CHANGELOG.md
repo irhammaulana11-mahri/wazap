@@ -5,7 +5,12 @@
 -   Baru: Pengaturan Tema Gelap / Terang (Dark / Light Mode) lintas peran (`ThemeContext.tsx`).
     -   Penyedia tema terpadu (`ThemeContext.tsx`) dengan 3 pilihan mode: Mode Terang (`light`), Mode Gelap (`dark`), dan Otomatis Ikuti Preferensi OS (`system`).
     -   Pengaturan tema tersedia untuk **seluruh peran pengguna** (`OWNER`, `MEMBER`, `VIEWER`) di aplikasi utama melalui tombol cepat Sun/Moon di Header dan kartu preferensi tampilan interaktif di [ProfilePage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/ProfilePage.tsx).
-    -   Konsol Admin Platform (`PlatformLayout.tsx`) kini mengadopsi arsitektur tata letak standar aplikasi utama (Sidebar Kiri + Top Header + Kanvas Konten Terang/Gelap) yang dilengkapi tombol beralih tema langsung di header operator.
+    -   Konsol Admin Platform (`PlatformLayout.tsx`):
+        -   Tata letak Header kini sepenuhnya seragam dengan aplikasi utama (Breadcrumbs lengkap berikon Home + indikator status sesi memori RAM + tombol beralih tema).
+        -   Tombol keluar mentah di header digantikan dengan **Dropdown Menu Avatar Operator** (lingkaran avatar bergradasi ungu `OP` dengan indikator status online, informasi akun, tautan navigasi cepat ke seluruh menu platform, dan tombol Logout terpadu).
+        -   Harmonisasi tampilan Mode Terang dan Gelap menyeluruh pada seluruh menu platform (`PlatformWorkspacesPage.tsx`, `PlatformWorkspaceDetailPage.tsx`, `PlatformDefaultsPage.tsx`, `PlatformBackupPage.tsx`, `PlatformAuditPage.tsx`):
+            -   Memperbaiki judul halaman `h1` yang sebelumnya menggunakan `text-white` statis sehingga tidak terbaca pada mode terang.
+            -   Kartu metrik, panel filter, tabel data, serta seluruh modal dialog (Ubah Kuota, Tangguhkan, Aktifkan Kembali, Ubah Default) kini menggunakan kartu adaptif (`bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white`) dengan kontras tajam dan estetis di kedua mode.
     -   Penyempurnaan tema gelap untuk antarmuka **Pesan & Obrolan** (`ChatsPage.tsx`):
         -   Panel kanan viewport chat mengadopsi palet WhatsApp Web Dark Mode (`dark:bg-[#0b141a]` menggantikan warna krem hardcoded `#EFEAE2`).
         -   Gelembung pesan (bubble chat): pesan keluar (`dark:bg-[#005c4b]` dengan teks `#e9edef`) dan pesan masuk (`dark:bg-[#202c33]` dengan border gelap halus).

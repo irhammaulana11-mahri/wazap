@@ -12,7 +12,7 @@ Tanpa rahasia di folder ini. Rahasia dibuat di server, `/var/lib/wazap/env/` (06
 |---|---|
 | `bin/make-env.sh` | membuat `api.env` dan `worker.env` (JWT dan kunci master BARU, DB dari berkas sumber); tidak menimpa |
 | `bin/run.sh`, `ecosystem.config.cjs` | peluncur PM2 (`wazap-api`, `wazap-engine`); satu instans, bukan cluster |
-| `nginx/*.tpl`, `bin/render-nginx.sh` | vhost dua host (templat; tidak diedit tangan di /etc) |
+| `nginx/*.tpl`, `bin/render-nginx.sh` | vhost dua host + penampung 443 (templat; tidak diedit tangan di /etc); `CATCHALL_443=0` bila sudah ada default_server di 443 |
 | `bin/install-nginx.sh` | pasang ke Nginx sistem (**sudo**), dua tahap `http` lalu `https`; `nginx -t` dan rollback otomatis |
 | `bin/release.sh` | rilis tanpa sudo: cek cadangan -> build -> migrasi -> worker -> API -> frontend |
 | `bin/verify.sh` | gerbang dari luar lewat domain sungguhan (`ORIGIN_IP`, `VERIFY_BEHIND_CDN` bila lewat Cloudflare) |
@@ -48,7 +48,11 @@ Data yang TIDAK saya perlukan dan tidak boleh dikirim: kata sandi DB, `CREDENTIA
 ## Bila DNS lewat Cloudflare (kondisi saat ini)
 Tanpa langkah ini semua pengunjung terlihat berasal dari satu IP (IP Cloudflare): throttling login, batas laju, dan audit per-IP menjadi salah.
 1.  Pasang vhost dengan `CLOUDFLARE=1`: `sudo CLOUDFLARE=1 deploy/production/bin/install-nginx.sh https`. Skrip mengambil daftar IP resmi Cloudflare, lalu Nginx hanya mempercayai `CF-Connecting-IP` dari rentang itu (pemalsuan header dari sumber lain diabaikan; terbukti di uji). Jalankan ulang tiap beberapa bulan agar daftar IP segar.
-2.  Cloudflare: SSL/TLS mode **Full (strict)** (bukan Flexible: itu menyebabkan redirect berulang dan lalu lintas ke origin tanpa TLS). Sertifikat origin: Let's Encrypt (HTTP-01 jalan bila proxy meneruskan `/.well-known/acme-challenge/`; bila tidak, pakai Cloudflare Origin Certificate atau DNS-01).
+2.  **Mode SSL Cloudflare: JANGAN diubah untuk seluruh zona.** Server ini menjalankan situs lain di zona yang sama (`bimbel.bolinggo.org`, `api-bimbel.bolinggo.org`) yang origin-nya hanya mendengarkan HTTP:80 (kemungkinan mode "Flexible"; konfirmasi di Cloudflare, SSL/TLS, Overview). Mengubah mode se-zona ke Full/Strict membuat situs-situs itu error 521/525. Gunakan **Configuration Rule per-hostname** (Rules, Configuration Rules): kondisi `Hostname equals wazap.bolinggo.org` atau `api-wazap.bolinggo.org`, aksi `SSL = Full (strict)`. Urutan aman:
+    1.  Tahap http + certbot sambil mode zona tetap seperti sekarang (tantangan HTTP-01 sampai ke origin lewat :80). Bila Cloudflare memaksa "Always Use HTTPS" dan tantangan gagal, matikan sementara untuk dua hostname itu lewat rule yang sama, atau pakai Cloudflare Origin Certificate (SSL/TLS, Origin Server) dan arahkan `CERT_DIR` ke berkasnya.
+    2.  Pasang vhost https (`CLOUDFLARE=1`), lalu uji LANGSUNG ke origin: `ORIGIN_IP=<ip> deploy/production/bin/verify.sh`.
+    3.  BARU buat Configuration Rule Full (strict) untuk dua hostname itu, lalu uji lewat Cloudflare dengan `VERIFY_BEHIND_CDN=1`.
+    Penampung 443 (`ssl_reject_handshake`) membuat nama host lain yang kelak masuk ke 443 ditolak, bukan menampilkan dashboard WAZAP. Port 443 harus dibuka di firewall server (dan hanya dari rentang Cloudflare bila memungkinkan).
 3.  Batas Cloudflare: 100 dtk per permintaan (ekspor yang sangat besar dapat berakhir 524; pecah rentang tanggal), unggahan maksimum 100 MB, WebSocket didukung (aktifkan di Network).
 4.  Disarankan: firewall origin hanya menerima 80/443 dari rentang IP Cloudflare, agar origin tidak dapat dijangkau langsung.
 5.  Verifikasi DUA kali: lewat Cloudflare `VERIFY_BEHIND_CDN=1 deploy/production/bin/verify.sh`, dan langsung ke origin `ORIGIN_IP=<ip-server> deploy/production/bin/verify.sh` (menguji TLS, header, dan sertifikat milik kita sendiri).

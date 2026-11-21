@@ -140,7 +140,7 @@ jobs:
           openssl req -x509 -newkey rsa:2048 -nodes -keyout "$T/privkey.pem" -out "$T/fullchain.pem" -days 1 -subj "/CN=wazap.bolinggo.org" 2>/dev/null
           CERT_DIR="$T" WEB_ROOT="$T/web" deploy/production/bin/render-nginx.sh "$T/out" 300
           # pengguna runner bukan root: salinan uji memakai port tinggi (templat produksi tetap 80/443)
-          sed -i -e 's/listen 80;/listen 18080;/' -e 's/listen \[::\]:80;/listen [::1]:18080;/' -e 's/listen 443 ssl;/listen 18443 ssl;/' -e 's/listen \[::\]:443 ssl;/listen [::1]:18443 ssl;/' "$T/out/wazap.conf"
+          sed -i -e 's/listen 80;/listen 18080;/' -e 's/listen \[::\]:80;/listen [::1]:18080;/' -e 's/listen 443 ssl/listen 18443 ssl/' -e 's/listen \[::\]:443 ssl/listen [::1]:18443 ssl/' "$T/out/wazap.conf"
           printf 'pid %s/nginx.pid;\nevents {}\nhttp { access_log off; client_body_temp_path %s/b; proxy_temp_path %s/p; fastcgi_temp_path %s/f; uwsgi_temp_path %s/u; scgi_temp_path %s/s; include %s/out/wazap.conf; }\n' "$T" "$T" "$T" "$T" "$T" "$T" "$T" > "$T/nginx.conf"
           nginx -t -c "$T/nginx.conf" -e "$T/error.log"
           grep -qF 'X-Forwarded-For   $remote_addr' "$T/out/wazap-locations.conf" "$T/out/wazap.conf"
@@ -148,7 +148,7 @@ jobs:
           # mode Cloudflare: IP pengunjung dari CF-Connecting-IP hanya dari rentang tepercaya; templat harus lolos nginx -t
           mkdir -p "$T/cf"; printf 'set_real_ip_from 127.0.0.1;\nreal_ip_header CF-Connecting-IP;\nreal_ip_recursive off;\n' > "$T/cf/cloudflare-realip.conf"
           CLOUDFLARE=1 CERT_DIR="$T" WEB_ROOT="$T/web" deploy/production/bin/render-nginx.sh "$T/cf" 300
-          sed -i -e 's/listen 80;/listen 18080;/' -e 's/listen \[::\]:80;/listen [::1]:18080;/' -e 's/listen 443 ssl;/listen 18443 ssl;/' -e 's/listen \[::\]:443 ssl;/listen [::1]:18443 ssl;/' "$T/cf/wazap.conf"
+          sed -i -e 's/listen 80;/listen 18080;/' -e 's/listen \[::\]:80;/listen [::1]:18080;/' -e 's/listen 443 ssl/listen 18443 ssl/' -e 's/listen \[::\]:443 ssl/listen [::1]:18443 ssl/' "$T/cf/wazap.conf"
           sed -i "s#$T/out/wazap.conf#$T/cf/wazap.conf#" "$T/nginx.conf"
           nginx -t -c "$T/nginx.conf" -e "$T/error.log"
           grep -q 'cloudflare-realip.conf;' "$T/cf/wazap.conf"

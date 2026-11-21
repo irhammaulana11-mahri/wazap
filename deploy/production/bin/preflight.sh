@@ -70,6 +70,7 @@ if have nginx; then
     for h in "$DASH" "$API"; do echo "$T" | grep -E '^[[:space:]]*server_name' | grep -qw "$h" && ng "server_name $h SUDAH ada di konfigurasi Nginx: akan bentrok" || ok "server_name $h belum dipakai"; done
     inf "server_name yang ada: $(echo "$T" | grep -E '^[[:space:]]*server_name' | sed 's/server_name//; s/;//' | tr -s ' \n' ' ' | cut -c1-300)"
     echo "$T" | grep -qE 'listen[^;]*default_server' && inf "ada default_server di Nginx (host tak dikenal diarahkan ke sana; vhost kita memakai server_name eksplisit sehingga aman)"
+    echo "$T" | grep -E 'listen[^;]*443[^;]*default_server' | grep -q . && wn "sudah ada default_server di 443: pasang dengan CATCHALL_443=0 (penampung 443 kita akan duplikat)" || ok "tidak ada default_server di 443 (penampung SNI-tak-dikenal kita aman ditambahkan)"
     for z in wazap_api wazap_auth wazap_tls; do echo "$T" | grep -qE "zone=$z[: ]|shared:$z:|upstream $z " && ng "nama '$z' sudah dipakai di Nginx" || ok "nama zona/upstream $z bebas"; done
     nv="$(nginx -v 2>&1 | sed -n 's#.*nginx/\([0-9.]*\).*#\1#p')"; if [ -n "$nv" ] && [ "$(printf '%s\n1.25.1\n' "$nv" | sort -V | head -n1)" = 1.25.1 ]; then ok "Nginx >= 1.25.1 (direktif 'http2 on;' didukung)"; else wn "Nginx ${nv:-?} < 1.25.1: 'http2 on;' tidak dikenal, vhost harus disesuaikan (listen 443 ssl http2)"; fi
   else wn "isi konfigurasi Nginx tidak terbaca (butuh sudo tanpa kata sandi, atau jalankan manual: sudo nginx -T | grep -E 'server_name|listen')"; fi
@@ -89,6 +90,7 @@ if have psql; then
     $S -u postgres psql -Atqc "select 'ada database: '||string_agg(datname,', ' order by datname) from pg_database where not datistemplate" 2>/dev/null | sed 's/^/  INFO        /'
     $S -u postgres psql -Atqc "select exists(select 1 from pg_database where datname='wazap_prod')" 2>/dev/null | grep -q t && wn "database 'wazap_prod' sudah ada" || ok "tidak ada database bernama wazap_prod"
     r="$($S -u postgres psql -Atqc "select string_agg(rolname,', ') from pg_roles where rolname like 'wazap_%'" 2>/dev/null)"; [ -n "$r" ] && wn "role wazap_* sudah ada: $r" || ok "role wazap_app/wazap_migrator/wazap_backup belum ada"
+    h="$($S -u postgres psql -Atqc "show hba_file" 2>/dev/null)"; if [ -n "$h" ] && [ -r "$h" -o -n "$S" ]; then $S grep -E '^host[[:space:]]+(all|wazap)' "$h" 2>/dev/null | grep -E '127\.0\.0\.1|::1' | grep -qE 'scram-sha-256|md5' && ok "pg_hba mengizinkan TCP loopback dengan kata sandi (scram/md5)" || wn "pg_hba: tidak terlihat aturan TCP loopback dengan kata sandi untuk 127.0.0.1; aplikasi terhubung lewat TCP (periksa: sudo grep -v '^#' $h)"; fi
     inf "max_connections=$($S -u postgres psql -Atqc 'show max_connections' 2>/dev/null) (WAZAP memakai sampai ~20 koneksi per proses; hitung bersama aplikasi lain)"
   else inf "versi server tidak terbaca (butuh sudo -u postgres, atau DB di server lain): catat versi dan lokasi DB secara manual"; fi
 else inf "psql tidak ada: lewati"; fi
@@ -96,6 +98,7 @@ else inf "psql tidak ada: lewati"; fi
 sec "8. DNS dan jaringan masuk"
 dig4(){ if have dig; then dig +short A "$1" | tail -n1; else getent ahostsv4 "$1" 2>/dev/null | awk 'NR==1{print $1}'; fi; }
 dig6(){ if have dig; then dig +short AAAA "$1" | tail -n1; else getent ahostsv6 "$1" 2>/dev/null | awk 'NR==1{print $1}'; fi; }
+is_cf(){ case "$1" in 104.1[6-9].*|104.2[0-3].*|172.6[4-9].*|172.7[01].*|188.114.9[6-9].*|188.114.1[01][0-9].*|162.15[89].*|141.101.*|108.162.*|198.41.*|103.21.2[44]*|103.22.2*|103.31.*|173.245.*|190.93.2[45]*|197.234.2[45]*|131.0.7[2-5].*|2606:4700:*|2400:cb00:*|2405:b500:*|2405:8100:*|2a06:98c0:*|2c0f:f248:*) return 0 ;; *) return 1 ;; esac; }
 loc4="$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | tr '\n' ' ')"; loc6="$(ip -6 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | tr '\n' ' ')"
 inf "IPv4 lokal: ${loc4:-(tidak ada)} | IPv6 lokal: ${loc6:-(tidak ada)}${SERVER_IP:+ | SERVER_IP yang Anda berikan: $SERVER_IP}"
 for h in "$DASH" "$API"; do a="$(dig4 "$h")"; b="$(dig6 "$h")"
@@ -103,16 +106,19 @@ for h in "$DASH" "$API"; do a="$(dig4 "$h")"; b="$(dig6 "$h")"
   else
     inf "DNS $h: A=${a:-none} AAAA=${b:-none}"
     if [ -n "$SERVER_IP" ]; then [ "$a" = "$SERVER_IP" ] && ok "A $h = SERVER_IP" || wn "A $h (${a:-none}) berbeda dari SERVER_IP ($SERVER_IP)"; fi
-    [ -n "$b" ] && [ -z "$loc6" ] && ng "$h punya AAAA ($b) tetapi server tidak punya IPv6 global: certbot dan pengunjung IPv6 gagal; hapus AAAA atau aktifkan IPv6"
+    if [ -n "$b" ] && [ -z "$loc6" ]; then
+      if is_cf "$b"; then inf "AAAA $h ($b) milik Cloudflare: wajar, origin tidak perlu IPv6 (Cloudflare yang menghadap pengunjung IPv6)"
+      else ng "$h punya AAAA ($b) tetapi server tidak punya IPv6 global: certbot dan pengunjung IPv6 gagal; hapus AAAA atau aktifkan IPv6"; fi
+    fi
   fi
 done
-is_cf(){ case "$1" in 104.1[6-9].*|104.2[0-3].*|172.6[4-9].*|172.7[01].*|188.114.9[6-9].*|188.114.1[01][0-9].*|162.15[89].*|141.101.*|108.162.*|198.41.*|103.21.2[44]*|103.22.2*|103.31.*|173.245.*|190.93.2[45]*|197.234.2[45]*|131.0.7[2-5].*|2606:4700:*|2400:cb00:*|2405:b500:*|2405:8100:*|2a06:98c0:*|2c0f:f248:*) return 0 ;; *) return 1 ;; esac; }
 cf=0; for h in "$DASH" "$API"; do for ip in "$(dig4 "$h")" "$(dig6 "$h")"; do [ -n "$ip" ] && is_cf "$ip" && cf=1; done; done
 if [ "$cf" = 1 ]; then wn "DNS $DASH/$API menunjuk ke IP CLOUDFLARE (proxy aktif atau Tunnel). Akibat: tanpa CLOUDFLARE=1 semua pengunjung terlihat satu IP (IP Cloudflare): throttling login, batas laju, dan audit per-IP SALAH. Pasang dengan CLOUDFLARE=1 (README bagian Cloudflare); mode SSL Cloudflare harus 'Full (strict)'; batas 100 dtk per permintaan (ekspor sangat besar bisa 524); certbot HTTP-01 hanya jalan bila proxy meneruskan /.well-known (atau pakai Origin Certificate/DNS-01)"
+  if ! echo "$listen" | awk '$4 ~ /:443$/' | grep -q .; then wn "DNS lewat Cloudflare TETAPI origin tidak mendengarkan 443: situs yang sudah ada kemungkinan memakai mode SSL 'Flexible' (Cloudflare ke origin lewat HTTP:80). JANGAN mengubah mode SSL SE-ZONA ke Full/Strict: situs lain akan error 521/525. Pakai Configuration Rule per-hostname hanya untuk $DASH dan $API (README bagian Cloudflare)"; fi
   { have cloudflared || systemctl is-active cloudflared >/dev/null 2>&1; } && inf "cloudflared terdeteksi: bila memakai Cloudflare TUNNEL, port 80/443 publik TIDAK perlu dibuka dan topologi README berbeda (asal tunnel -> http://127.0.0.1:80); beri tahu saya sebelum lanjut" || inf "cloudflared tidak terdeteksi di server ini: bila proxy memakai 'orange cloud', origin Nginx tetap harus terjangkau dari IP Cloudflare di 80/443"
 else inf "DNS tidak menunjuk ke Cloudflare (rentang IP yang dikenal)"; fi
 inf "IP publik asli (di balik NAT/cloud) hanya Anda yang tahu; port 80/443 harus terbuka dari internet (uji dari jaringan lain setelah Nginx tahap http: curl -I http://$DASH)"
-if have ufw; then $S ufw status 2>/dev/null | head -1 | sed 's/^/  INFO        ufw: /'; fi
+if have ufw; then $S ufw status 2>/dev/null | head -1 | sed 's/^/  INFO        ufw: /'; r="$($S ufw status 2>/dev/null | grep -E "(^| )(80|443|80,443|Nginx|WWW)" | tr -s " " | tr "\n" ";")"; [ -n "$r" ] && inf "ufw aturan 80/443: $r" || inf "ufw: tidak terlihat aturan untuk 80/443 (butuh sudo, atau belum ada: 443 harus dibuka sebelum certbot/Full)"; fi
 inf "iptables/nftables dan firewall penyedia (security group) tidak dapat diperiksa dari sini: pastikan 80 dan 443 terbuka, 5432/$AP/$WP tertutup dari luar"
 
 sec "9. Sertifikat (certbot)"

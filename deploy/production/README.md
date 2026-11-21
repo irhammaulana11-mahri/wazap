@@ -11,6 +11,7 @@ Tanpa rahasia di folder ini. Rahasia dibuat di server, `/var/lib/wazap/env/` (06
 | Berkas | Fungsi |
 |---|---|
 | `bin/db-setup.sh` | membuat database dan role (migrator/app) dengan kata sandi acak; menolak bila sudah ada |
+| `bin/backup-setup.sh`, `bin/backup-run.sh` | role cadangan terbatas ke schema WAZAP (aman di server bersama), cadangan harian + salinan luar host + alarm Telegram |
 | `bin/make-env.sh` | membuat `api.env` dan `worker.env` (JWT dan kunci master BARU, DB dari berkas sumber); tidak menimpa |
 | `bin/run.sh`, `ecosystem.config.cjs` | peluncur PM2 (`wazap-api`, `wazap-engine`); satu instans, bukan cluster |
 | `nginx/*.tpl`, `bin/render-nginx.sh` | vhost dua host + penampung 443 (templat; tidak diedit tangan di /etc); `CATCHALL_443=0` bila sudah ada default_server di 443 |
@@ -116,7 +117,17 @@ SKIP_BACKUP_CHECK=1 deploy/production/bin/release.sh
 pm2 save && pm2 startup    # jalankan perintah sudo yang dicetak pm2 agar proses hidup lagi setelah reboot
 ```
 **7. Verifikasi.** Dari mesin LAIN: `deploy/production/bin/verify.sh`. Di server: `VERIFY_LOCAL=1 VERIFY_AUTH=1 deploy/production/bin/verify.sh` (membuat satu akun uji; hapus lewat dashboard). Harus "SEMUA LULUS". `VERIFY_THROTTLE=1` mengunci IP penguji sementara: jalankan dari IP yang bukan IP admin. Setelah lulus dan Anda yakin domain stabil, naikkan HSTS: `HSTS_MAX_AGE=31536000 sudo -E deploy/production/bin/install-nginx.sh https`.
-**8. Cadangan (WAJIB sebelum tenant sungguhan).** `deploy/ops/setup-backup-role.sql`, jalankan `deploy/ops/backup.sh` sekali, jadwalkan harian (cron), salin ke tempat LAIN di luar host (rclone/rsync/objek storage), lalu `deploy/ops/restore-drill.sh` pada cadangan nyata. Detail: `docs/07_DEPLOYMENT/BACKUP_RESTORE.md`.
+**8. Cadangan (WAJIB sebelum tenant sungguhan).** Memakai `backup-setup.sh` dan `backup-run.sh`, BUKAN `deploy/ops/setup-backup-role.sql`: skrip lama memberi `pg_read_all_data` (peran seluruh klaster), sehingga di server bersama kredensial cadangan dapat membaca `antrian_db` dan `bimbel_kraksaan_db` (terbukti di gladi). Role baru hanya punya SELECT pada schema WAZAP.
+```bash
+DRY_RUN=1 deploy/production/bin/backup-setup.sh      # lihat dulu
+deploy/production/bin/backup-setup.sh                # role wazap_backup (terbatas ke wazap_prod), pgpass 0600, ~/.config/wazap-backup/backup.env
+deploy/production/bin/backup-run.sh                  # uji sekali; periksa ~/.local/state/wazap-backup/backup.log
+# edit ~/.config/wazap-backup/backup.env: isi SALAH SATU OFFSITE_* (salinan di luar host) dan, disarankan, GPG_RECIPIENT; uji ulang
+crontab -e   # tambah:  17 2 * * * /var/www/wazap/deploy/production/bin/backup-run.sh
+# latihan pemulihan pada cadangan nyata (butuh superuser, hasilnya database sementara yang dihapus otomatis):
+sudo -u postgres env PGHOST=/var/run/postgresql APP_PGHOST=127.0.0.1 deploy/ops/restore-drill.sh /var/backups/wazap/<berkas>.dump
+```
+Yang dicadangkan dan tidak: database `wazap_prod` (data tenant dan **auth state WhatsApp terenkripsi**) dicadangkan otomatis. **Kunci master (`CREDENTIAL_ENCRYPTION_KEYS`), `JWT_SECRET`, dan kata sandi DB TIDAK ada di cadangan database** (sengaja): simpan di password manager + salinan offline (langkah 4). Tanpa kunci master, cadangan DB tidak dapat membuka satu pun sesi WhatsApp. Konfigurasi Nginx dan skrip ada di repo; Public Hostname tunnel ada di dashboard Cloudflare (catat tujuannya). RPO = 24 jam (tanpa WAL/PITR). Kegagalan cadangan atau salinan luar host mengirim PAGE ke Telegram (notify.sh); tanpa salinan luar host, log mencatat PERINGATAN tiap hari.
 **9. Pemantau.** `~/.config/wazap-monitor/monitor.env` (0600): `MON_API_URL=http://127.0.0.1:3000`, `MON_WORKER_URL=http://127.0.0.1:8101`, `MON_PM2_API=wazap-api`, `MON_PM2_WORKER=wazap-engine`, `MON_BACKUP_DIR=/var/backups/wazap`, `MON_TLS_HOST=wazap.bolinggo.org:443`, `MON_DISK_PATHS="/ /var/lib/postgresql"`, token Telegram, dan `MON_HEARTBEAT_URL` (layanan luar, mis. Healthchecks.io). Cron tiap menit `deploy/ops/monitor-check.sh`. Ulangi uji kegagalan di `MONITORING_ALERTING.md` bagian 11 pada server ini.
 **10. Uji nyata.** Pairing WhatsApp sungguhan, kirim dan terima pesan, webhook ke penerima nyata, kanal alarm Telegram, ekspor kecil.
 

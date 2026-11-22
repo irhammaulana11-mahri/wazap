@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api, tokenStore, setUnauthorizedHandler } from '../services/api';
-import { AuthUser, AuthTenant, Role, TenantMembership, AuthLoginResponseData, RecoveryStatus } from '../types';
+import { AuthUser, AuthTenant, Role, TenantMembership, AuthLoginResponseData, RecoveryStatus, RegisterResult } from '../types';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface AuthContextType {
@@ -12,7 +12,7 @@ interface AuthContextType {
   memberships: TenantMembership[];
   recovery: RecoveryStatus | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, tenant_name: string) => Promise<AuthLoginResponseData>;
+  register: (email: string, password: string, tenant_name: string) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   switchTenant: (tenant_id: string) => Promise<void>;
   refetchUser: () => Promise<void>;
@@ -109,14 +109,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await fetchProfile();
   };
 
-  const register = async (email: string, password: string, tenant_name: string) => {
-    const data = await api.register(email, password, tenant_name);
-    setUser(data.user);
-    setTenant(data.tenant);
-    setRole(data.role);
-    setIsAuthenticated(true);
-    await fetchProfile();
-    return data;
+  const register = async (email: string, password: string, tenant_name: string): Promise<RegisterResult> => {
+    const res = await api.register(email, password, tenant_name);
+    if (res.kind === 'session') {
+      setUser(res.data.user);
+      setTenant(res.data.tenant);
+      setRole(res.data.role);
+      setIsAuthenticated(true);
+      await fetchProfile();
+    }
+    return res;
   };
 
   const logout = async () => {

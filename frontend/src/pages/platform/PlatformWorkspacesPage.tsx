@@ -19,9 +19,16 @@ import {
 
 export const PlatformWorkspacesPage: React.FC = () => {
   const [q, setQ] = useState('');
-  const [status, setStatus] = useState<'ACTIVE' | 'SUSPENDED' | 'DELETED' | 'ALL'>('ALL');
+  const [status, setStatus] = useState<'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED' | 'REJECTED' | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
   const pageSize = 15;
+
+  const { data: pendingData } = useQuery({
+    queryKey: ['platform-workspaces-pending-count'],
+    queryFn: () => platformApi.listWorkspaces({ status: 'PENDING', page_size: 1 }),
+    refetchInterval: 15000,
+  });
+  const pendingCount = pendingData?.meta?.total ?? 0;
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['platform-workspaces', { q, status, page, pageSize }],
@@ -52,15 +59,32 @@ export const PlatformWorkspacesPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="inline-flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition self-start sm:self-auto disabled:opacity-50 shadow-xs cursor-pointer"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-purple-600 dark:text-purple-400' : ''}`} />
-          <span>Segarkan</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {pendingCount > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatus('PENDING');
+                setPage(1);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold hover:bg-amber-500/25 transition cursor-pointer"
+              title="Klik untuk menyaring pendaftaran workspace yang menunggu persetujuan"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>{pendingCount} Menunggu Persetujuan</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition self-start sm:self-auto disabled:opacity-50 shadow-xs cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin text-purple-600 dark:text-purple-400' : ''}`} />
+            <span>Segarkan</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
@@ -91,8 +115,10 @@ export const PlatformWorkspacesPage: React.FC = () => {
               className="bg-transparent text-xs text-slate-900 dark:text-white focus:outline-none cursor-pointer"
             >
               <option value="ALL" className="dark:bg-slate-900">Semua Status</option>
+              <option value="PENDING" className="dark:bg-slate-900">Menunggu persetujuan (PENDING)</option>
               <option value="ACTIVE" className="dark:bg-slate-900">Aktif (ACTIVE)</option>
               <option value="SUSPENDED" className="dark:bg-slate-900">Ditangguhkan (SUSPENDED)</option>
+              <option value="REJECTED" className="dark:bg-slate-900">Ditolak (REJECTED)</option>
               <option value="DELETED" className="dark:bg-slate-900">Dihapus (DELETED)</option>
             </select>
           </div>
@@ -140,11 +166,17 @@ export const PlatformWorkspacesPage: React.FC = () => {
                     <td className="py-3.5 px-4 font-sans">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                          ws.status === 'ACTIVE'
+                          ws.status === 'PENDING'
+                            ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                            : ws.status === 'ACTIVE'
                             ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                             : ws.status === 'SUSPENDED'
-                            ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-                            : 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                            ? 'bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800'
+                            : ws.status === 'REJECTED'
+                            ? 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                            : ws.status === 'DELETED'
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         {ws.status}
@@ -152,7 +184,13 @@ export const PlatformWorkspacesPage: React.FC = () => {
                     </td>
                     <td className="py-3.5 px-4 font-sans text-slate-700 dark:text-slate-300 text-xs">
                       {ws.owners && ws.owners.length > 0 ? (
-                        <span>{ws.owners[0]}</span>
+                        <div className="space-y-0.5">
+                          {ws.owners.map((ownerEmail, idx) => (
+                            <div key={idx} className="truncate max-w-[200px]" title={ownerEmail}>
+                              {ownerEmail}
+                            </div>
+                          ))}
+                        </div>
                       ) : (
                         <span className="text-slate-400 dark:text-slate-600">-</span>
                       )}

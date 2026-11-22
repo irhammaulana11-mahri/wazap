@@ -57,9 +57,10 @@ export interface PlatformWorkspaceSummary {
   id: string;
   name: string;
   slug: string;
-  status: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
+  status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED' | 'REJECTED' | string;
   created_at: string;
   suspended_at: string | null;
+  decided_at: string | null;
   limits: PlatformWorkspaceLimits;
   used: PlatformWorkspaceUsed;
   owners: string[];
@@ -122,7 +123,7 @@ export interface PlatformBackupStatusResult {
 
 export interface ListWorkspacesParams {
   q?: string;
-  status?: 'ACTIVE' | 'SUSPENDED' | 'DELETED' | 'ALL';
+  status?: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'DELETED' | 'REJECTED' | 'ALL' | string;
   page?: number;
   page_size?: number;
 }
@@ -146,6 +147,16 @@ export interface PatchQuotasPayload {
 export interface SuspendActivatePayload {
   reason: string;
   otp: string;
+}
+
+export interface ApproveWorkspacePayload {
+  otp: string;
+  reason?: string;
+}
+
+export interface RejectWorkspacePayload {
+  otp: string;
+  reason: string;
 }
 
 async function requestPlatform<T>(
@@ -337,6 +348,38 @@ export const platformApi = {
     };
     const res = await requestPlatform<any>(
       `/api/v1/platform/workspaces/${encodeURIComponent(id)}/activate`,
+      {
+        method: 'POST',
+        body: cleanBody,
+      }
+    );
+    return res.data;
+  },
+
+  approve: async (id: string, payload: ApproveWorkspacePayload): Promise<any> => {
+    const cleanBody: Record<string, any> = {
+      otp: payload.otp,
+    };
+    if (payload.reason && payload.reason.trim()) {
+      cleanBody.reason = payload.reason.trim();
+    }
+    const res = await requestPlatform<any>(
+      `/api/v1/platform/workspaces/${encodeURIComponent(id)}/approve`,
+      {
+        method: 'POST',
+        body: cleanBody,
+      }
+    );
+    return res.data;
+  },
+
+  reject: async (id: string, payload: RejectWorkspacePayload): Promise<any> => {
+    const cleanBody: Record<string, any> = {
+      otp: payload.otp,
+      reason: payload.reason.trim(),
+    };
+    const res = await requestPlatform<any>(
+      `/api/v1/platform/workspaces/${encodeURIComponent(id)}/reject`,
       {
         method: 'POST',
         body: cleanBody,

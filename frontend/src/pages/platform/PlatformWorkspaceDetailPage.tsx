@@ -24,6 +24,7 @@ import {
   Sliders,
   Sparkles,
   X,
+  XCircle,
 } from 'lucide-react';
 
 export const PlatformWorkspaceDetailPage: React.FC = () => {
@@ -34,6 +35,8 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
   const [isQuotaModalOpen, setIsQuotaModalOpen] = useState(false);
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
   const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
   // Form states
   const [maxSessions, setMaxSessions] = useState<number | ''>('');
@@ -113,6 +116,66 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
     },
   });
 
+  const approveMutation = useMutation({
+    mutationFn: () =>
+      platformApi.approve(id!, {
+        reason: reason.trim() ? reason.trim() : undefined,
+        otp: otp.trim(),
+      }),
+    onSuccess: () => {
+      setIsApproveModalOpen(false);
+      setActionSuccess('Pendaftaran workspace berhasil disetujui. Akun pemilik kini aktif.');
+      queryClient.invalidateQueries({ queryKey: ['platform-workspace', id] });
+      queryClient.invalidateQueries({ queryKey: ['platform-workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-workspaces-pending-count'] });
+      setTimeout(() => setActionSuccess(''), 5000);
+    },
+    onError: (err: any) => {
+      if (err.status === 409 || err.code === 'INVALID_STATE') {
+        setActionError('Status workspace telah berubah di sesi/tab lain.');
+        queryClient.invalidateQueries({ queryKey: ['platform-workspace', id] });
+        queryClient.invalidateQueries({ queryKey: ['platform-workspaces'] });
+        queryClient.invalidateQueries({ queryKey: ['platform-workspaces-pending-count'] });
+      } else {
+        setActionError(err.message || 'Gagal menyetujui pendaftaran workspace.');
+      }
+    },
+    onSettled: () => {
+      setReason('');
+      setOtp('');
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: () =>
+      platformApi.reject(id!, {
+        reason: reason.trim(),
+        otp: otp.trim(),
+      }),
+    onSuccess: () => {
+      setIsRejectModalOpen(false);
+      setActionSuccess('Pendaftaran workspace ditolak.');
+      queryClient.invalidateQueries({ queryKey: ['platform-workspace', id] });
+      queryClient.invalidateQueries({ queryKey: ['platform-workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-workspaces-pending-count'] });
+      setTimeout(() => setActionSuccess(''), 5000);
+    },
+    onError: (err: any) => {
+      if (err.status === 409 || err.code === 'INVALID_STATE') {
+        setActionError('Status workspace telah berubah di sesi/tab lain.');
+        queryClient.invalidateQueries({ queryKey: ['platform-workspace', id] });
+        queryClient.invalidateQueries({ queryKey: ['platform-workspaces'] });
+        queryClient.invalidateQueries({ queryKey: ['platform-workspaces-pending-count'] });
+      } else {
+        setActionError(err.message || 'Gagal menolak pendaftaran workspace.');
+      }
+    },
+    onSettled: () => {
+      setReason('');
+      setOtp('');
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="p-12 text-center text-slate-400 text-xs">
@@ -164,11 +227,17 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{ws.name}</h1>
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                  ws.status === 'ACTIVE'
+                  ws.status === 'PENDING'
+                    ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                    : ws.status === 'ACTIVE'
                     ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
                     : ws.status === 'SUSPENDED'
-                    ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
-                    : 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                    ? 'bg-orange-50 dark:bg-orange-950 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800'
+                    : ws.status === 'REJECTED'
+                    ? 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                    : ws.status === 'DELETED'
+                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
                 }`}
               >
                 {ws.status}
@@ -178,6 +247,11 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
               <span>ID: {ws.id}</span>
               <span>Slug: {ws.slug}</span>
               <span>Dibuat: {new Date(ws.created_at).toLocaleDateString('id-ID')}</span>
+              {ws.decided_at && (
+                <span className="text-purple-600 dark:text-purple-400">
+                  Diputuskan: {new Date(ws.decided_at).toLocaleString('id-ID')}
+                </span>
+              )}
               {ws.suspended_at && (
                 <span className="text-amber-600 dark:text-amber-400">
                   Ditangguhkan: {new Date(ws.suspended_at).toLocaleString('id-ID')}
@@ -195,7 +269,50 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
               Ubah Kuota
             </button>
 
-            {ws.status === 'ACTIVE' ? (
+            {ws.status === 'PENDING' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReason('');
+                    setOtp('');
+                    setActionError('');
+                    setIsApproveModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Setujui</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReason('');
+                    setOtp('');
+                    setActionError('');
+                    setIsRejectModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-rose-50 dark:bg-rose-600/20 hover:bg-rose-100 dark:hover:bg-rose-600/30 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-500/40 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span>Tolak</span>
+                </button>
+              </>
+            ) : ws.status === 'REJECTED' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setReason('');
+                  setOtp('');
+                  setActionError('');
+                  setIsApproveModalOpen(true);
+                }}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Setujui (kesempatan kedua)</span>
+              </button>
+            ) : ws.status === 'ACTIVE' ? (
               <button
                 type="button"
                 onClick={() => {
@@ -761,6 +878,248 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
                 className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer shadow-xs transition"
               >
                 {activateMutation.isPending ? 'Mengaktifkan...' : 'Aktifkan Workspace'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Drawer Preview: Approve */}
+      {isApproveModalOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => {
+              setReason('');
+              setOtp('');
+              setActionError('');
+              setIsApproveModalOpen(false);
+            }}
+          />
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-emerald-600 dark:text-emerald-400">Pratinjau Persetujuan</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Workspace: <strong className="text-slate-800 dark:text-slate-200">{ws.name}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setReason('');
+                  setOtp('');
+                  setActionError('');
+                  setIsApproveModalOpen(false);
+                }}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                aria-label="Tutup panel persetujuan"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {actionError && (
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{actionError}</span>
+                </div>
+              )}
+
+              {/* Notice */}
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-emerald-900 dark:text-emerald-200 rounded-2xl text-xs space-y-2">
+                <div className="flex items-center gap-2 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>Persetujuan Pendaftaran Workspace:</span>
+                </div>
+                <p className="text-emerald-800 dark:text-emerald-300/90 leading-relaxed text-[11px]">
+                  Pendaftaran workspace akan disetujui dan statusnya menjadi aktif. Akun pemilik dapat segera masuk ke dashboard dan memulai operasional gateway.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Alasan Persetujuan (Opsional)
+                  </label>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Contoh: Dokumen kepatuhan dan identitas telah diverifikasi"
+                    rows={3}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Kode TOTP Operator <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="6 digit kode autentikator"
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setReason('');
+                  setOtp('');
+                  setActionError('');
+                  setIsApproveModalOpen(false);
+                }}
+                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={approveMutation.isPending || !otp.trim()}
+                onClick={() => approveMutation.mutate()}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer shadow-xs transition"
+              >
+                {approveMutation.isPending ? 'Menyetujui...' : 'Setujui Workspace'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Drawer Preview: Reject */}
+      {isRejectModalOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => {
+              setReason('');
+              setOtp('');
+              setActionError('');
+              setIsRejectModalOpen(false);
+            }}
+          />
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 flex items-center justify-center shrink-0">
+                  <XCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-rose-600 dark:text-rose-400">Pratinjau Penolakan</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Workspace: <strong className="text-slate-800 dark:text-slate-200">{ws.name}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setReason('');
+                  setOtp('');
+                  setActionError('');
+                  setIsRejectModalOpen(false);
+                }}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                aria-label="Tutup panel penolakan"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {actionError && (
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{actionError}</span>
+                </div>
+              )}
+
+              {/* Warning Notice */}
+              <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-900 dark:text-rose-200 rounded-2xl text-xs space-y-2">
+                <div className="flex items-center gap-2 font-bold">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                  <span>Dampak Penolakan Workspace:</span>
+                </div>
+                <p className="text-rose-800 dark:text-rose-300/90 leading-relaxed text-[11px]">
+                  Pendaftaran workspace akan ditolak. Pemilik tidak dapat masuk dan akan mendapatkan pesan bahwa pendaftaran ditolak. Anda tetap dapat menyetujui kembali kemudian bila diperlukan.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Alasan Penolakan <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[10px] text-slate-400">Min. 3 karakter</span>
+                  </div>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Wajib diisi (minimal 3 karakter). Contoh: Nama workspace melanggar hak cipta"
+                    rows={3}
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                  />
+                  {reason.trim().length > 0 && reason.trim().length < 3 && (
+                    <p className="text-[11px] text-rose-600 mt-0.5">Alasan penolakan minimal harus 3 karakter.</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Kode TOTP Operator <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="6 digit kode autentikator"
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setReason('');
+                  setOtp('');
+                  setActionError('');
+                  setIsRejectModalOpen(false);
+                }}
+                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={rejectMutation.isPending || reason.trim().length < 3 || !otp.trim()}
+                onClick={() => rejectMutation.mutate()}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer shadow-xs transition"
+              >
+                {rejectMutation.isPending ? 'Menolak...' : 'Tolak Pendaftaran'}
               </button>
             </div>
           </div>

@@ -12,6 +12,8 @@ import {
   Zap,
   Cpu,
   CheckCircle2,
+  Clock,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
@@ -37,7 +39,11 @@ export const LoginPage: React.FC = () => {
       navigate('/');
     } catch (err: any) {
       setErrorCode(err.code || '');
-      if (err.code === 'WORKSPACE_SUSPENDED') {
+      if (err.code === 'REGISTRATION_PENDING') {
+        setError('Pendaftaran Anda menunggu persetujuan pemilik platform. Anda dapat masuk setelah disetujui.');
+      } else if (err.code === 'REGISTRATION_REJECTED') {
+        setError('Pendaftaran Anda ditolak oleh pemilik platform. Hubungi pemilik platform bila ini keliru.');
+      } else if (err.code === 'WORKSPACE_SUSPENDED') {
         setError('Workspace ditangguhkan. Hubungi pemilik platform.');
       } else if (err.code === 'JOIN_PENDING') {
         setError('Permintaan bergabung Anda masih menunggu persetujuan Owner workspace.');
@@ -214,13 +220,39 @@ export const LoginPage: React.FC = () => {
 
             {/* Error Notification */}
             {error && (
-              <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 rounded-xl text-xs text-rose-700 dark:text-rose-300 space-y-2 animate-in fade-in duration-150">
+              <div
+                className={`p-3.5 rounded-xl text-xs space-y-2 animate-in fade-in duration-150 ${
+                  errorCode === 'REGISTRATION_PENDING'
+                    ? 'bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 text-amber-800 dark:text-amber-200'
+                    : 'bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 text-rose-700 dark:text-rose-300'
+                }`}
+              >
                 <div className="flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  {errorCode === 'REGISTRATION_PENDING' ? (
+                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  )}
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700 shrink-0">
-                        {errorCode === 'WORKSPACE_SUSPENDED' ? 'Workspace Ditangguhkan' : 'Galat Autentikasi'}
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase shrink-0 ${
+                          errorCode === 'REGISTRATION_PENDING'
+                            ? 'bg-amber-100 dark:bg-amber-900/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                            : errorCode === 'REGISTRATION_REJECTED'
+                            ? 'bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
+                            : errorCode === 'WORKSPACE_SUSPENDED'
+                            ? 'bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
+                            : 'bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700'
+                        }`}
+                      >
+                        {errorCode === 'REGISTRATION_PENDING'
+                          ? 'Menunggu Persetujuan'
+                          : errorCode === 'REGISTRATION_REJECTED'
+                          ? 'Pendaftaran Ditolak'
+                          : errorCode === 'WORKSPACE_SUSPENDED'
+                          ? 'Workspace Ditangguhkan'
+                          : 'Galat Autentikasi'}
                       </span>
                       <span className="leading-relaxed font-medium">{error}</span>
                     </div>

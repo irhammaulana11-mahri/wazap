@@ -14,6 +14,11 @@ import {
   Zap,
   Cpu,
   CheckCircle2,
+  Clock,
+  ShieldAlert,
+  Copy,
+  Check,
+  Download,
 } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
@@ -25,8 +30,49 @@ export const RegisterPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [pendingData, setPendingData] = useState<{ tenant_name: string; recovery_codes: string[] } | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const [savedConfirmed, setSavedConfirmed] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  const handleCopyCodes = async () => {
+    if (!pendingData) return;
+    try {
+      await navigator.clipboard.writeText(pendingData.recovery_codes.join('\n'));
+      setCopied(true);
+      setCopyFailed(false);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      setCopyFailed(true);
+    }
+  };
+
+  const handleDownloadCodes = () => {
+    if (!pendingData) return;
+    const element = document.createElement('a');
+    const file = new Blob(
+      [
+        `WAZAP GATEWAY - KODE PEMULIHAN AKUN\n`,
+        `===================================\n\n`,
+        `Workspace: ${pendingData.tenant_name}\n`,
+        `Email: ${email}\n\n`,
+        `Daftar Kode Pemulihan (Sekali Pakai):\n`,
+        `${pendingData.recovery_codes.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\n`,
+        `PERINGATAN PENTING:\n`,
+        `- Simpan berkas ini di tempat yang aman dan terlindungi.\n`,
+        `- Setiap kode hanya dapat digunakan satu kali untuk mereset kata sandi.\n`,
+        `- Tanggal Dibuat: ${new Date().toLocaleString('id-ID')}\n`,
+      ],
+      { type: 'text/plain' }
+    );
+    element.href = URL.createObjectURL(file);
+    element.download = `wazap-recovery-codes-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,8 +87,16 @@ export const RegisterPage: React.FC = () => {
     }
 
     try {
-      const data = await register(email.trim(), password, tenantName.trim());
-      const codes = data?.recovery_codes || (data?.recovery_code ? [data.recovery_code] : null);
+      const res = await register(email.trim(), password, tenantName.trim());
+      if (res.kind === 'pending') {
+        const codes = res.data?.recovery_codes || [];
+        setPendingData({
+          tenant_name: res.data.tenant.name || tenantName.trim(),
+          recovery_codes: codes,
+        });
+        return;
+      }
+      const codes = res.data?.recovery_codes || (res.data?.recovery_code ? [res.data.recovery_code] : null);
       if (codes && codes.length > 0) {
         setRecoveryCodes(codes);
       } else {
@@ -140,133 +194,229 @@ export const RegisterPage: React.FC = () => {
         <div className="lg:hidden absolute -top-24 -left-24 w-72 h-72 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 sm:p-10 border border-slate-100 relative z-10">
-          {/* Form Header */}
-          <div className="text-center mb-6">
-            <div className="flex justify-center mb-3">
-              <img
-                src="/logo-wazap.jpeg"
-                alt="WAZAP Logo"
-                className="w-14 h-14 rounded-2xl object-cover shadow-lg shadow-emerald-500/20 border-2 border-emerald-500/30"
-              />
-            </div>
-            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Akun Baru</h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Buat workspace WhatsApp Gateway untuk bisnis Anda
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Workspace / Tenant Name */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Nama Workspace / Perusahaan
-              </label>
-              <div className="relative">
-                <Building2 className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                <input
-                  type="text"
-                  value={tenantName}
-                  onChange={(e) => setTenantName(e.target.value)}
-                  placeholder="Misal: Toko Berkah, PT Digital Solusi"
-                  required
-                  minLength={2}
-                  maxLength={100}
-                  className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition"
-                />
+          {pendingData ? (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 border border-amber-500/30 flex items-center justify-center mx-auto mb-2">
+                  <Clock className="w-6 h-6" />
+                </div>
+                <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Pendaftaran Diterima</h2>
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                  Workspace <strong className="font-semibold text-slate-900">{pendingData.tenant_name}</strong> menunggu persetujuan pemilik platform. Anda dapat masuk setelah disetujui.
+                </p>
               </div>
-              {fieldErrors.tenant_name && (
-                <p className="text-xs text-rose-600 mt-1">{fieldErrors.tenant_name}</p>
-              )}
-            </div>
 
-            {/* Email Field */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Alamat Email Pengguna
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@perusahaan.com"
-                  required
-                  className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition"
-                />
+              {/* Warning Notice */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 space-y-1.5">
+                <div className="flex items-center gap-2 font-bold">
+                  <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Simpan Kode Pemulihan Akun Anda</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Kode pemulihan ini <strong>HANYA DITAMPILKAN SEKALI</strong>. Simpan kode ini di tempat yang aman untuk memulihkan akun atau mereset kata sandi jika diperlukan.
+                </p>
               </div>
-              {fieldErrors.email && (
-                <p className="text-xs text-rose-600 mt-1">{fieldErrors.email}</p>
-              )}
-            </div>
 
-            {/* Password Field */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Kata Sandi
+              {/* Recovery Codes Grid */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  8 Kode Pemulihan Rahasia Anda (Sekali Pakai)
                 </label>
-                <span className="text-[10px] text-slate-400 font-medium">Min. 10 karakter</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-56 overflow-y-auto p-2.5 bg-slate-950 rounded-2xl border border-slate-800">
+                  {pendingData.recovery_codes.map((code, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-2 rounded-xl bg-slate-900 text-emerald-400 font-mono text-xs font-bold"
+                    >
+                      <span className="text-slate-500 font-normal mr-1">{idx + 1}.</span>
+                      <span className="truncate select-all">{code}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimal 10 karakter..."
-                  required
-                  minLength={10}
-                  className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition"
-                />
+
+              {/* Actions: Copy & Download */}
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 transition"
-                  title={showPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
+                  onClick={handleCopyCodes}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  <span>{copied ? 'Tersalin ke Clipboard' : 'Salin Semua Kode'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadCodes}
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Unduh (.txt)</span>
                 </button>
               </div>
-              {fieldErrors.password && (
-                <p className="text-xs text-rose-600 mt-1">{fieldErrors.password}</p>
+
+              {copyFailed && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>Gagal menyalin otomatis. Silakan salin daftar kode secara manual di atas.</span>
+                </div>
               )}
-            </div>
 
-            {/* Error Notification */}
-            {error && (
-              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2.5 animate-in fade-in duration-150">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                <span className="leading-relaxed font-medium">{error}</span>
+              {/* Confirmation Checkbox */}
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/80 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={savedConfirmed}
+                  onChange={(e) => setSavedConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-xs text-slate-700 font-medium leading-relaxed">
+                  Saya sudah menyimpan 8 kode pemulihan ini di tempat yang aman.
+                </span>
+              </label>
+
+              {/* Link to Login */}
+              <div className="pt-2">
+                <Link
+                  to="/login"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl text-xs sm:text-sm font-bold text-white transition shadow-lg shadow-emerald-600/25"
+                >
+                  <span>Ke halaman masuk</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
               </div>
-            )}
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl text-xs sm:text-sm font-bold text-white transition shadow-lg shadow-emerald-600/25 disabled:opacity-50 mt-2"
-            >
-              <span>{loading ? 'Mendaftarkan Workspace...' : 'Daftar & Mulai Sekarang'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-
-          {/* Login & Join Links */}
-          <div className="mt-8 pt-5 border-t border-slate-100 space-y-2 text-center text-xs text-slate-500">
-            <div>
-              Sudah memiliki akun?{' '}
-              <Link to="/login" className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline">
-                Masuk di sini
-              </Link>
             </div>
-            <div>
-              Punya kode workspace?{' '}
-              <Link to="/join" className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline">
-                Gabung Workspace
-              </Link>
-            </div>
-          </div>
+          ) : (
+            <>
+              {/* Form Header */}
+              <div className="text-center mb-6">
+                <div className="flex justify-center mb-3">
+                  <img
+                    src="/logo-wazap.jpeg"
+                    alt="WAZAP Logo"
+                    className="w-14 h-14 rounded-2xl object-cover shadow-lg shadow-emerald-500/20 border-2 border-emerald-500/30"
+                  />
+                </div>
+                <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Daftar Akun Baru</h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                  Buat workspace WhatsApp Gateway untuk bisnis Anda
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Workspace / Tenant Name */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Nama Workspace / Perusahaan
+                  </label>
+                  <div className="relative">
+                    <Building2 className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={tenantName}
+                      onChange={(e) => setTenantName(e.target.value)}
+                      placeholder="Misal: Toko Berkah, PT Digital Solusi"
+                      required
+                      minLength={2}
+                      maxLength={100}
+                      className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition"
+                    />
+                  </div>
+                  {fieldErrors.tenant_name && (
+                    <p className="text-xs text-rose-600 mt-1">{fieldErrors.tenant_name}</p>
+                  )}
+                </div>
+
+                {/* Email Field */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Alamat Email Pengguna
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="nama@perusahaan.com"
+                      required
+                      className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition"
+                    />
+                  </div>
+                  {fieldErrors.email && (
+                    <p className="text-xs text-rose-600 mt-1">{fieldErrors.email}</p>
+                  )}
+                </div>
+
+                {/* Password Field */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Kata Sandi
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-medium">Min. 10 karakter</span>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Minimal 10 karakter..."
+                      required
+                      minLength={10}
+                      className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 transition"
+                      title={showPassword ? 'Sembunyikan sandi' : 'Tampilkan sandi'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {fieldErrors.password && (
+                    <p className="text-xs text-rose-600 mt-1">{fieldErrors.password}</p>
+                  )}
+                </div>
+
+                {/* Error Notification */}
+                {error && (
+                  <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2.5 animate-in fade-in duration-150">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed font-medium">{error}</span>
+                  </div>
+                )}
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl text-xs sm:text-sm font-bold text-white transition shadow-lg shadow-emerald-600/25 disabled:opacity-50 mt-2 cursor-pointer"
+                >
+                  <span>{loading ? 'Mendaftarkan Workspace...' : 'Daftar & Mulai Sekarang'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+
+              {/* Login & Join Links */}
+              <div className="mt-8 pt-5 border-t border-slate-100 space-y-2 text-center text-xs text-slate-500">
+                <div>
+                  Sudah memiliki akun?{' '}
+                  <Link to="/login" className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline">
+                    Masuk di sini
+                  </Link>
+                </div>
+                <div>
+                  Punya kode workspace?{' '}
+                  <Link to="/join" className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline">
+                    Gabung Workspace
+                  </Link>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

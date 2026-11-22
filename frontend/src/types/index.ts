@@ -88,6 +88,21 @@ export interface RecoveryCodeResponseData {
   recovery_codes: string[];
 }
 
+export type RegisterResult =
+  | {
+      kind: 'session';
+      data: AuthLoginResponseData;
+    }
+  | {
+      kind: 'pending';
+      data: {
+        status: 'PENDING_APPROVAL';
+        user: { id: string; email: string };
+        tenant: { id: string; name: string; slug: string };
+        recovery_codes: string[];
+      };
+    };
+
 export interface TeamJoinCodeResponseData {
   enabled: boolean;
   created_at: string | null;

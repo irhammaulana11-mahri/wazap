@@ -2,6 +2,7 @@ import {
   ApiResponse,
   ApiErrorPayload,
   AuthLoginResponseData,
+  RegisterResult,
   AuthMeResponseData,
   AuthJoinRequestResponseData,
   ResetPasswordResponseData,
@@ -209,14 +210,20 @@ export const api = {
   // ==========================================
   // AUTH
   // ==========================================
-  register: async (email: string, password: string, tenant_name: string) => {
+  register: async (email: string, password: string, tenant_name: string): Promise<RegisterResult> => {
     // STRICT CONTRACT: body { email, password, tenant_name }
-    const res = await request<ApiResponse<AuthLoginResponseData>>('/api/v1/auth/register', {
+    const res = await request<ApiResponse<any>>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, tenant_name }),
     });
-    tokenStore.set(res.data.access_token);
-    return res.data;
+    if (res.data?.status === 'PENDING_APPROVAL') {
+      return { kind: 'pending', data: res.data };
+    }
+    if (res.data?.access_token) {
+      tokenStore.set(res.data.access_token);
+      return { kind: 'session', data: res.data };
+    }
+    return { kind: 'session', data: res.data };
   },
 
   login: async (email: string, password: string, tenant_id?: string) => {

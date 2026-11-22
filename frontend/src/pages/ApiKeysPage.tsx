@@ -159,11 +159,15 @@ export const ApiKeysPage: React.FC = () => {
     createMutation.mutate();
   };
 
-  const copyKey = () => {
+  const copyKey = async () => {
     if (revealedKey) {
-      navigator.clipboard.writeText(revealedKey);
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
+      try {
+        await navigator.clipboard.writeText(revealedKey);
+        setCopiedKey(true);
+        setTimeout(() => setCopiedKey(false), 2000);
+      } catch {
+        showToast('error', 'Gagal menyalin otomatis. Silakan salin kunci secara manual.');
+      }
     }
   };
 

@@ -120,7 +120,7 @@ export const PlatformBackupPage: React.FC = () => {
                   </span>
                   <strong className="text-slate-900 dark:text-white">Pencadangan Berjalan Optimal</strong>
                 </div>
-                <p className="text-emerald-700 dark:text-emerald-400/90 leading-relaxed">
+                <p className="text-emerald-700 dark:text-emerald-200 leading-relaxed">
                   Berkas cadangan tersimpan dengan aman ({backup.age_hours ?? 0} jam yang lalu).
                 </p>
               </div>

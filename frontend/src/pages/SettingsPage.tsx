@@ -161,35 +161,35 @@ export const SettingsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner Card with Tab Navigation */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-7 relative overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-6 sm:p-7 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600" />
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                 Pengaturan
               </h1>
-              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300">
-                <Crown className="w-3.5 h-3.5 text-amber-600" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                <Crown className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                 <span>{isOwner ? 'Kewenangan Owner' : 'Kewenangan Admin'}</span>
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Kelola alokasi kuota gateway, kanal notifikasi alarm, data & privasi, serta identitas workspace <span className="font-semibold text-slate-700">{tenant?.name}</span>.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+              Kelola alokasi kuota gateway, kanal notifikasi alarm, data & privasi, serta identitas workspace <span className="font-semibold text-slate-700 dark:text-slate-200">{tenant?.name}</span>.
             </p>
           </div>
 
           {/* Quick Info Box */}
-          <div className="flex items-center gap-3 p-3 sm:px-4 sm:py-3 bg-slate-50 rounded-2xl border border-slate-200/80 shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-3 p-3 sm:px-4 sm:py-3 bg-slate-50 dark:bg-slate-950/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
                 Workspace
               </span>
-              <span className="text-sm font-bold text-slate-900 block truncate max-w-[180px]">
+              <span className="text-sm font-bold text-slate-900 dark:text-white block truncate max-w-[180px]">
                 {tenant?.name || 'Workspace'}
               </span>
             </div>
@@ -293,29 +293,29 @@ export const SettingsPage: React.FC = () => {
           {/* Quota Usage Cards (Read-Only) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* 1. Max WhatsApp Sessions */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-xs space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                  <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
                     <Smartphone className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-sm">Batas Sesi WhatsApp</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Jumlah sesi perangkat aktif bersamaan</p>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Batas Sesi WhatsApp</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Jumlah sesi perangkat aktif bersamaan</p>
                   </div>
                 </div>
-                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                  Dipakai: <strong className="text-emerald-700">{used?.sessions ?? 0}</strong> / {limits?.max_sessions ?? 5}
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                  Dipakai: <strong className="text-emerald-700 dark:text-emerald-400">{used?.sessions ?? 0}</strong> / {limits?.max_sessions ?? 5}
                 </span>
               </div>
 
               {/* Progress Bar Usage vs Limit */}
               <div className="space-y-1.5 pt-2">
-                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                   <span>Terpakai saat ini: {used?.sessions ?? 0} dari {limits?.max_sessions ?? 5}</span>
                   <span>{Math.round(((used?.sessions ?? 0) / Math.max(1, limits?.max_sessions ?? 5)) * 100)}%</span>
                 </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${
                       (used?.sessions ?? 0) >= (limits?.max_sessions ?? 5) ? 'bg-amber-500' : 'bg-emerald-500'
@@ -329,51 +329,51 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* 2. Messages Rate Limit Throughput */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-xs space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                  <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800">
                     <Activity className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-sm">Batas Kecepatan (Rate Limit)</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Throughput pesan keluar per menit</p>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Batas Kecepatan (Rate Limit)</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Throughput pesan keluar per menit</p>
                   </div>
                 </div>
-                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 shrink-0">
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
                   {limits?.messages_per_minute ?? 60} msg/mnt
                 </span>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-600 leading-relaxed">
+              <div className="p-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
                 Menjaga throughput gateway tetap stabil menggunakan algoritma <em>Token Bucket</em> anti-ban WhatsApp.
               </div>
             </div>
 
             {/* 3. Max API Keys */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-xs space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
+                  <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800">
                     <Key className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-sm">Batas Kunci REST API</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Jumlah token integrasi sistem eksternal</p>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Batas Kunci REST API</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Jumlah token integrasi sistem eksternal</p>
                   </div>
                 </div>
-                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                  Dipakai: <strong className="text-amber-700">{used?.api_keys ?? 0}</strong> / {limits?.max_api_keys ?? 5}
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                  Dipakai: <strong className="text-amber-700 dark:text-amber-400">{used?.api_keys ?? 0}</strong> / {limits?.max_api_keys ?? 5}
                 </span>
               </div>
 
               {/* Progress Bar */}
               <div className="space-y-1.5 pt-2">
-                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                   <span>Terpakai saat ini: {used?.api_keys ?? 0} dari {limits?.max_api_keys ?? 5}</span>
                   <span>{Math.round(((used?.api_keys ?? 0) / Math.max(1, limits?.max_api_keys ?? 5)) * 100)}%</span>
                 </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${
                       (used?.api_keys ?? 0) >= (limits?.max_api_keys ?? 5) ? 'bg-amber-500' : 'bg-amber-500'
@@ -387,29 +387,29 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* 4. Max Team Members */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-4 hover:border-slate-300 transition">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 shadow-xs space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+                  <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800">
                     <Users className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-sm">Batas Anggota Tim</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Kapasitas akun staf dalam organisasi</p>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-sm">Batas Anggota Tim</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Kapasitas akun staf dalam organisasi</p>
                   </div>
                 </div>
-                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                  Dipakai: <strong className="text-purple-700">{used?.members ?? 0}</strong> / {limits?.max_members ?? 5}
+                <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                  Dipakai: <strong className="text-purple-700 dark:text-purple-400">{used?.members ?? 0}</strong> / {limits?.max_members ?? 5}
                 </span>
               </div>
 
               {/* Progress Bar */}
               <div className="space-y-1.5 pt-2">
-                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                   <span>Terpakai saat ini: {used?.members ?? 0} dari {limits?.max_members ?? 5}</span>
                   <span>{Math.round(((used?.members ?? 0) / Math.max(1, limits?.max_members ?? 5)) * 100)}%</span>
                 </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${
                       (used?.members ?? 0) >= (limits?.max_members ?? 5) ? 'bg-amber-500' : 'bg-purple-500'
@@ -428,14 +428,14 @@ export const SettingsPage: React.FC = () => {
       {/* TAB 2: IDENTITAS & NAMA WORKSPACE */}
       {activeTab === 'general' && isOwner && (
         <div className="space-y-6 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-7 space-y-5">
-            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-              <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-6 sm:p-7 space-y-5">
+            <div className="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 <Building2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-slate-900 text-base">Ubah Nama Workspace</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">Ubah Nama Workspace</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Perbarui nama organisasi gateway. Nama baru akan segera terlihat oleh seluruh anggota tim dan di header dashboard.
                 </p>
               </div>
@@ -443,7 +443,7 @@ export const SettingsPage: React.FC = () => {
 
             <form onSubmit={handleRenameWorkspace} className="space-y-4 max-w-lg">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Nama Workspace Resmi
                 </label>
                 <input
@@ -454,19 +454,19 @@ export const SettingsPage: React.FC = () => {
                   required
                   minLength={2}
                   maxLength={100}
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               {renameError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{renameError}</span>
                 </div>
               )}
 
               {renameSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
                   <Check className="w-4 h-4 shrink-0" />
                   <span>{renameSuccess}</span>
                 </div>
@@ -475,7 +475,7 @@ export const SettingsPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={renameLoading || workspaceName.trim() === tenant?.name}
-                className="py-2.5 px-5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-40"
+                className="py-2.5 px-5 bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-40"
               >
                 {renameLoading ? 'Menyimpan...' : 'Simpan Nama Workspace'}
               </button>
@@ -487,22 +487,22 @@ export const SettingsPage: React.FC = () => {
       {/* TAB: DATA & PRIVASI (EKSPOR DATA & RETENSI ADR-048) */}
       {activeTab === 'data' && (
         <div className="space-y-6 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6 sm:p-7 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xs p-6 sm:p-7 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
                   <Database className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">Kebijakan Retensi & Ekspor Data</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">Kebijakan Retensi & Ekspor Data</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     Transparansi masa simpan data dan unduhan arsip resmi untuk kepatuhan privasi (ADR-048).
                   </p>
                 </div>
               </div>
 
               {exportPolicy?.enabled === false && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                   <AlertTriangle className="w-3.5 h-3.5" />
                   Ekspor Dinonaktifkan Operator
                 </span>
@@ -511,44 +511,44 @@ export const SettingsPage: React.FC = () => {
 
             {/* Retention Stat Cards (Visible for ALL roles: OWNER, MEMBER, VIEWER) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
                   <span>Retensi Isi Pesan</span>
-                  <Clock className="w-4 h-4 text-emerald-600" />
+                  <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <div className="text-2xl font-bold text-slate-900">
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">
                   {exportPolicy ? exportPolicy.retention.content_days : '—'}{' '}
-                  <span className="text-xs font-semibold text-slate-500">Hari</span>
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Hari</span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   Isi teks pesan yang lebih tua dari periode ini dibersihkan otomatis demi privasi (kolom teks dikosongkan).
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
                   <span>Retensi Baris Pesan & Chat</span>
-                  <History className="w-4 h-4 text-emerald-600" />
+                  <History className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <div className="text-2xl font-bold text-slate-900">
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">
                   {exportPolicy ? exportPolicy.retention.row_days : '—'}{' '}
-                  <span className="text-xs font-semibold text-slate-500">Hari</span>
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Hari</span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   Seluruh metadata baris pesan dan chat yang melampaui batas ini dihapus secara permanen dari basis data.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between text-slate-500 text-xs font-medium">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
                   <span>Retensi Log Audit</span>
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <div className="text-2xl font-bold text-slate-900">
+                <div className="text-2xl font-bold text-slate-900 dark:text-white">
                   {exportPolicy ? exportPolicy.retention.audit_days : '—'}{' '}
-                  <span className="text-xs font-semibold text-slate-500">Hari</span>
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Hari</span>
                 </div>
-                <p className="text-[11px] text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   Rekaman jejak aktivitas, perubahan setelan, dan tindakan anggota tim disimpan untuk audit kepatuhan.
                 </p>
               </div>
@@ -558,13 +558,13 @@ export const SettingsPage: React.FC = () => {
             <div className="pt-2">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900">Katalog Ekspor Data Workspace</h4>
-                  <p className="text-xs text-slate-500">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Katalog Ekspor Data Workspace</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Pilih kategori data yang ingin diunduh dalam format CSV Spreadsheet atau NDJSON.
                   </p>
                 </div>
                 {canExport && exportPolicy && (
-                  <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1 rounded-lg">
                     Batas: <strong>{exportPolicy.per_hour}x</strong> ekspor / jam per pengguna
                   </span>
                 )}
@@ -573,18 +573,18 @@ export const SettingsPage: React.FC = () => {
               {canExport ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Messages Card */}
-                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                  <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs flex flex-col justify-between">
                     <div>
-                      <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
                         <MessageSquare className="w-4 h-4" />
                       </div>
-                      <h5 className="text-xs font-bold text-slate-900">Pesan Obrolan (Messages)</h5>
-                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-white">Pesan Obrolan (Messages)</h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                         Riwayat pesan masuk (inbound) & keluar (outbound), waktu tiba, nomor pengirim, dan status.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400 font-mono">{exportPolicy ? `Rentang s/d ${exportPolicy.max_span_days} hari` : '—'}</span>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{exportPolicy ? `Rentang s/d ${exportPolicy.max_span_days} hari` : '—'}</span>
                       <button
                         type="button"
                         onClick={() => openExportDrawer('messages')}
@@ -597,18 +597,18 @@ export const SettingsPage: React.FC = () => {
                   </div>
 
                   {/* Outbound Card */}
-                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                  <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs flex flex-col justify-between">
                     <div>
-                      <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mb-3">
                         <Activity className="w-4 h-4" />
                       </div>
-                      <h5 className="text-xs font-bold text-slate-900">Antrean Pesan Keluar (Outbox)</h5>
-                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-white">Antrean Pesan Keluar (Outbox)</h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                         Log pengiriman pesan gateway, status antrean (SENT, DELIVERED, READ, FAILED), dan penerima.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400 font-mono">{exportPolicy ? `Rentang s/d ${exportPolicy.max_span_days} hari` : '—'}</span>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{exportPolicy ? `Rentang s/d ${exportPolicy.max_span_days} hari` : '—'}</span>
                       <button
                         type="button"
                         onClick={() => openExportDrawer('outbound')}
@@ -621,18 +621,18 @@ export const SettingsPage: React.FC = () => {
                   </div>
 
                   {/* Chats Card */}
-                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                  <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs flex flex-col justify-between">
                     <div>
-                      <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3">
                         <Layers className="w-4 h-4" />
                       </div>
-                      <h5 className="text-xs font-bold text-slate-900">Daftar Obrolan (Chats)</h5>
-                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-white">Daftar Obrolan (Chats)</h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                         Daftar percakapan aktif per nomor kontak, sesi WhatsApp terkait, dan timestamp aktivitas terakhir.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400 font-mono">Snapshot total chat</span>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">Snapshot total chat</span>
                       <button
                         type="button"
                         onClick={() => openExportDrawer('chats')}
@@ -645,18 +645,18 @@ export const SettingsPage: React.FC = () => {
                   </div>
 
                   {/* Contacts Card */}
-                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                  <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs flex flex-col justify-between">
                     <div>
-                      <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3">
                         <Smartphone className="w-4 h-4" />
                       </div>
-                      <h5 className="text-xs font-bold text-slate-900">Kontak Pelanggan (Contacts)</h5>
-                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-white">Kontak Pelanggan (Contacts)</h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                         Daftar kontak pelanggan 1:1 unik lintas seluruh sesi WhatsApp dengan nama tampilan dan jumlah obrolan.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400 font-mono">Unik per nomor</span>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">Unik per nomor</span>
                       <button
                         type="button"
                         onClick={() => openExportDrawer('contacts')}
@@ -669,18 +669,18 @@ export const SettingsPage: React.FC = () => {
                   </div>
 
                   {/* Audit Logs Card */}
-                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                  <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs flex flex-col justify-between">
                     <div>
-                      <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
                         <ShieldCheck className="w-4 h-4" />
                       </div>
-                      <h5 className="text-xs font-bold text-slate-900">Log Audit Workspace</h5>
-                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-white">Log Audit Workspace</h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                         Catatan audit seluruh aktivitas workspace: login, perubahan setelan kuota, rotasi webhook/API key.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400 font-mono">{exportPolicy ? `Rentang s/d ${exportPolicy.max_span_days} hari` : '—'}</span>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{exportPolicy ? `Rentang s/d ${exportPolicy.max_span_days} hari` : '—'}</span>
                       <button
                         type="button"
                         onClick={() => openExportDrawer('audit-logs')}
@@ -693,18 +693,18 @@ export const SettingsPage: React.FC = () => {
                   </div>
 
                   {/* Members Card */}
-                  <div className="p-5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 transition-all shadow-xs flex flex-col justify-between">
+                  <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-xs flex flex-col justify-between">
                     <div>
-                      <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-3">
                         <Users className="w-4 h-4" />
                       </div>
-                      <h5 className="text-xs font-bold text-slate-900">Anggota Tim & Hak Akses</h5>
-                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      <h5 className="text-xs font-bold text-slate-900 dark:text-white">Anggota Tim & Hak Akses</h5>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                         Daftar seluruh anggota workspace, email terdaftar, peran (OWNER, MEMBER, VIEWER), dan waktu bergabung.
                       </p>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-400 font-mono">Snapshot anggota tim</span>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">Snapshot anggota tim</span>
                       <button
                         type="button"
                         onClick={() => openExportDrawer('members')}
@@ -717,7 +717,7 @@ export const SettingsPage: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3 text-xs text-slate-600">
+                <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400">
                   <Info className="w-5 h-5 text-slate-400 shrink-0" />
                   <span>
                     Fitur pengunduhan ekspor data dibatasi hanya untuk <strong>Pemilik (OWNER)</strong> dan <strong>Administrator</strong> workspace.
@@ -735,12 +735,12 @@ export const SettingsPage: React.FC = () => {
           {canManageAlerts ? (
             <AlertsTab />
           ) : (
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-12 text-center space-y-3 shadow-xs">
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-12 text-center space-y-3 shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center justify-center mx-auto">
                 <Lock className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Akses Dibatasi</h3>
-              <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Akses Dibatasi</h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
                 Hanya pemilik workspace (OWNER) yang memiliki wewenang untuk mengelola kanal dan aturan notifikasi alarm.
               </p>
             </div>
@@ -751,23 +751,23 @@ export const SettingsPage: React.FC = () => {
       {/* TAB 3: DANGER ZONE & WORKSPACE DELETION */}
       {activeTab === 'danger' && isOwner && (
         <div className="space-y-6 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl border border-rose-200 shadow-xs p-6 sm:p-7 space-y-5">
-            <div className="flex items-center gap-3 pb-4 border-b border-rose-100">
-              <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-rose-200 dark:border-rose-900/60 shadow-xs p-6 sm:p-7 space-y-5">
+            <div className="flex items-center gap-3 pb-4 border-b border-rose-100 dark:border-rose-900/40">
+              <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-rose-950 text-base">Penghapusan Workspace Permanen</h3>
-                <p className="text-xs text-rose-700 mt-0.5">
+                <h3 className="font-bold text-rose-950 dark:text-rose-200 text-base">Penghapusan Workspace Permanen</h3>
+                <p className="text-xs text-rose-700 dark:text-rose-400 mt-0.5">
                   Tindakan penting yang memicu pencabutan seluruh sesi WhatsApp, API key, webhook, dan riwayat obrolan.
                 </p>
               </div>
             </div>
 
             {/* Recommendation to export data first */}
-            <div className="p-4 bg-sky-50 border border-sky-200 rounded-2xl flex items-start gap-3">
-              <Download className="w-5 h-5 text-sky-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-sky-900 leading-relaxed flex-1">
+            <div className="p-4 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/50 rounded-2xl flex items-start gap-3">
+              <Download className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-sky-900 dark:text-sky-200 leading-relaxed flex-1">
                 <span className="font-bold block mb-0.5">Saran: Ekspor Data Anda Terlebih Dahulu</span>
                 Sebelum menghapus workspace, Anda sangat disarankan untuk mengunduh arsip pesan, kontak, antrean pengiriman, dan log audit workspace ini.
                 <div className="mt-2.5">
@@ -800,8 +800,8 @@ export const SettingsPage: React.FC = () => {
 
             <form onSubmit={handleDeleteWorkspace} className="space-y-4 max-w-lg pt-2">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Ketik nama workspace persis (<span className="font-mono text-rose-600 select-all font-bold">{tenant?.name}</span>) untuk konfirmasi:
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Ketik nama workspace persis (<span className="font-mono text-rose-600 dark:text-rose-400 select-all font-bold">{tenant?.name}</span>) untuk konfirmasi:
                 </label>
                 <input
                   type="text"
@@ -809,12 +809,12 @@ export const SettingsPage: React.FC = () => {
                   onChange={(e) => setDeleteConfirmName(e.target.value)}
                   placeholder={tenant?.name || ''}
                   required
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Masukkan Kata Sandi Akun Pemilik (Owner)
                 </label>
                 <input
@@ -823,12 +823,12 @@ export const SettingsPage: React.FC = () => {
                   onChange={(e) => setDeletePassword(e.target.value)}
                   placeholder="••••••••••••"
                   required
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
               {deleteError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{deleteError}</span>
                 </div>
@@ -837,7 +837,7 @@ export const SettingsPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={deleteLoading || deleteConfirmName !== tenant?.name}
-                className="py-3 px-5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                className="py-3 px-5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>{deleteLoading ? 'Menghapus Workspace...' : 'Hapus Workspace Ini Selamanya'}</span>

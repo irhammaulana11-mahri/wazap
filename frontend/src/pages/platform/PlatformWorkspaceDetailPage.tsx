@@ -21,6 +21,9 @@ import {
   History,
   Lock,
   RotateCcw,
+  Sliders,
+  Sparkles,
+  X,
 } from 'lucide-react';
 
 export const PlatformWorkspaceDetailPage: React.FC = () => {
@@ -374,102 +377,178 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Ubah Kuota */}
+      {/* Drawer Preview: Ubah Kuota */}
       {isQuotaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Ubah Alokasi Kuota Workspace</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Nilai yang tidak diubah akan diabaikan. Memerlukan kode TOTP operator.
-              </p>
-            </div>
-
-            {actionError && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs">
-                {actionError}
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => setIsQuotaModalOpen(false)}
+          />
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 flex items-center justify-center shrink-0">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Pratinjau & Ubah Kuota</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Workspace: <strong className="text-slate-800 dark:text-slate-200">{ws.name}</strong>
+                  </p>
+                </div>
               </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Sesi WA</label>
-                <input
-                  type="number"
-                  value={maxSessions}
-                  onChange={(e) => setMaxSessions(e.target.value === '' ? '' : Number(e.target.value))}
-                  min={ws.minimums?.max_sessions ?? 1}
-                  max={ws.ceilings?.max_sessions ?? 50}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Kunci API</label>
-                <input
-                  type="number"
-                  value={maxApiKeys}
-                  onChange={(e) => setMaxApiKeys(e.target.value === '' ? '' : Number(e.target.value))}
-                  min={ws.minimums?.max_api_keys ?? 1}
-                  max={ws.ceilings?.max_api_keys ?? 20}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Anggota</label>
-                <input
-                  type="number"
-                  value={maxMembers}
-                  onChange={(e) => setMaxMembers(e.target.value === '' ? '' : Number(e.target.value))}
-                  min={ws.minimums?.max_members ?? 1}
-                  max={ws.ceilings?.max_members ?? 25}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Throughput (msg/m)</label>
-                <input
-                  type="number"
-                  value={messagesPerMinute}
-                  onChange={(e) => setMessagesPerMinute(e.target.value === '' ? '' : Number(e.target.value))}
-                  min={ws.minimums?.messages_per_minute ?? 10}
-                  max={ws.ceilings?.messages_per_minute ?? 300}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Alasan Perubahan (Wajib)</label>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Contoh: Upgrade paket bisnis tahunan atas permintaan tiket #1042"
-                rows={2}
-                required
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Kode TOTP Operator</label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="6 digit kode autentikator"
-                required
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsQuotaModalOpen(false)}
-                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                aria-label="Tutup panel ubah kuota"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {actionError && (
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{actionError}</span>
+                </div>
+              )}
+
+              {/* Live Quota Comparison Preview Card */}
+              <div className="p-4 bg-purple-50/60 dark:bg-purple-950/40 rounded-2xl border border-purple-200/80 dark:border-purple-900/50 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span className="text-xs font-bold text-purple-900 dark:text-purple-200 uppercase tracking-wider">
+                    Ringkasan Pratinjau Alokasi
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Sesi WA:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {ws.limits.max_sessions} → <span className="text-purple-600 dark:text-purple-400">{maxSessions || ws.limits.max_sessions}</span>
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Kunci API:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {ws.limits.max_api_keys} → <span className="text-purple-600 dark:text-purple-400">{maxApiKeys || ws.limits.max_api_keys}</span>
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Anggota:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {ws.limits.max_members} → <span className="text-purple-600 dark:text-purple-400">{maxMembers || ws.limits.max_members}</span>
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Throughput:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {ws.limits.messages_per_minute} → <span className="text-purple-600 dark:text-purple-400">{messagesPerMinute || ws.limits.messages_per_minute}</span> msg/m
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Inputs */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Sesi WA</label>
+                    <input
+                      type="number"
+                      value={maxSessions}
+                      onChange={(e) => setMaxSessions(e.target.value === '' ? '' : Number(e.target.value))}
+                      min={ws.minimums?.max_sessions ?? 1}
+                      max={ws.ceilings?.max_sessions ?? 50}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      Batas: {ws.minimums?.max_sessions ?? 1}–{ws.ceilings?.max_sessions ?? 50}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Kunci API</label>
+                    <input
+                      type="number"
+                      value={maxApiKeys}
+                      onChange={(e) => setMaxApiKeys(e.target.value === '' ? '' : Number(e.target.value))}
+                      min={ws.minimums?.max_api_keys ?? 1}
+                      max={ws.ceilings?.max_api_keys ?? 20}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      Batas: {ws.minimums?.max_api_keys ?? 1}–{ws.ceilings?.max_api_keys ?? 20}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Anggota</label>
+                    <input
+                      type="number"
+                      value={maxMembers}
+                      onChange={(e) => setMaxMembers(e.target.value === '' ? '' : Number(e.target.value))}
+                      min={ws.minimums?.max_members ?? 1}
+                      max={ws.ceilings?.max_members ?? 25}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      Batas: {ws.minimums?.max_members ?? 1}–{ws.ceilings?.max_members ?? 25}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Throughput (msg/m)</label>
+                    <input
+                      type="number"
+                      value={messagesPerMinute}
+                      onChange={(e) => setMessagesPerMinute(e.target.value === '' ? '' : Number(e.target.value))}
+                      min={ws.minimums?.messages_per_minute ?? 10}
+                      max={ws.ceilings?.messages_per_minute ?? 300}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      Batas: {ws.minimums?.messages_per_minute ?? 10}–{ws.ceilings?.messages_per_minute ?? 300}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Alasan Perubahan (Wajib)</label>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Contoh: Upgrade paket bisnis tahunan atas permintaan tiket #1042"
+                    rows={2}
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Kode TOTP Operator</label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="6 digit kode autentikator"
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Sticky Actions Footer */}
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsQuotaModalOpen(false)}
+                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition"
               >
                 Batal
               </button>
@@ -477,7 +556,7 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
                 type="button"
                 disabled={updateQuotaMutation.isPending || !reason.trim() || !otp.trim()}
                 onClick={() => updateQuotaMutation.mutate()}
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer shadow-xs transition"
               >
                 {updateQuotaMutation.isPending ? 'Menyimpan...' : 'Simpan Kuota'}
               </button>
@@ -486,53 +565,92 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Suspend */}
+      {/* Drawer Preview: Suspend */}
       {isSuspendModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-bold text-amber-600 dark:text-amber-400 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
-              <span>Tangguhkan Workspace</span>
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Seluruh sesi WhatsApp akan diputus seketika dan akses anggota ke workspace dibekukan.
-            </p>
-
-            {actionError && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs">
-                {actionError}
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => setIsSuspendModalOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-amber-600 dark:text-amber-400">Pratinjau Penangguhan</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Workspace: <strong className="text-slate-800 dark:text-slate-200">{ws.name}</strong>
+                  </p>
+                </div>
               </div>
-            )}
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Alasan Penangguhan (Wajib)</label>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Contoh: Pelanggaran ketentuan layanan spam berulang"
-                rows={2}
-                required
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Kode TOTP Operator</label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="6 digit kode autentikator"
-                required
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsSuspendModalOpen(false)}
-                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                aria-label="Tutup panel penangguhan"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {actionError && (
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{actionError}</span>
+                </div>
+              )}
+
+              {/* Impact Warning Notice */}
+              <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-amber-900 dark:text-amber-200 rounded-2xl text-xs space-y-2">
+                <div className="flex items-center gap-2 font-bold">
+                  <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Dampak Penangguhan Workspace:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-amber-800 dark:text-amber-300/90 pl-1 leading-relaxed text-[11px]">
+                  <li>Seluruh sesi WhatsApp akan diputus seketika.</li>
+                  <li>Token kunci API & webhook gateway akan dibekukan.</li>
+                  <li>Akses masuk bagi anggota workspace ditolak sementara.</li>
+                </ul>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Alasan Penangguhan (Wajib)</label>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Contoh: Pelanggaran ketentuan layanan spam berulang"
+                    rows={3}
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Kode TOTP Operator</label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="6 digit kode autentikator"
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsSuspendModalOpen(false)}
+                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition"
               >
                 Batal
               </button>
@@ -540,7 +658,7 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
                 type="button"
                 disabled={suspendMutation.isPending || !reason.trim() || !otp.trim()}
                 onClick={() => suspendMutation.mutate()}
-                className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer shadow-xs transition"
               >
                 {suspendMutation.isPending ? 'Menangguhkan...' : 'Tangguhkan Sekarang'}
               </button>
@@ -549,53 +667,90 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Activate */}
+      {/* Drawer Preview: Activate */}
       {isActivateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="text-base font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-              <span>Aktifkan Kembali Workspace</span>
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Akses anggota akan dipulihkan dan sesi WhatsApp yang sebelumnya aktif akan disambungkan kembali.
-            </p>
-
-            {actionError && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs">
-                {actionError}
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => setIsActivateModalOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-emerald-600 dark:text-emerald-400">Pratinjau Pengaktifan</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Workspace: <strong className="text-slate-800 dark:text-slate-200">{ws.name}</strong>
+                  </p>
+                </div>
               </div>
-            )}
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Alasan Pemulihan (Wajib)</label>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Contoh: Klarifikasi tiket telah diselesaikan"
-                rows={2}
-                required
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Kode TOTP Operator</label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="6 digit kode autentikator"
-                required
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsActivateModalOpen(false)}
-                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                aria-label="Tutup panel pengaktifan"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {actionError && (
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{actionError}</span>
+                </div>
+              )}
+
+              {/* Recovery Info Notice */}
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 text-emerald-900 dark:text-emerald-200 rounded-2xl text-xs space-y-2">
+                <div className="flex items-center gap-2 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>Pemulihan Akses Workspace:</span>
+                </div>
+                <p className="text-emerald-800 dark:text-emerald-300/90 leading-relaxed text-[11px]">
+                  Akses login anggota akan segera dipulihkan normal dan antrean gateway siap digunakan kembali. Sesi WhatsApp yang sebelumnya aktif dapat disambungkan ulang oleh operator workspace.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Alasan Pemulihan (Wajib)</label>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Contoh: Klarifikasi tiket telah diselesaikan"
+                    rows={3}
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Kode TOTP Operator</label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="6 digit kode autentikator"
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsActivateModalOpen(false)}
+                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition"
               >
                 Batal
               </button>
@@ -603,7 +758,7 @@ export const PlatformWorkspaceDetailPage: React.FC = () => {
                 type="button"
                 disabled={activateMutation.isPending || !reason.trim() || !otp.trim()}
                 onClick={() => activateMutation.mutate()}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer shadow-xs transition"
               >
                 {activateMutation.isPending ? 'Mengaktifkan...' : 'Aktifkan Workspace'}
               </button>

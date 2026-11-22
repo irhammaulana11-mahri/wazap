@@ -90,16 +90,16 @@ export const AlertsTab: React.FC = () => {
       {isOperatorDisabled && (
         <div
           role="alert"
-          className="p-4 bg-amber-50 border border-amber-200 rounded-3xl flex items-start gap-3 text-amber-900 shadow-xs"
+          className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-3xl flex items-start gap-3 text-amber-900 dark:text-amber-200 shadow-xs"
         >
-          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 flex items-center justify-center shrink-0">
             <BellOff className="w-5 h-5" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-amber-900">
+            <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">
               Notifikasi Dinonaktifkan Sementara oleh Operator
             </h3>
-            <p className="text-xs text-amber-800 leading-relaxed">
+            <p className="text-xs text-amber-800 dark:text-amber-300/90 leading-relaxed">
               Operator sistem sedang menonaktifkan pengiriman alarm secara global. Anda tetap dapat meninjau riwayat dan konfigurasi yang ada, namun penambahan kanal dan perubahan aturan tidak dapat disimpan saat ini.
             </p>
           </div>

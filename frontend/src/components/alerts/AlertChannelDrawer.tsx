@@ -364,16 +364,16 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
       {/* Slide-Over Drawer Panel */}
       <div
         ref={drawerRef}
-        className="relative w-full max-w-xl md:max-w-2xl bg-white h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-200 border-l border-slate-200 text-left"
+        className="relative w-full max-w-xl md:max-w-2xl bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-200 border-l border-slate-200 dark:border-slate-800 text-left"
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/70">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60">
           <div className="flex items-center gap-3">
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                 mode === 'delete'
-                  ? 'bg-rose-50 text-rose-600 border-rose-200'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                  : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
               }`}
             >
               {mode === 'delete' ? (
@@ -383,10 +383,10 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
               )}
             </div>
             <div>
-              <h2 id="alert-drawer-title" className="text-base font-bold text-slate-900">
+              <h2 id="alert-drawer-title" className="text-base font-bold text-slate-900 dark:text-white">
                 {titles[mode]}
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {mode === 'create' && 'Konfigurasikan bot Telegram atau webhook Slack dengan pratinjau live.'}
                 {mode === 'target' && `Perbarui kredensial tujuan untuk kanal "${channel?.name}".`}
                 {mode === 'delete' && 'Konfirmasi penghapusan permanen kanal notifikasi.'}
@@ -398,7 +398,7 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"
+            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
             aria-label="Tutup panel kanal"
           >
             <X className="w-5 h-5" />
@@ -412,26 +412,26 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
             {errorMessage && (
               <div
                 role="alert"
-                className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 space-y-2 animate-in fade-in"
+                className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-2xl text-xs text-rose-800 dark:text-rose-300 space-y-2 animate-in fade-in"
               >
                 <div className="flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="font-semibold text-rose-900 leading-snug">{errorMessage}</p>
+                    <p className="font-semibold text-rose-900 dark:text-rose-200 leading-snug">{errorMessage}</p>
                     {rateLimitWait && rateLimitWait > 0 && (
-                      <p className="mt-1 text-rose-700 font-mono">
+                      <p className="mt-1 text-rose-700 dark:text-rose-400 font-mono">
                         Waktu tunggu tersisa: <span className="font-bold">{rateLimitWait}</span> detik
                       </p>
                     )}
                   </div>
                 </div>
                 {errorRequestId && (
-                  <div className="flex items-center justify-between pt-2 border-t border-rose-200/70 text-[11px] text-rose-600">
+                  <div className="flex items-center justify-between pt-2 border-t border-rose-200/70 dark:border-rose-800/70 text-[11px] text-rose-600 dark:text-rose-400">
                     <span className="font-mono truncate">ID Permintaan: {errorRequestId}</span>
                     <button
                       type="button"
                       onClick={handleCopyRequestId}
-                      className="inline-flex items-center gap-1 font-semibold text-rose-700 hover:text-rose-900 hover:underline shrink-0 ml-2"
+                      className="inline-flex items-center gap-1 font-semibold text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-white hover:underline shrink-0 ml-2 cursor-pointer"
                     >
                       {isCopiedReqId ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                       <span>{isCopiedReqId ? 'Tersalin' : 'Salin'}</span>
@@ -446,33 +446,33 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
               <div className="space-y-4">
                 {/* Channel Type Selector */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                     Tipe Integrasi Kanal
                   </label>
                   <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
                       onClick={() => setChannelType('TELEGRAM')}
-                      className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition ${
+                      className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition cursor-pointer ${
                         channelType === 'TELEGRAM'
-                          ? 'border-sky-500 bg-sky-50/80 text-sky-900 shadow-xs ring-2 ring-sky-500/20'
-                          : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100/70'
+                          ? 'border-sky-500 bg-sky-50/80 dark:bg-sky-950/60 text-sky-900 dark:text-sky-200 shadow-xs ring-2 ring-sky-500/20'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <Bot className="w-4 h-4 text-sky-600" />
+                      <Bot className="w-4 h-4 text-sky-600 dark:text-sky-400" />
                       <span>Telegram Bot</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setChannelType('SLACK')}
-                      className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition ${
+                      className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-bold transition cursor-pointer ${
                         channelType === 'SLACK'
-                          ? 'border-emerald-500 bg-emerald-50/80 text-emerald-900 shadow-xs ring-2 ring-emerald-500/20'
-                          : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:bg-slate-100/70'
+                          ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 shadow-xs ring-2 ring-emerald-500/20'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <Hash className="w-4 h-4 text-emerald-600" />
+                      <Hash className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       <span>Slack / Discord Webhook</span>
                     </button>
                   </div>
@@ -482,7 +482,7 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                 <div>
                   <label
                     htmlFor="drawer-channel-name"
-                    className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+                    className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5"
                   >
                     Nama Kanal <span className="text-rose-500">*</span>
                   </label>
@@ -495,17 +495,17 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Misal: Tim DevOps / Grup Notifikasi Gateway"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white transition"
                   />
                 </div>
 
                 {/* Telegram Credentials */}
                 {channelType === 'TELEGRAM' && (
-                  <div className="space-y-3.5 p-4 bg-slate-50/80 rounded-2xl border border-slate-200">
+                  <div className="space-y-3.5 p-4 bg-slate-50/80 dark:bg-slate-950/50 rounded-2xl border border-slate-200 dark:border-slate-800">
                     <div>
                       <label
                         htmlFor="drawer-telegram-token"
-                        className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+                        className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1"
                       >
                         Token Bot Telegram <span className="text-rose-500">*</span>
                       </label>
@@ -517,17 +517,17 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
                         placeholder="123456789:AAHdqTcvCH1vGWJxf..."
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-sky-500 transition"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-sky-500 text-slate-900 dark:text-white transition"
                       />
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        Buat bot baru melalui <span className="font-semibold text-slate-700">@BotFather</span> di Telegram via perintah <code className="bg-slate-200/80 px-1 py-0.5 rounded text-[10px]">/newbot</code>.
+                      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        Buat bot baru melalui <span className="font-semibold text-slate-700 dark:text-slate-300">@BotFather</span> di Telegram via perintah <code className="bg-slate-200/80 dark:bg-slate-800 px-1 py-0.5 rounded text-[10px]">/newbot</code>.
                       </p>
                     </div>
 
                     <div>
                       <label
                         htmlFor="drawer-telegram-chatid"
-                        className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+                        className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1"
                       >
                         ID Obrolan Penerima (Chat ID) <span className="text-rose-500">*</span>
                       </label>
@@ -539,10 +539,10 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                         value={chatId}
                         onChange={(e) => setChatId(e.target.value)}
                         placeholder="Misal: -1001234567890 (grup) atau 12345678 (pribadi)"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-sky-500 transition"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-sky-500 text-slate-900 dark:text-white transition"
                       />
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        Kirim pesan ke bot, lalu buka <code className="bg-slate-200/80 px-1 py-0.5 rounded text-[10px]">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> untuk melihat ID obrolan penerima.
+                      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        Kirim pesan ke bot, lalu buka <code className="bg-slate-200/80 dark:bg-slate-800 px-1 py-0.5 rounded text-[10px]">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> untuk melihat ID obrolan penerima.
                       </p>
                     </div>
                   </div>
@@ -550,10 +550,10 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
 
                 {/* Slack Credentials */}
                 {channelType === 'SLACK' && (
-                  <div className="space-y-2 p-4 bg-slate-50/80 rounded-2xl border border-slate-200">
+                  <div className="space-y-2 p-4 bg-slate-50/80 dark:bg-slate-950/50 rounded-2xl border border-slate-200 dark:border-slate-800">
                     <label
                       htmlFor="drawer-slack-url"
-                      className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+                      className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1"
                     >
                       URL Webhook Slack / Discord <span className="text-rose-500">*</span>
                     </label>
@@ -565,10 +565,10 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
                       placeholder="https://hooks.slack.com/services/T00/B00/XXXX"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-white transition"
                     />
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      Incoming Webhook dari Slack atau Discord (pada Discord, tambahkan <code className="bg-slate-200/80 px-1 py-0.5 rounded text-[10px]">/slack</code> di ujung URL webhook).
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      Incoming Webhook dari Slack atau Discord (pada Discord, tambahkan <code className="bg-slate-200/80 dark:bg-slate-800 px-1 py-0.5 rounded text-[10px]">/slack</code> di ujung URL webhook).
                     </p>
                   </div>
                 )}
@@ -578,22 +578,22 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
             {/* SECTION: TARGET MODE */}
             {mode === 'target' && channel && (
               <div className="space-y-4">
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 flex items-center justify-between">
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between">
                   <div>
-                    <span className="font-bold text-slate-900 block text-sm">{channel.name}</span>
-                    <span className="text-slate-500">
-                      Tipe: <span className="font-semibold text-slate-800">{channel.type}</span> (tipe permanen)
+                    <span className="font-bold text-slate-900 dark:text-white block text-sm">{channel.name}</span>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Tipe: <span className="font-semibold text-slate-800 dark:text-slate-200">{channel.type}</span> (tipe permanen)
                     </span>
                   </div>
-                  <span className="text-slate-500 font-mono text-[11px]">Saat ini: ••••{channel.target_hint}</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">Saat ini: ••••{channel.target_hint}</span>
                 </div>
 
                 {channel.type === 'TELEGRAM' ? (
-                  <div className="space-y-3.5 p-4 bg-slate-50/80 rounded-2xl border border-slate-200">
+                  <div className="space-y-3.5 p-4 bg-slate-50/80 dark:bg-slate-950/50 rounded-2xl border border-slate-200 dark:border-slate-800">
                     <div>
                       <label
                         htmlFor="drawer-target-token"
-                        className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+                        className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1"
                       >
                         Token Bot Baru <span className="text-rose-500">*</span>
                       </label>
@@ -606,14 +606,14 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
                         placeholder="Masukkan token bot Telegram baru"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-sky-500 transition"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-sky-500 text-slate-900 dark:text-white transition"
                       />
                     </div>
 
                     <div>
                       <label
                         htmlFor="drawer-target-chatid"
-                        className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+                        className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1"
                       >
                         ID Obrolan Baru <span className="text-rose-500">*</span>
                       </label>
@@ -625,15 +625,15 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                         value={chatId}
                         onChange={(e) => setChatId(e.target.value)}
                         placeholder="Masukkan ID chat obrolan baru"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-sky-500 transition"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-sky-500 text-slate-900 dark:text-white transition"
                       />
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-2 p-4 bg-slate-50/80 rounded-2xl border border-slate-200">
+                  <div className="space-y-2 p-4 bg-slate-50/80 dark:bg-slate-950/50 rounded-2xl border border-slate-200 dark:border-slate-800">
                     <label
                       htmlFor="drawer-target-slackurl"
-                      className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1"
+                      className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1"
                     >
                       URL Webhook Baru <span className="text-rose-500">*</span>
                     </label>
@@ -646,7 +646,7 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
                       placeholder="https://hooks.slack.com/services/..."
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-white transition"
                     />
                   </div>
                 )}
@@ -655,12 +655,12 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
 
             {/* SECTION: DELETE MODE */}
             {mode === 'delete' && channel && (
-              <div className="p-4 bg-rose-50/80 border border-rose-200 rounded-2xl space-y-2">
+              <div className="p-4 bg-rose-50/80 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 rounded-2xl space-y-2">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                  <div className="text-xs text-rose-900 leading-relaxed">
+                  <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  <div className="text-xs text-rose-900 dark:text-rose-200 leading-relaxed">
                     <p className="font-bold text-sm">Hapus Kanal &ldquo;{channel.name}&rdquo;?</p>
-                    <p className="mt-1 text-rose-700">
+                    <p className="mt-1 text-rose-700 dark:text-rose-300">
                       Kanal notifikasi ini akan segera dicabut dari database dan otomatis dilepas dari seluruh aturan alarm yang terhubung.
                     </p>
                   </div>
@@ -669,15 +669,15 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
             )}
 
             {/* SECTION 2: INTERACTIVE DRAWER PREVIEW */}
-            <div className="space-y-3 pt-4 border-t border-slate-200">
+            <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-600" />
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                     Pratinjau Langsung (Live Preview)
                   </h3>
                 </div>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-400 dark:text-slate-500">
                   {effectiveType === 'TELEGRAM' ? 'Tampilan Bot Telegram' : 'Tampilan Slack Webhook'}
                 </span>
               </div>
@@ -686,8 +686,8 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
               <div
                 className={`p-4 rounded-2xl border transition relative overflow-hidden ${
                   mode === 'delete'
-                    ? 'border-rose-300 bg-rose-50/50 border-dashed'
-                    : 'border-slate-200 bg-slate-50/70 shadow-2xs'
+                    ? 'border-rose-300 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/40 border-dashed'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 shadow-2xs'
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
@@ -695,29 +695,29 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                     <div
                       className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                         effectiveType === 'TELEGRAM'
-                          ? 'bg-sky-50 text-sky-600 border-sky-200'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-800'
+                          : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                       }`}
                     >
                       <Send className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900 truncate">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
                           {previewName}
                         </span>
                         <span
                           className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
                             effectiveType === 'TELEGRAM'
-                              ? 'bg-sky-50 text-sky-800 border-sky-200'
-                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                              : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                           }`}
                         >
                           {effectiveType === 'TELEGRAM' ? 'Telegram' : 'Slack / Discord'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">
-                        Target: berakhiran <span className="font-bold text-slate-700">••••{previewHint}</span>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                        Target: berakhiran <span className="font-bold text-slate-700 dark:text-slate-300">••••{previewHint}</span>
                       </p>
                     </div>
                   </div>
@@ -725,8 +725,8 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                   <span
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 ${
                       mode === 'delete'
-                        ? 'bg-rose-100 text-rose-800 border-rose-300'
-                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        ? 'bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border-rose-300 dark:border-rose-700'
+                        : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                     }`}
                   >
                     <span
@@ -743,7 +743,7 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
               {mode !== 'delete' && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-slate-500">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                       Simulasi Notifikasi Masuk:
                     </span>
                     <div className="flex items-center gap-1">
@@ -753,10 +753,10 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                             key={code}
                             type="button"
                             onClick={() => setSelectedSample(code)}
-                            className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition ${
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition cursor-pointer ${
                               selectedSample === code
-                                ? 'bg-slate-900 text-white shadow-2xs'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-2xs'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                             }`}
                           >
                             {SAMPLE_ALERTS[code].label}
@@ -768,34 +768,34 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
 
                   {/* Telegram Mockup */}
                   {effectiveType === 'TELEGRAM' ? (
-                    <div className="rounded-2xl border border-sky-200 bg-[#E7EBF0] p-3 text-xs shadow-inner overflow-hidden">
-                      <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-sky-200/60 text-slate-600 text-[11px]">
-                        <Bot className="w-3.5 h-3.5 text-sky-600" />
-                        <span className="font-bold text-slate-800 truncate">{previewName}</span>
-                        <span className="text-[9px] bg-sky-100 text-sky-700 px-1 py-0.2 rounded font-mono">
+                    <div className="rounded-2xl border border-sky-200 dark:border-sky-900/60 bg-[#E7EBF0] dark:bg-[#18222d] p-3 text-xs shadow-inner overflow-hidden">
+                      <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-sky-200/60 dark:border-sky-800/60 text-slate-600 dark:text-slate-300 text-[11px]">
+                        <Bot className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                        <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{previewName}</span>
+                        <span className="text-[9px] bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 px-1 py-0.2 rounded font-mono">
                           bot
                         </span>
                       </div>
 
-                      <div className="bg-white rounded-2xl rounded-tl-xs p-3 shadow-2xs max-w-sm space-y-1 text-slate-800">
-                        <div className="font-bold text-sky-900 text-[11px] flex items-center gap-1.5">
+                      <div className="bg-white dark:bg-[#202c33] rounded-2xl rounded-tl-xs p-3 shadow-2xs max-w-sm space-y-1 text-slate-800 dark:text-slate-100 border border-slate-100 dark:border-slate-700/60">
+                        <div className="font-bold text-sky-900 dark:text-sky-400 text-[11px] flex items-center gap-1.5">
                           <span>🔔</span>
                           <span>{currentSample.telegramText.split('\n')[0]}</span>
                         </div>
-                        <div className="text-[11px] text-slate-600 whitespace-pre-line leading-relaxed">
+                        <div className="text-[11px] text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
                           {currentSample.telegramText.split('\n').slice(1).join('\n')}
                         </div>
-                        <div className="text-[9px] text-slate-400 text-right pt-0.5">
+                        <div className="text-[9px] text-slate-400 dark:text-slate-500 text-right pt-0.5">
                           05:24 ✓✓
                         </div>
                       </div>
                     </div>
                   ) : (
                     /* Slack Mockup */
-                    <div className="rounded-2xl border border-emerald-200 bg-[#F8F8F8] p-3 text-xs shadow-inner overflow-hidden">
-                      <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-200 text-slate-600 text-[11px]">
-                        <Hash className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="font-bold text-slate-800">notifikasi-gateway</span>
+                    <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/60 bg-[#F8F8F8] dark:bg-[#1a232a] p-3 text-xs shadow-inner overflow-hidden">
+                      <div className="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-[11px]">
+                        <Hash className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span className="font-bold text-slate-800 dark:text-slate-200">notifikasi-gateway</span>
                       </div>
 
                       <div className="flex items-start gap-2.5">
@@ -804,20 +804,20 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                         </div>
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-slate-900 text-[11px]">
+                            <span className="font-bold text-slate-900 dark:text-white text-[11px]">
                               {previewName}
                             </span>
-                            <span className="text-[9px] bg-slate-200 text-slate-700 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
+                            <span className="text-[9px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1 py-0.2 rounded font-bold uppercase tracking-wider">
                               APP
                             </span>
-                            <span className="text-[10px] text-slate-400">Hari ini pukul 05:24</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">Hari ini pukul 05:24</span>
                           </div>
 
-                          <div className="pl-2.5 border-l-2 border-emerald-500 text-[11px] text-slate-800 space-y-0.5">
-                            <div className="font-bold text-slate-900">
+                          <div className="pl-2.5 border-l-2 border-emerald-500 text-[11px] text-slate-800 dark:text-slate-200 space-y-0.5">
+                            <div className="font-bold text-slate-900 dark:text-white">
                               {currentSample.slackText.split('\n')[0].replace(/\*/g, '')}
                             </div>
-                            <div className="text-slate-600 whitespace-pre-line leading-relaxed">
+                            <div className="text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
                               {currentSample.slackText.split('\n').slice(1).join('\n').replace(/\*/g, '')}
                             </div>
                           </div>
@@ -830,10 +830,10 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
             </div>
 
             {/* SECTION 3: PASSWORD CONFIRMATION */}
-            <div className="pt-4 border-t border-slate-200">
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
               <label
                 htmlFor="drawer-password-input"
-                className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
+                className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5"
               >
                 Kata Sandi Akun Anda <span className="text-rose-500">*</span>
               </label>
@@ -847,31 +847,31 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Masukkan kata sandi untuk konfirmasi keamanan..."
-                  className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
+                  className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white transition"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
                   aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="mt-1 text-[11px] text-slate-400">
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
                 Wajib diisi untuk memverifikasi hak administratif (Owner/Admin) sebelum kredensial disimpan.
               </p>
             </div>
           </div>
 
           {/* Drawer Sticky Footer Actions */}
-          <div className="p-4 px-6 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+          <div className="p-4 px-6 bg-slate-50 dark:bg-slate-950/70 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
             >
               Batal
             </button>
@@ -879,7 +879,7 @@ export const AlertChannelDrawer: React.FC<AlertChannelDrawerProps> = ({
             <button
               type="submit"
               disabled={isSubmitting || (rateLimitWait !== null && rateLimitWait > 0)}
-              className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-xs transition ${
+              className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-xs transition cursor-pointer ${
                 mode === 'delete'
                   ? 'bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400'
                   : 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400'

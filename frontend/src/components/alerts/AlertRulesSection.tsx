@@ -230,19 +230,19 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-7 space-y-6">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-6 sm:p-7 space-y-6">
       {/* Header */}
-      <div className="pb-5 border-b border-slate-100">
+      <div className="pb-5 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
-          <h2 className="text-base sm:text-lg font-bold text-slate-900">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
             Aturan Notifikasi & Ambang Batas
           </h2>
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-            <Bell className="w-3.5 h-3.5 text-slate-500" />
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <Bell className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
             <span>{catalog?.rules.length ?? '—'} Aturan</span>
           </span>
         </div>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
           Tentukan kondisi pemicu, batas toleransi, dan kanal penerima untuk masing-masing jenis kejadian gateway.
         </p>
       </div>
@@ -279,8 +279,8 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
       {/* Rules List */}
       {isLoading ? (
         <div className="py-12 text-center space-y-3">
-          <Loader2 className="w-6 h-6 animate-spin text-emerald-600 mx-auto" />
-          <p className="text-xs text-slate-500">Memuat konfigurasi aturan notifikasi...</p>
+          <Loader2 className="w-6 h-6 animate-spin text-emerald-600 dark:text-emerald-400 mx-auto" />
+          <p className="text-xs text-slate-500 dark:text-slate-400">Memuat konfigurasi aturan notifikasi...</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -297,25 +297,25 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
                 key={catRule.code}
                 className={`p-5 rounded-2xl border transition space-y-4 ${
                   state.enabled
-                    ? 'bg-white border-slate-200 shadow-2xs hover:border-slate-300'
-                    : 'bg-slate-50/60 border-slate-200/80 opacity-80'
+                    ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700'
+                    : 'bg-slate-50/60 dark:bg-slate-950/40 border-slate-200/80 dark:border-slate-800 opacity-80'
                 }`}
               >
                 {/* Title & switch row */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2.5">
-                      <h3 className="text-sm font-bold text-slate-900">{catRule.label}</h3>
-                      <code className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">{catRule.label}</h3>
+                      <code className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                         {catRule.code}
                       </code>
                     </div>
-                    <p className="text-xs text-slate-500 max-w-2xl">{catRule.description}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl">{catRule.description}</p>
                   </div>
 
                   {/* Switch */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] font-medium text-slate-500">
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                       {state.enabled ? 'Aktif' : 'Nonaktif'}
                     </span>
                     <button
@@ -325,7 +325,7 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
                       disabled={disabled || isSaving}
                       onClick={() => handleToggleRule(catRule.code)}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed ${
-                        state.enabled ? 'bg-emerald-600' : 'bg-slate-300'
+                        state.enabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                       aria-label={`Ubah status aturan ${catRule.label}`}
                     >
@@ -340,20 +340,20 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
 
                 {/* Error message */}
                 {error && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                     <span>{error}</span>
                   </div>
                 )}
 
                 {/* Inputs Row (Threshold & Cooldown & Channel Selector) */}
-                <div className="pt-3 border-t border-slate-100 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                   {/* Threshold Input (if supported) */}
                   {catRule.threshold && (
                     <div className="md:col-span-3">
                       <label
                         htmlFor={`threshold-${catRule.code}`}
-                        className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1"
+                        className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1"
                       >
                         Ambang Toleransi
                       </label>
@@ -368,13 +368,13 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
                           onChange={(e) =>
                             handleThresholdChange(catRule.code, parseInt(e.target.value, 10))
                           }
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white disabled:opacity-50 transition"
+                          className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-900 disabled:opacity-50 text-slate-900 dark:text-white transition"
                         />
-                        <span className="absolute right-2.5 top-1.5 text-[11px] font-medium text-slate-500 pointer-events-none">
+                        <span className="absolute right-2.5 top-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 pointer-events-none">
                           {catRule.threshold.unit}
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 block">
                         Rentang: {catRule.threshold.min}–{catRule.threshold.max} {catRule.threshold.unit}
                       </span>
                     </div>
@@ -385,7 +385,7 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
                     <div className="md:col-span-3">
                       <label
                         htmlFor={`cooldown-${catRule.code}`}
-                        className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1"
+                        className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1"
                       >
                         Jeda Ulang (Cooldown)
                       </label>
@@ -400,13 +400,13 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
                           onChange={(e) =>
                             handleCooldownChange(catRule.code, parseInt(e.target.value, 10))
                           }
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white disabled:opacity-50 transition"
+                          className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:bg-white dark:focus:bg-slate-900 disabled:opacity-50 text-slate-900 dark:text-white transition"
                         />
-                        <span className="absolute right-2.5 top-1.5 text-[11px] font-medium text-slate-500 pointer-events-none">
+                        <span className="absolute right-2.5 top-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 pointer-events-none">
                           menit
                         </span>
                       </div>
-                      <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 block">
                         Rentang: {catalog.cooldown.min}–{catalog.cooldown.max} menit
                       </span>
                     </div>
@@ -422,12 +422,12 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
                         : 'md:col-span-10'
                     }`}
                   >
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                       Kanal Tujuan ({state.channel_ids.length}/5 terpilih)
                     </label>
 
                     {channels.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-1.5">
+                      <p className="text-xs text-slate-400 dark:text-slate-500 italic py-1.5">
                         Belum ada kanal dibuat. Buat kanal terlebih dahulu di atas.
                       </p>
                     ) : (
@@ -440,10 +440,10 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
                               type="button"
                               disabled={disabled || !state.enabled}
                               onClick={() => handleToggleChannel(catRule.code, ch.id)}
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border transition disabled:opacity-50 ${
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium border transition disabled:opacity-50 cursor-pointer ${
                                 isSelected
-                                  ? 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold'
-                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-200 border-emerald-300 dark:border-emerald-800 font-bold'
+                                  : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
                               }`}
                             >
                               <span

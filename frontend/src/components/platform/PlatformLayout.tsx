@@ -166,23 +166,6 @@ export const PlatformLayout: React.FC = () => {
           </div>
         ))}
       </nav>
-
-      {/* Logout Footer */}
-      <div className="p-3 border-t border-slate-800">
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-slate-950/80 hover:bg-rose-950/60 text-xs font-semibold text-slate-300 hover:text-rose-300 border border-slate-800 transition cursor-pointer"
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-purple-900/60 text-purple-300 flex items-center justify-center font-bold text-[10px]">
-              OP
-            </div>
-            <span>Keluar Sesi</span>
-          </div>
-          <LogOut className="w-4 h-4 text-slate-500" />
-        </button>
-      </div>
     </div>
   );
 

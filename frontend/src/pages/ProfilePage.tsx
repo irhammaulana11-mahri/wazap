@@ -228,7 +228,7 @@ export const ProfilePage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Page Header with User Profile Summary Card */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-7 relative overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-6 sm:p-7 relative overflow-hidden">
         {/* Decorative Top Accent */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600" />
 
@@ -240,14 +240,14 @@ export const ProfilePage: React.FC = () => {
                 {userInitial}
               </div>
               <span
-                className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-emerald-600/20"
+                className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 ring-1 ring-emerald-600/20"
                 title="Sesi Aktif"
               />
             </div>
 
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                   {user?.email}
                 </h1>
                 <span
@@ -257,24 +257,24 @@ export const ProfilePage: React.FC = () => {
                   <span>{roleInfo.label}</span>
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-500 flex items-center gap-2">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <span>Pusat Kendali Profil & Keamanan Akun</span>
-                <span className="text-slate-300">•</span>
-                <span className="text-emerald-700 font-medium">Sesi HttpOnly Terlindungi</span>
+                <span className="text-slate-300 dark:text-slate-600">•</span>
+                <span className="text-emerald-700 dark:text-emerald-400 font-medium">Sesi HttpOnly Terlindungi</span>
               </p>
             </div>
           </div>
 
           {/* Active Workspace Pill */}
-          <div className="flex items-center gap-3 p-3 sm:px-4 sm:py-3 bg-slate-50 rounded-2xl border border-slate-200/80 shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-3 p-3 sm:px-4 sm:py-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700 shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
                 Workspace Aktif
               </span>
-              <span className="text-sm font-bold text-slate-900 block truncate max-w-[180px]">
+              <span className="text-sm font-bold text-slate-900 dark:text-white block truncate max-w-[180px]">
                 {tenant?.name || 'Workspace'}
               </span>
             </div>
@@ -282,14 +282,14 @@ export const ProfilePage: React.FC = () => {
         </div>
 
         {/* Tab Navigation Menu */}
-        <div className="flex items-center gap-1.5 mt-7 pt-4 border-t border-slate-100 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 mt-7 pt-4 border-t border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
               activeTab === 'overview'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800'
             }`}
           >
             <User className="w-4 h-4" />
@@ -299,10 +299,10 @@ export const ProfilePage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('security')}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap relative ${
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap relative cursor-pointer ${
               activeTab === 'security'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800'
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
@@ -315,10 +315,10 @@ export const ProfilePage: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab('quota')}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap ${
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
               activeTab === 'quota'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800'
             }`}
           >
             <Sliders className="w-4 h-4" />
@@ -333,16 +333,16 @@ export const ProfilePage: React.FC = () => {
           {/* Identity Grid Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* User ID */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 User ID (Sistem)
               </span>
-              <div className="flex items-center justify-between font-mono font-bold text-xs text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <div className="flex items-center justify-between font-mono font-bold text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                 <span className="truncate pr-2">{user?.id || '-'}</span>
                 <button
                   type="button"
                   onClick={() => user?.id && handleCopyId(user.id, 'User ID')}
-                  className="text-slate-400 hover:text-emerald-600 transition p-1"
+                  className="text-slate-400 hover:text-emerald-600 transition p-1 cursor-pointer"
                   title="Salin User ID"
                 >
                   {copiedId === 'User ID' ? (
@@ -352,20 +352,20 @@ export const ProfilePage: React.FC = () => {
                   )}
                 </button>
               </div>
-              <p className="text-[10px] text-slate-400">Pengidentifikasi unik akun di seluruh gateway</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">Pengidentifikasi unik akun di seluruh gateway</p>
             </div>
 
             {/* Tenant ID */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 Tenant ID (Workspace)
               </span>
-              <div className="flex items-center justify-between font-mono font-bold text-xs text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <div className="flex items-center justify-between font-mono font-bold text-xs text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                 <span className="truncate pr-2">{tenant?.id || '-'}</span>
                 <button
                   type="button"
                   onClick={() => tenant?.id && handleCopyId(tenant.id, 'Tenant ID')}
-                  className="text-slate-400 hover:text-emerald-600 transition p-1"
+                  className="text-slate-400 hover:text-emerald-600 transition p-1 cursor-pointer"
                   title="Salin Tenant ID"
                 >
                   {copiedId === 'Tenant ID' ? (
@@ -375,61 +375,61 @@ export const ProfilePage: React.FC = () => {
                   )}
                 </button>
               </div>
-              <p className="text-[10px] text-slate-400">Isolasi basis data dan partisi sesi</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">Isolasi basis data dan partisi sesi</p>
             </div>
 
             {/* Sesi Keamanan */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 Arsitektur Sesi
               </span>
-              <div className="flex items-center gap-2 bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-100 text-xs font-bold text-emerald-800">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="flex items-center gap-2 bg-emerald-50/60 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-100 dark:border-emerald-800/80 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span>In-Memory Token</span>
               </div>
-              <p className="text-[10px] text-slate-400">Refresh via HttpOnly cookie tanpa localStorage</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">Refresh via HttpOnly cookie tanpa localStorage</p>
             </div>
 
             {/* Keanggotaan Workspace */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs space-y-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 Jumlah Workspace
               </span>
-              <div className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs font-bold text-slate-800">
-                <Building2 className="w-4 h-4 text-slate-600 shrink-0" />
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200">
+                <Building2 className="w-4 h-4 text-slate-600 dark:text-slate-400 shrink-0" />
                 <span>{memberships.length} Terdaftar</span>
               </div>
-              <p className="text-[10px] text-slate-400 truncate">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
                 {memberships.map((m) => m.name).join(', ')}
               </p>
             </div>
           </div>
 
           {/* Role Description Card */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs space-y-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700">
+              <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                 {roleInfo.icon}
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                   Tanggung Jawab Peran: {roleInfo.label}
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">{roleInfo.desc}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{roleInfo.desc}</p>
               </div>
             </div>
           </div>
 
           {/* Theme Preference Settings */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">Preferensi Tema Tampilan</h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Preferensi Tema Tampilan</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Sesuaikan tema antarmuka dashboard sesuai kenyamanan visual Anda.
                 </p>
               </div>
-              <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 self-start sm:self-auto">
+              <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 self-start sm:self-auto border border-slate-200 dark:border-slate-700">
                 Aktif: {theme === 'system' ? `Sistem (${resolvedTheme === 'dark' ? 'Gelap' : 'Terang'})` : theme === 'dark' ? 'Gelap' : 'Terang'}
               </span>
             </div>
@@ -440,16 +440,16 @@ export const ProfilePage: React.FC = () => {
                 onClick={() => setTheme('light')}
                 className={`flex items-center gap-3 p-3.5 rounded-2xl border transition text-left cursor-pointer ${
                   theme === 'light'
-                    ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20'
-                    : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
+                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100/70 dark:hover:bg-slate-800'
                 }`}
               >
-                <div className={`p-2 rounded-xl ${theme === 'light' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                <div className={`p-2 rounded-xl ${theme === 'light' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
                   <Sun className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-900 block">Mode Terang</span>
-                  <span className="text-[11px] text-slate-500 block">Tampilan cerah standar</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white block">Mode Terang</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Tampilan cerah standar</span>
                 </div>
               </button>
 
@@ -458,16 +458,16 @@ export const ProfilePage: React.FC = () => {
                 onClick={() => setTheme('dark')}
                 className={`flex items-center gap-3 p-3.5 rounded-2xl border transition text-left cursor-pointer ${
                   theme === 'dark'
-                    ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20'
-                    : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
+                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100/70 dark:hover:bg-slate-800'
                 }`}
               >
-                <div className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                <div className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
                   <Moon className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-900 block">Mode Gelap</span>
-                  <span className="text-[11px] text-slate-500 block">Nyaman untuk mata malam hari</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white block">Mode Gelap</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Nyaman untuk mata malam hari</span>
                 </div>
               </button>
 
@@ -476,40 +476,40 @@ export const ProfilePage: React.FC = () => {
                 onClick={() => setTheme('system')}
                 className={`flex items-center gap-3 p-3.5 rounded-2xl border transition text-left cursor-pointer ${
                   theme === 'system'
-                    ? 'border-emerald-500 bg-emerald-50/50 ring-2 ring-emerald-500/20'
-                    : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/70'
+                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100/70 dark:hover:bg-slate-800'
                 }`}
               >
-                <div className={`p-2 rounded-xl ${theme === 'system' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                <div className={`p-2 rounded-xl ${theme === 'system' ? 'bg-emerald-600 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}>
                   <Monitor className="w-4 h-4" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-900 block">Ikuti Sistem</span>
-                  <span className="text-[11px] text-slate-500 block">Otomatis sinkron OS</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white block">Ikuti Sistem</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Otomatis sinkron OS</span>
                 </div>
               </button>
             </div>
           </div>
 
           {/* Permissions Matrix Table */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="font-bold text-slate-900 text-sm">
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm">
                   Matriks Hak Akses & Kewenangan Peran
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Tabel perbandingan izin operasional berdasarkan peran di workspace.
                 </p>
               </div>
-              <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 self-start sm:self-auto">
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 self-start sm:self-auto">
                 Peran Aktif: {role}
               </span>
             </div>
 
-            <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
               <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                <thead className="bg-slate-50 dark:bg-slate-950/60 text-slate-700 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     <th className="py-3 px-4">Fitur & Kemampuan Sistem</th>
                     <th className="py-3 px-3 text-center">OWNER</th>
@@ -517,54 +517,54 @@ export const ProfilePage: React.FC = () => {
                     <th className="py-3 px-3 text-center">VIEWER</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  <tr className={role === 'OWNER' ? 'bg-amber-50/30' : ''}>
-                    <td className="py-3 px-4 font-medium text-slate-800">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                  <tr className={role === 'OWNER' ? 'bg-amber-50/30 dark:bg-amber-950/20' : ''}>
+                    <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                       Kirim & Balas Pesan WhatsApp
                     </td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
+                    <td className="py-3 px-3 text-center text-emerald-600 dark:text-emerald-400 font-bold">✓</td>
+                    <td className="py-3 px-3 text-center text-emerald-600 dark:text-emerald-400 font-bold">✓</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
                   </tr>
-                  <tr className={role === 'MEMBER' ? 'bg-emerald-50/30' : ''}>
-                    <td className="py-3 px-4 font-medium text-slate-800">
+                  <tr className={role === 'MEMBER' ? 'bg-emerald-50/30 dark:bg-emerald-950/20' : ''}>
+                    <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                       Hubungkan Sesi & Scan QR WA
                     </td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
+                    <td className="py-3 px-3 text-center text-emerald-600 dark:text-emerald-400 font-bold">✓</td>
+                    <td className="py-3 px-3 text-center text-emerald-600 dark:text-emerald-400 font-bold">✓</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
                   </tr>
-                  <tr className={role === 'OWNER' ? 'bg-amber-50/30' : ''}>
-                    <td className="py-3 px-4 font-medium text-slate-800">
+                  <tr className={role === 'OWNER' ? 'bg-amber-50/30 dark:bg-amber-950/20' : ''}>
+                    <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                       Manajemen Kunci API & Webhook
                     </td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
+                    <td className="py-3 px-3 text-center text-emerald-600 dark:text-emerald-400 font-bold">✓</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
                   </tr>
-                  <tr className={role === 'OWNER' ? 'bg-amber-50/30' : ''}>
-                    <td className="py-3 px-4 font-medium text-slate-800">
+                  <tr className={role === 'OWNER' ? 'bg-amber-50/30 dark:bg-amber-950/20' : ''}>
+                    <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                       Undang & Atur Anggota Tim
                     </td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
+                    <td className="py-3 px-3 text-center text-emerald-600 dark:text-emerald-400 font-bold">✓</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
                   </tr>
-                  <tr className={role === 'OWNER' ? 'bg-amber-50/30' : ''}>
-                    <td className="py-3 px-4 font-medium text-slate-800">
+                  <tr className={role === 'OWNER' ? 'bg-amber-50/30 dark:bg-amber-950/20' : ''}>
+                    <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                       Alokasi Kuota & Pengaturan Workspace
                     </td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
+                    <td className="py-3 px-3 text-center text-emerald-600 dark:text-emerald-400 font-bold">✓</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
                   </tr>
-                  <tr className={role === 'VIEWER' ? 'bg-slate-50' : ''}>
-                    <td className="py-3 px-4 font-medium text-slate-800">
+                  <tr className={role === 'VIEWER' ? 'bg-slate-50 dark:bg-slate-950/40' : ''}>
+                    <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                       Pantau Log Audit & Analitik
                     </td>
-                    <td className="py-3 px-3 text-center text-emerald-600 font-bold">✓</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
-                    <td className="py-3 px-3 text-center text-slate-300">-</td>
+                    <td className="py-3 px-3 text-center text-emerald-600 dark:text-emerald-400 font-bold">✓</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
+                    <td className="py-3 px-3 text-center text-slate-300 dark:text-slate-600">-</td>
                   </tr>
                 </tbody>
               </table>
@@ -577,17 +577,17 @@ export const ProfilePage: React.FC = () => {
       {activeTab === 'security' && (
         <div className="space-y-6 animate-in fade-in duration-150">
           {/* Status Kode Pemulihan Banner */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-600">
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 text-amber-600 dark:text-amber-400">
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                     Status Kode Pemulihan Akun (Zero-Email Recovery)
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     Pengganti fitur lupa sandi tanpa pengiriman email untuk privasi dan isolasi data penuh.
                   </p>
                 </div>
@@ -595,26 +595,26 @@ export const ProfilePage: React.FC = () => {
 
               <div className="flex items-center gap-2">
                 {recovery?.confirmed ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>Terkonfirmasi Tersimpan</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                     <span>Belum Dikonfirmasi</span>
                   </span>
                 )}
 
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                   {recovery?.codes_remaining != null ? `${recovery.codes_remaining} Kode Aktif` : '-'}
                 </span>
               </div>
             </div>
 
-            <div className="pt-4 text-xs text-slate-600 leading-relaxed space-y-1">
+            <div className="pt-4 text-xs text-slate-600 dark:text-slate-400 leading-relaxed space-y-1">
               <p>
-                • Setiap kode pemulihan diawali format <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-800">RC-XXXXX-...</code> dan hanya berlaku <strong>satu kali pakai</strong>.
+                • Setiap kode pemulihan diawali format <code className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">RC-XXXXX-...</code> dan hanya berlaku <strong>satu kali pakai</strong>.
               </p>
               <p>
                 • Jika sisa kode Anda tinggal 2 atau kurang, disarankan menerbitkan himpunan kode baru di bawah agar akun tidak terkunci permanen jika lupa kata sandi.
@@ -625,15 +625,15 @@ export const ProfilePage: React.FC = () => {
           {/* Grid Security Forms */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Card: Ganti Kata Sandi */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
-              <div className="flex items-center gap-2 text-slate-900 pb-2 border-b border-slate-100">
-                <Lock className="w-4 h-4 text-emerald-600" />
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800">
+                <Lock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 <h3 className="text-xs font-bold uppercase tracking-wider">Perbarui Kata Sandi</h3>
               </div>
 
               <form onSubmit={handleChangePassword} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     Kata Sandi Saat Ini
                   </label>
                   <input
@@ -642,16 +642,16 @@ export const ProfilePage: React.FC = () => {
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="••••••••••••"
                     required
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold text-slate-700">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
                       Kata Sandi Baru
                     </label>
-                    <span className="text-[11px] text-slate-400">Min. 10 karakter</span>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500">Min. 10 karakter</span>
                   </div>
                   <div className="relative">
                     <input
@@ -660,12 +660,12 @@ export const ProfilePage: React.FC = () => {
                       onChange={(e) => setNewPassword(e.target.value)}
                       placeholder="Minimal 10 karakter"
                       required
-                      className="w-full px-3.5 py-2.5 pr-10 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full px-3.5 py-2.5 pr-10 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -673,14 +673,14 @@ export const ProfilePage: React.FC = () => {
                 </div>
 
                 {pwError && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{pwError}</span>
                   </div>
                 )}
 
                 {pwSuccess && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs flex items-center gap-2">
                     <Check className="w-4 h-4 shrink-0" />
                     <span>{pwSuccess}</span>
                   </div>
@@ -689,7 +689,7 @@ export const ProfilePage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={pwLoading}
-                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-50"
+                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {pwLoading ? 'Memperbarui...' : 'Simpan Kata Sandi Baru'}
                 </button>
@@ -697,15 +697,15 @@ export const ProfilePage: React.FC = () => {
             </div>
 
             {/* Card: Ganti Email */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
-              <div className="flex items-center gap-2 text-slate-900 pb-2 border-b border-slate-100">
-                <Mail className="w-4 h-4 text-blue-600" />
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800">
+                <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <h3 className="text-xs font-bold uppercase tracking-wider">Perbarui Alamat Email</h3>
               </div>
 
               <form onSubmit={handleChangeEmail} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     Alamat Email Baru
                   </label>
                   <input
@@ -714,12 +714,12 @@ export const ProfilePage: React.FC = () => {
                     onChange={(e) => setNewEmail(e.target.value)}
                     placeholder="email.baru@perusahaan.com"
                     required
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     Konfirmasi Kata Sandi Akun
                   </label>
                   <input
@@ -728,19 +728,19 @@ export const ProfilePage: React.FC = () => {
                     onChange={(e) => setEmailPassword(e.target.value)}
                     placeholder="••••••••••••"
                     required
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 {emailError && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{emailError}</span>
                   </div>
                 )}
 
                 {emailSuccess && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs flex items-center gap-2">
                     <Check className="w-4 h-4 shrink-0" />
                     <span>{emailSuccess}</span>
                   </div>
@@ -749,7 +749,7 @@ export const ProfilePage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={emailLoading}
-                  className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-50"
+                  className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {emailLoading ? 'Menyimpan...' : 'Perbarui Alamat Email'}
                 </button>
@@ -757,18 +757,18 @@ export const ProfilePage: React.FC = () => {
             </div>
 
             {/* Card: Buat Kode Pemulihan Baru */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
-              <div className="flex items-center gap-2 text-slate-900 pb-2 border-b border-slate-100">
-                <KeyRound className="w-4 h-4 text-amber-600" />
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 text-slate-900 dark:text-white pb-2 border-b border-slate-100 dark:border-slate-800">
+                <KeyRound className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 <h3 className="text-xs font-bold uppercase tracking-wider">Terbitkan Kode Pemulihan Baru</h3>
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                 Menerbitkan himpunan baru akan otomatis <strong>menghanguskan</strong> 8 kode lama Anda. Pastikan menyalin atau mengunduh kode baru di tempat aman.
               </p>
 
               <form onSubmit={handleIssueRecoveryCode} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     Masukkan Kata Sandi Anda
                   </label>
                   <input
@@ -777,12 +777,12 @@ export const ProfilePage: React.FC = () => {
                     onChange={(e) => setRcPassword(e.target.value)}
                     placeholder="••••••••••••"
                     required
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs sm:text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
                 {rcError && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{rcError}</span>
                   </div>
@@ -791,7 +791,7 @@ export const ProfilePage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={rcLoading}
-                  className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-50"
+                  className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {rcLoading ? 'Menerbitkan...' : 'Terbitkan 8 Kode Pemulihan Baru'}
                 </button>
@@ -799,13 +799,13 @@ export const ProfilePage: React.FC = () => {
             </div>
 
             {/* Card: Keluar Dari Semua Perangkat */}
-            <div className="bg-white rounded-3xl border border-rose-200 p-6 sm:p-7 shadow-xs space-y-4 flex flex-col justify-between">
-              <div className="space-y-2 pb-2 border-b border-rose-100">
-                <div className="flex items-center gap-2 text-rose-900">
-                  <LogOut className="w-4 h-4 text-rose-600" />
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-rose-200 dark:border-rose-900/60 p-6 sm:p-7 shadow-xs space-y-4 flex flex-col justify-between">
+              <div className="space-y-2 pb-2 border-b border-rose-100 dark:border-rose-900/40">
+                <div className="flex items-center gap-2 text-rose-900 dark:text-rose-300">
+                  <LogOut className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                   <h3 className="text-xs font-bold uppercase tracking-wider">Keluar dari Semua Perangkat</h3>
                 </div>
-                <p className="text-xs text-rose-700 leading-relaxed">
+                <p className="text-xs text-rose-700 dark:text-rose-300/90 leading-relaxed">
                   Tindakan ini akan mencabut seluruh token sesi aktif akun Anda di seluruh perangkat (browser, HP, laptop). Anda akan langsung dikeluarkan dari sesi saat ini.
                 </p>
               </div>
@@ -814,7 +814,7 @@ export const ProfilePage: React.FC = () => {
                 type="button"
                 onClick={handleLogoutAll}
                 disabled={logoutAllLoading}
-                className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-50"
+                className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
               >
                 {logoutAllLoading ? 'Mengeluarkan...' : 'Keluar dari Semua Perangkat (Logout All)'}
               </button>
@@ -827,16 +827,16 @@ export const ProfilePage: React.FC = () => {
       {activeTab === 'quota' && (
         <div className="space-y-6 animate-in fade-in duration-150">
           {/* Quota Overview Card */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/90 dark:border-slate-800 p-6 sm:p-7 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <div className="flex items-center gap-2">
-                  <Sliders className="w-5 h-5 text-emerald-600" />
-                  <h2 className="text-base font-bold text-slate-900">
+                  <Sliders className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
                     Status Alokasi Kuota Workspace
                   </h2>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   Batas kapasitas sumber daya gateway dan pemakaian riil saat ini.
                 </p>
               </div>
@@ -850,7 +850,7 @@ export const ProfilePage: React.FC = () => {
                   <span>Buka Pengaturan</span>
                 </Link>
               ) : (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700">
                   <Lock className="w-3.5 h-3.5 text-slate-400" />
                   <span>Mode Baca-Saja (Read-Only)</span>
                 </div>
@@ -893,18 +893,18 @@ export const ProfilePage: React.FC = () => {
             {/* Quota Indicators Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Max WhatsApp Sessions */}
-              <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
-                <div className="flex items-center justify-between text-slate-500">
+              <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-3">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
                   <span className="text-xs font-bold uppercase tracking-wider">Sesi WhatsApp</span>
-                  <Smartphone className="w-4 h-4 text-emerald-600" />
+                  <Smartphone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <div className="text-2xl font-black text-slate-900">
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
                   {settings?.used?.sessions ?? usageSummary?.sessions?.connected ?? 0}
-                  <span className="text-xs font-normal text-slate-400 ml-1.5">
+                  <span className="text-xs font-normal text-slate-400 dark:text-slate-500 ml-1.5">
                     / {settings?.limits?.max_sessions ?? 5} maks
                   </span>
                 </div>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div
                     className="bg-emerald-500 h-full rounded-full transition-all"
                     style={{
@@ -918,31 +918,31 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               {/* Rate Limit Throughput */}
-              <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
-                <div className="flex items-center justify-between text-slate-500">
+              <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-3">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
                   <span className="text-xs font-bold uppercase tracking-wider">Batas Kirim (Rate Limit)</span>
-                  <Activity className="w-4 h-4 text-blue-600" />
+                  <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div className="text-2xl font-black text-slate-900">
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
                   {settings?.limits?.messages_per_minute ?? 60}
-                  <span className="text-xs font-normal text-slate-400 ml-1.5">pesan / menit</span>
+                  <span className="text-xs font-normal text-slate-400 dark:text-slate-500 ml-1.5">pesan / menit</span>
                 </div>
-                <p className="text-[11px] text-slate-400">Proteksi antrean anti-ban WhatsApp</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">Proteksi antrean anti-ban WhatsApp</p>
               </div>
 
               {/* Max Team Members */}
-              <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
-                <div className="flex items-center justify-between text-slate-500">
+              <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-3">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
                   <span className="text-xs font-bold uppercase tracking-wider">Anggota Tim</span>
-                  <Users className="w-4 h-4 text-purple-600" />
+                  <Users className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 </div>
-                <div className="text-2xl font-black text-slate-900">
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
                   {settings?.used?.members ?? memberships.length}
-                  <span className="text-xs font-normal text-slate-400 ml-1.5">
+                  <span className="text-xs font-normal text-slate-400 dark:text-slate-500 ml-1.5">
                     / {settings?.limits?.max_members ?? 5} maks
                   </span>
                 </div>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div
                     className="bg-purple-500 h-full rounded-full transition-all"
                     style={{
@@ -956,18 +956,18 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               {/* Max API Keys */}
-              <div className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-3">
-                <div className="flex items-center justify-between text-slate-500">
+              <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 space-y-3">
+                <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
                   <span className="text-xs font-bold uppercase tracking-wider">Kunci Akses API</span>
-                  <Key className="w-4 h-4 text-amber-600" />
+                  <Key className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 </div>
-                <div className="text-2xl font-black text-slate-900">
+                <div className="text-2xl font-black text-slate-900 dark:text-white">
                   {settings?.used?.api_keys ?? 0}
-                  <span className="text-xs font-normal text-slate-400 ml-1.5">
+                  <span className="text-xs font-normal text-slate-400 dark:text-slate-500 ml-1.5">
                     / {settings?.limits?.max_api_keys ?? 5} maks
                   </span>
                 </div>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div
                     className="bg-amber-500 h-full rounded-full transition-all"
                     style={{

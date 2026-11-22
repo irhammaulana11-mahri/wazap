@@ -11,6 +11,8 @@ import {
   RefreshCw,
   AlertCircle,
   Clock,
+  Sparkles,
+  X,
 } from 'lucide-react';
 
 export const PlatformDefaultsPage: React.FC = () => {
@@ -218,102 +220,178 @@ export const PlatformDefaultsPage: React.FC = () => {
         </div>
       ) : null}
 
-      {/* Modal Edit Defaults */}
+      {/* Drawer Preview: Edit Defaults */}
       {isEditModalOpen && defaults && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Ubah Kuota Bawaan Sistem</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Nilai yang sama dengan saat ini akan dilewati secara otomatis.
-              </p>
-            </div>
-
-            {actionError && (
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs">
-                {actionError}
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => setIsEditModalOpen(false)}
+          />
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col z-10 border-l border-slate-200 dark:border-slate-800 animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-950/60">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 flex items-center justify-center shrink-0">
+                  <Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Pratinjau & Ubah Kuota Bawaan</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Standar alokasi untuk workspace baru terdaftar
+                  </p>
+                </div>
               </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Sesi WA</label>
-                <input
-                  type="number"
-                  value={maxSessions}
-                  onChange={(e) => setMaxSessions(e.target.value === '' ? '' : Number(e.target.value))}
-                  min={defaults.minimums.max_sessions}
-                  max={defaults.ceilings.max_sessions}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Kunci API</label>
-                <input
-                  type="number"
-                  value={maxApiKeys}
-                  onChange={(e) => setMaxApiKeys(e.target.value === '' ? '' : Number(e.target.value))}
-                  min={defaults.minimums.max_api_keys}
-                  max={defaults.ceilings.max_api_keys}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Anggota</label>
-                <input
-                  type="number"
-                  value={maxMembers}
-                  onChange={(e) => setMaxMembers(e.target.value === '' ? '' : Number(e.target.value))}
-                  min={defaults.minimums.max_members}
-                  max={defaults.ceilings.max_members}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Throughput (msg/m)</label>
-                <input
-                  type="number"
-                  value={messagesPerMinute}
-                  onChange={(e) => setMessagesPerMinute(e.target.value === '' ? '' : Number(e.target.value))}
-                  min={defaults.minimums.messages_per_minute}
-                  max={defaults.ceilings.messages_per_minute}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Alasan Kebijakan (Wajib)</label>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Contoh: Penyesuaian paket tier gratis platform v2.1"
-                rows={2}
-                required
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Kode TOTP Operator</label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="6 digit kode autentikator"
-                required
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                aria-label="Tutup panel ubah kuota bawaan"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {actionError && (
+                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 rounded-xl text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{actionError}</span>
+                </div>
+              )}
+
+              {/* Live Preview Comparison Card */}
+              <div className="p-4 bg-purple-50/60 dark:bg-purple-950/40 rounded-2xl border border-purple-200/80 dark:border-purple-900/50 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span className="text-xs font-bold text-purple-900 dark:text-purple-200 uppercase tracking-wider">
+                    Ringkasan Pratinjau Nilai Bawaan
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 text-xs">
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Sesi WA:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {defaults.limits.max_sessions} → <span className="text-purple-600 dark:text-purple-400">{maxSessions || defaults.limits.max_sessions}</span>
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Kunci API:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {defaults.limits.max_api_keys} → <span className="text-purple-600 dark:text-purple-400">{maxApiKeys || defaults.limits.max_api_keys}</span>
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Anggota:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {defaults.limits.max_members} → <span className="text-purple-600 dark:text-purple-400">{maxMembers || defaults.limits.max_members}</span>
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-purple-100 dark:border-slate-800 space-y-0.5">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Throughput:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {defaults.limits.messages_per_minute} → <span className="text-purple-600 dark:text-purple-400">{messagesPerMinute || defaults.limits.messages_per_minute}</span> msg/m
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Inputs */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Sesi WA</label>
+                    <input
+                      type="number"
+                      value={maxSessions}
+                      onChange={(e) => setMaxSessions(e.target.value === '' ? '' : Number(e.target.value))}
+                      min={defaults.minimums.max_sessions}
+                      max={defaults.ceilings.max_sessions}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      Batas: {defaults.minimums.max_sessions}–{defaults.ceilings.max_sessions}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Kunci API</label>
+                    <input
+                      type="number"
+                      value={maxApiKeys}
+                      onChange={(e) => setMaxApiKeys(e.target.value === '' ? '' : Number(e.target.value))}
+                      min={defaults.minimums.max_api_keys}
+                      max={defaults.ceilings.max_api_keys}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      Batas: {defaults.minimums.max_api_keys}–{defaults.ceilings.max_api_keys}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Batas Anggota</label>
+                    <input
+                      type="number"
+                      value={maxMembers}
+                      onChange={(e) => setMaxMembers(e.target.value === '' ? '' : Number(e.target.value))}
+                      min={defaults.minimums.max_members}
+                      max={defaults.ceilings.max_members}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      Batas: {defaults.minimums.max_members}–{defaults.ceilings.max_members}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Throughput (msg/m)</label>
+                    <input
+                      type="number"
+                      value={messagesPerMinute}
+                      onChange={(e) => setMessagesPerMinute(e.target.value === '' ? '' : Number(e.target.value))}
+                      min={defaults.minimums.messages_per_minute}
+                      max={defaults.ceilings.messages_per_minute}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      Batas: {defaults.minimums.messages_per_minute}–{defaults.ceilings.messages_per_minute}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Alasan Kebijakan (Wajib)</label>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="Contoh: Penyesuaian paket tier gratis platform v2.1"
+                    rows={2}
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Kode TOTP Operator</label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="6 digit kode autentikator"
+                    required
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Sticky Actions Footer */}
+            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition"
               >
                 Batal
               </button>
@@ -321,7 +399,7 @@ export const PlatformDefaultsPage: React.FC = () => {
                 type="button"
                 disabled={updateMutation.isPending || !reason.trim() || !otp.trim()}
                 onClick={() => updateMutation.mutate()}
-                className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold disabled:opacity-50 cursor-pointer shadow-xs transition"
               >
                 {updateMutation.isPending ? 'Menyimpan...' : 'Simpan Perubahan'}
               </button>

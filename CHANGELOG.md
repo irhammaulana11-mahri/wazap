@@ -2,6 +2,24 @@
 
 ## Unreleased --- Konsol platform admin, kuota hanya-baca, dan peran tanpa ADMIN (2026-11-21)
 
+-   Penyempurnaan: Penataan Sidebar & Favicon Aplikasi Browser:
+    -   Konsol Platform Operator (`PlatformLayout.tsx`): Menghapus tombol "Keluar Sesi" redundan di bagian bawah sidebar samping, menyelaraskan tata letak dengan navigasi aplikasi utama di mana aksi keluar sesi terpusat secara konsisten dan aman melalui Dropdown Menu Avatar Operator di header atas.
+    -   Identitas Aplikasi Browser (`frontend/index.html`): Mengganti favicon bawaan browser dengan logo resmi WAZAP (`/logo-wazap.jpeg` dan `/favicon.ico` beserta `apple-touch-icon`) untuk tampilan tab browser yang profesional dan beridentitas kuat.
+-   Baru: Drawer Preview pada Konsol Platform Operator menggantikan modal pop-up tengah (`PlatformWorkspaceDetailPage.tsx`, `PlatformDefaultsPage.tsx`):
+    -   Modal Ubah Kuota Workspace dikonversi menjadi **Slide-over Right Drawer Preview** lengkap dengan kartu pratinjau live komparasi alokasi kuota (`Sebelum -> Sesudah`), validasi batas minimum/maksimum per parameter, alasan perubahan, dan verifikasi TOTP operator.
+    -   Modal Penangguhan Workspace (Suspend) dan Pengaktifan Kembali (Activate) dikonversi menjadi Drawer Preview sisi kanan dengan kartu notifikasi peringatan dampak operasional dan status pemulihan akses.
+    -   Modal Ubah Kuota Bawaan Sistem (`PlatformDefaultsPage.tsx`) dikonversi menjadi Drawer Preview sisi kanan dengan perbandingan visual nilai bawaan saat ini vs nilai baru.
+-   Baru: Penyesuaian menyeluruh Mode Terang / Gelap (Dark & Light Mode) pada Kontak WhatsApp, Profil, Pengaturan, Notifikasi & Alarm:
+    -   Kontak WhatsApp (`ContactsPage.tsx`): Header, input pencarian, tombol ekspor kontak, tabel data kontak, badge inisial avatar, hover baris, dan kontrol paginasi sepenuhnya adaptif terhadap mode gelap.
+    -   Profil Pengguna (`ProfilePage.tsx`): Tab Status Alokasi Kuota Workspace (4 kartu indikator kuota Sesi WA, Rate Limit, Anggota Tim, Kunci API) kini terintegrasi penuh dengan palet gelap (`dark:bg-slate-900`, `dark:bg-slate-950/40`, `dark:border-slate-800`).
+    -   Pengaturan Workspace (`SettingsPage.tsx`): Header banner pengaturan, bilah navigasi tab, kartu informasi workspace, seluruh kartu alokasi kuota gateway, tab Identitas & Nama, tab Data & Privasi (kartu kebijakan retensi dan katalog ekspor data), serta form Zona Bahaya kini mengadaptasi mode terang dan gelap secara konsisten.
+    -   Tab Notifikasi & Alarm (`AlertsTab.tsx`, `AlertChannelsSection.tsx`, `AlertRulesSection.tsx`, `AlertDeliveriesSection.tsx`, `AlertChannelDrawer.tsx`):
+        -   Banner penonaktifan operator, daftar kanal notifikasi, dan kontrol sakelar (toggle switch) mendukung tema gelap.
+        -   Aturan notifikasi & ambang batas toleransi (threshold number input, cooldown, dan tombol pemilih kanal tujuan) berkontras tajam di kedua mode.
+        -   Tabel riwayat pengiriman notifikasi (thead, tbody, badge status terkirim/menunggu/gagal) adaptif terhadap tema gelap.
+        -   Panel slide-over konfigurasi kanal (`AlertChannelDrawer.tsx`) dan simulasi mockup pesan notifikasi (Telegram Bot & Slack Webhook) mendukung tema gelap secara elegan.
+    -   Arsitektur CSS Tailwind v4 (`frontend/src/index.css`): Memperbarui definisi varian gelap menjadi `@custom-variant dark (&:is(.dark, .dark *))` untuk memberikan spesifisitas selektor (0, 2, 0) yang andal, mencegah utility kelas standar menimpa kelas bertanda `dark:` pada peralihan mode.
+
 -   Baru: Standarisasi format notifikasi dan banner menggunakan badge status di seluruh halaman (`frontend/src/`):
     -   Banner Keamanan Akun Global (`SecurityBanners.tsx`): Menambahkan badge penanda visual proporsional (`Peringatan Akun`, `Peringatan Kritis`, `Anjuran Keamanan`) pada banner peringatan kode pemulihan dan anjuran 2 Owner di bagian atas aplikasi utama.
     -   Pengaturan Workspace (`SettingsPage.tsx`): Menambahkan badge status `Dikelola Platform` pada banner kuota hanya-baca dan badge `Kebijakan ADR-037` pada kotak peringatan penghapusan workspace di Zona Bahaya.

@@ -41,3 +41,9 @@ test('klien daftar API key meminta halaman penuh dan tidak memotong diam-diam (p
   const block = api.slice(api.indexOf('getApiKeys'), api.indexOf('createApiKey'));
   assert.match(block, /page_size|meta/, 'getApiKeys hanya mengambil 20 kunci pertama tanpa paginasi');
 });
+
+test('kartu sesi menyediakan penyalinan ID sesi LENGKAP (integrasi membutuhkan session_id penuh)', { skip }, () => {
+  const page = read('pages/SessionsPage.tsx');
+  assert.match(page, /clipboard\.writeText\(\s*[A-Za-z_.]*session[A-Za-z_]*\.id\s*\)|clipboard\.writeText\(\s*[A-Za-z_]+\.id\s*\)/, 'tidak ada tombol yang menyalin ID sesi lengkap');
+  assert.match(page, /Salin ID/i, 'tombol salin ID sesi tidak berlabel');
+});

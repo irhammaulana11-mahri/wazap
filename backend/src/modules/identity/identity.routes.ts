@@ -85,9 +85,14 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
   app.post('/auth/register', async (req, reply) => {
     limit(`reg:${req.ip}`, 5, 60 * 60_000);
     const b = RegisterSchema.parse(req.body);
+    reply.header('Cache-Control', 'no-store'); // respons memuat kode pemulihan sekali tampil
+    if (identity.registrationMode === 'required') {
+      // ADR-056: tanpa token dan tanpa cookie; workspace menunggu persetujuan pemilik platform.
+      const p = await identity.registerPending({ email: b.email, password: b.password, tenantName: b.tenant_name });
+      return reply.code(202).send(ok({ status: 'PENDING_APPROVAL', user: p.user, tenant: p.tenant, recovery_codes: p.recoveryCodes }));
+    }
     const r = await identity.register({ email: b.email, password: b.password, tenantName: b.tenant_name });
     setRefreshCookie(reply, r);
-    reply.header('Cache-Control', 'no-store'); // respons memuat kode pemulihan sekali tampil
     return reply.code(201).send(ok(authBody(r)));
   });
 

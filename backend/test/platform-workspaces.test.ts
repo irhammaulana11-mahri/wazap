@@ -87,7 +87,7 @@ test('daftar workspace: bawaan ACTIVE+SUSPENDED, filter status dan pencarian (na
   assert.equal(p1.body.data.length, 2); assert.notDeepEqual(ids(p1), ids(p2));
   for (const q of ['page_size=0', 'page_size=101', 'page=0', 'status=APA', 'q=', 'x=1']) assert.equal((await P('GET', `/workspaces?${q}`)).status, 400, q);
   const item = (await P('GET', `/workspaces?q=${encodeURIComponent(a.name)}`)).body.data[0];
-  assert.deepEqual(Object.keys(item).sort(), ['created_at', 'id', 'limits', 'name', 'owners', 'slug', 'status', 'suspended_at', 'used'], 'bentuk tetap (daftar putih kolom)');
+  assert.deepEqual(Object.keys(item).sort(), ['created_at', 'decided_at', 'id', 'limits', 'name', 'owners', 'slug', 'status', 'suspended_at', 'used'], 'bentuk tetap (daftar putih kolom)');
   assert.deepEqual(item.limits, { max_sessions: 3, max_api_keys: 20, max_members: 10, messages_per_minute: 60 });
   assert.deepEqual(item.owners, [a.email]);
 });

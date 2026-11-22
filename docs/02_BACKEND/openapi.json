@@ -311,7 +311,7 @@
           "Autentikasi"
         ],
         "summary": "Daftar akun dan workspace baru (OWNER)",
-        "description": "Mengembalikan access token dan 8 kode pemulihan (sekali tampil). Refresh token dikirim sebagai cookie HttpOnly.",
+        "description": "Mode open (bawaan): 201, mengembalikan access token dan 8 kode pemulihan (sekali tampil); refresh token dikirim sebagai cookie HttpOnly. Mode REGISTRATION_APPROVAL=required (ADR-056): 202 `{status:\"PENDING_APPROVAL\", user, tenant, recovery_codes}` TANPA token dan TANPA cookie; workspace menunggu persetujuan pemilik platform, dan login menjawab 403 REGISTRATION_PENDING (menunggu) atau REGISTRATION_REJECTED (ditolak) setelah kata sandi benar.",
         "security": [],
         "x-auth": "publik",
         "requestBody": {
@@ -361,6 +361,38 @@
                     },
                     "data": {
                       "$ref": "#/components/schemas/AuthSessionWithCodes"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "Refresh token (wzp_rt) sebagai cookie HttpOnly, Secure di production, SameSite=Strict, Path=/api/v1/auth.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Diterima (diproses asinkron)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RegistrationPending"
                     }
                   },
                   "required": [
@@ -8991,6 +9023,8 @@
                 "ACTIVE",
                 "SUSPENDED",
                 "DELETED",
+                "PENDING",
+                "REJECTED",
                 "ALL"
               ]
             }
@@ -9053,15 +9087,23 @@
                           "status": {
                             "type": "string",
                             "enum": [
+                              "PENDING",
                               "ACTIVE",
                               "SUSPENDED",
-                              "DELETED"
+                              "DELETED",
+                              "REJECTED"
                             ]
                           },
                           "created_at": {
                             "type": "string"
                           },
                           "suspended_at": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "decided_at": {
                             "type": [
                               "string",
                               "null"
@@ -9267,15 +9309,23 @@
                         "status": {
                           "type": "string",
                           "enum": [
+                            "PENDING",
                             "ACTIVE",
                             "SUSPENDED",
-                            "DELETED"
+                            "DELETED",
+                            "REJECTED"
                           ]
                         },
                         "created_at": {
                           "type": "string"
                         },
                         "suspended_at": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "decided_at": {
                           "type": [
                             "string",
                             "null"
@@ -10093,6 +10143,257 @@
                         "status",
                         "suspended_at",
                         "sessions_affected"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/workspaces/{id}/approve": {
+      "post": {
+        "operationId": "post_platform_workspaces_id_approve",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Setujui pendaftaran workspace baru (PENDING atau REJECTED -> ACTIVE; TOTP segar, alasan opsional)",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache. Akses pemilik pulih seketika. 409 INVALID_STATE bila workspace tidak menunggu persetujuan.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "otp": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 10
+                  }
+                },
+                "required": [
+                  "otp"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "REJECTED"
+                          ]
+                        },
+                        "decided_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "decided_at"
+                      ],
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "413": {
+            "$ref": "#/components/responses/Error413"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/api/v1/platform/workspaces/{id}/reject": {
+      "post": {
+        "operationId": "post_platform_workspaces_id_reject",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Tolak pendaftaran workspace baru (hanya PENDING; TOTP segar dan alasan wajib)",
+        "description": "Konsol pemilik platform (ADR-054), BUKAN bagian API pelanggan: token platform berbeda dari token workspace dan API key, MFA TOTP wajib, dan rute ini dijawab 404 bila PLATFORM_ENABLED=false atau diakses lewat host API publik. Respons tidak pernah di-cache. Pendaftar yang masuk menerima 403 REGISTRATION_REJECTED; dapat disetujui kemudian. 409 INVALID_STATE bila bukan PENDING.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "security": [
+          {
+            "platformAuth": []
+          }
+        ],
+        "x-platform-only": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "otp": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 10
+                  }
+                },
+                "required": [
+                  "reason",
+                  "otp"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ACTIVE",
+                            "REJECTED"
+                          ]
+                        },
+                        "decided_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "status",
+                        "decided_at"
                       ],
                       "additionalProperties": {}
                     }
@@ -13875,6 +14176,66 @@
           "content_purged",
           "created_at",
           "updated_at"
+        ],
+        "additionalProperties": {}
+      },
+      "RegistrationPending": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "PENDING_APPROVAL"
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "email": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "email"
+            ],
+            "additionalProperties": {}
+          },
+          "tenant": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "slug"
+            ],
+            "additionalProperties": {}
+          },
+          "recovery_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "status",
+          "user",
+          "tenant",
+          "recovery_codes"
         ],
         "additionalProperties": {}
       },

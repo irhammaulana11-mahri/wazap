@@ -36,9 +36,30 @@ const isUnique = (e: unknown, constraintPart: string) =>
   (e as { code?: string; constraint?: string })?.code === '23505' &&
   ((e as { constraint?: string }).constraint ?? '').includes(constraintPart);
 
+/** Hasil pendaftaran saat persetujuan diwajibkan (REGISTRATION_APPROVAL=required): tanpa token; workspace berstatus PENDING sampai disetujui pemilik platform. */
+export interface PendingRegistration {
+  user: { id: string; email: string };
+  tenant: { id: string; name: string; slug: string };
+  recoveryCodes: string[];
+}
+export interface IdentityOptions { registrationApproval?: 'open' | 'required' }
+
 export interface AccountActor { userId: string; tenantId: string; ip?: string; requestId?: string }
 
-export function createIdentityService(db: GatewayDb) {
+export function createIdentityService(db: GatewayDb, opts: IdentityOptions = {}) {
+  const registrationMode: 'open' | 'required' = opts.registrationApproval ?? config.REGISTRATION_APPROVAL;
+  /** Membuat pengguna, kode pemulihan, workspace (status awal sesuai mode), keanggotaan OWNER, dan kuota awal dari kuota bawaan platform. */
+  async function insertAccount(c: pg.PoolClient, a: { userId: string; tenantId: string; email: string; passwordHash: string; hashes: string[]; name: string; slug: string; status: 'ACTIVE' | 'PENDING' }) {
+    await c.query('INSERT INTO users (id, email, password_hash) VALUES ($1,$2,$3)', [a.userId, a.email, a.passwordHash]);
+    await storeRecoverySet(c, a.userId, a.hashes, false);
+    await c.query('INSERT INTO tenants (id, name, slug, status) VALUES ($1,$2,$3,$4)', [a.tenantId, a.name, a.slug, a.status]);
+    await c.query(`INSERT INTO tenant_memberships (tenant_id, user_id, role, member_email) VALUES ($1,$2,'OWNER',$3)`, [a.tenantId, a.userId, a.email]);
+    // Kuota awal dari kuota bawaan platform (ADR-054); nilai cadangan hanya bila baris bawaan hilang (tidak seharusnya terjadi).
+    await c.query(
+      `INSERT INTO tenant_settings (tenant_id, max_sessions, max_api_keys, max_members, messages_per_minute)
+       SELECT $1, COALESCE(d.max_sessions, 3), COALESCE(d.max_api_keys, 20), COALESCE(d.max_members, 10), COALESCE(d.messages_per_minute, 60)
+       FROM (SELECT 1) x LEFT JOIN platform_defaults d ON true`, [a.tenantId]);
+  }
   async function issueRefresh(c: pg.PoolClient, userId: string, tenantId: string, familyId = crypto.randomUUID()) {
     const raw = randomToken(32);
     const id = crypto.randomUUID();
@@ -67,15 +88,7 @@ export function createIdentityService(db: GatewayDb) {
       const slug = slugify(input.tenantName);
       try {
         return await db.tx({ userId, tenantId }, async (c) => {
-          await c.query('INSERT INTO users (id, email, password_hash) VALUES ($1,$2,$3)', [userId, email, passwordHash]);
-          await storeRecoverySet(c, userId, recovery.hashes, false);
-          await c.query('INSERT INTO tenants (id, name, slug) VALUES ($1,$2,$3)', [tenantId, input.tenantName.trim(), slug]);
-          await c.query(`INSERT INTO tenant_memberships (tenant_id, user_id, role, member_email) VALUES ($1,$2,'OWNER',$3)`, [tenantId, userId, email]);
-          // Kuota awal dari kuota bawaan platform (ADR-054); nilai cadangan hanya bila baris bawaan hilang (tidak seharusnya terjadi).
-          await c.query(
-            `INSERT INTO tenant_settings (tenant_id, max_sessions, max_api_keys, max_members, messages_per_minute)
-             SELECT $1, COALESCE(d.max_sessions, 3), COALESCE(d.max_api_keys, 20), COALESCE(d.max_members, 10), COALESCE(d.messages_per_minute, 60)
-             FROM (SELECT 1) x LEFT JOIN platform_defaults d ON true`, [tenantId]);
+          await insertAccount(c, { userId, tenantId, email, passwordHash, hashes: recovery.hashes, name: input.tenantName.trim(), slug, status: 'ACTIVE' });
           const rt = await issueRefresh(c, userId, tenantId);
           return {
             ...tokens(userId, tenantId, rt.raw),
@@ -84,6 +97,26 @@ export function createIdentityService(db: GatewayDb) {
             role: 'OWNER' as const,
             recoveryCodes: recovery.codes,
           };
+        });
+      } catch (e) {
+        if (isUnique(e, 'users_email')) throw new AppError('EMAIL_TAKEN', 409, 'Email sudah terdaftar');
+        throw e;
+      }
+    },
+
+    /** Mode `required`: sama dengan register tetapi workspace PENDING dan TANPA token/refresh; pendaftar tidak dapat masuk sampai pemilik platform menyetujui (ADR-056). */
+    registrationMode,
+    async registerPending(input: { email: string; password: string; tenantName: string }): Promise<PendingRegistration> {
+      const email = input.email.trim().toLowerCase();
+      const passwordHash = await hashPassword(input.password); // CPU-bound, di luar transaksi
+      const recovery = newRecoverySet();
+      const userId = crypto.randomUUID();
+      const tenantId = crypto.randomUUID();
+      const slug = slugify(input.tenantName);
+      try {
+        return await db.tx({ userId, tenantId }, async (c) => {
+          await insertAccount(c, { userId, tenantId, email, passwordHash, hashes: recovery.hashes, name: input.tenantName.trim(), slug, status: 'PENDING' });
+          return { user: { id: userId, email }, tenant: { id: tenantId, name: input.tenantName.trim(), slug }, recoveryCodes: recovery.codes };
         });
       } catch (e) {
         if (isUnique(e, 'users_email')) throw new AppError('EMAIL_TAKEN', 409, 'Email sudah terdaftar');
@@ -122,6 +155,12 @@ export function createIdentityService(db: GatewayDb) {
             `SELECT 1 FROM tenant_memberships m JOIN tenants t ON t.id = m.tenant_id WHERE m.user_id = $1 AND m.status = 'ACTIVE' AND t.status = 'SUSPENDED' AND ($2::uuid IS NULL OR t.id = $2) LIMIT 1`,
             [user.id, input.tenantId ?? null])).rows[0];
           if (sus) throw new AppError('WORKSPACE_SUSPENDED', 403, 'Workspace ditangguhkan. Hubungi pemilik platform.');
+          // Pendaftaran workspace baru (ADR-056): kata sandi benar, jadi aman memberi tahu statusnya.
+          const reg = (await c.query(
+            `SELECT t.status FROM tenant_memberships m JOIN tenants t ON t.id = m.tenant_id WHERE m.user_id = $1 AND m.status = 'ACTIVE' AND t.status IN ('PENDING','REJECTED') AND ($2::uuid IS NULL OR t.id = $2)
+             ORDER BY (t.status = 'PENDING') DESC, m.created_at LIMIT 1`, [user.id, input.tenantId ?? null])).rows[0] as { status: string } | undefined;
+          if (reg?.status === 'PENDING') throw new AppError('REGISTRATION_PENDING', 403, 'Pendaftaran Anda menunggu persetujuan pemilik platform.');
+          if (reg?.status === 'REJECTED') throw new AppError('REGISTRATION_REJECTED', 403, 'Pendaftaran Anda ditolak oleh pemilik platform.');
           throw new AppError('NO_ACTIVE_TENANT', 403, 'Tidak ada workspace aktif untuk akun ini');
         }
         await c.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);

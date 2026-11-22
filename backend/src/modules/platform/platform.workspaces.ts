@@ -14,7 +14,7 @@ import type { PlatformAdmin, RequestMeta } from './platform.service.js';
  * isi pesan, kontak, chat, kredensial/auth state sesi, target alarm, rahasia webhook, atau kunci/hash API key (dijaga tes pemindai sumber `platform-privacy.test.ts` dan
  * tes isi respons). Perubahan membutuhkan kode TOTP segar dan alasan, lalu tercatat di audit platform DAN (tanpa alasan, tanpa identitas operator) di audit workspace.
  */
-export type TenantStatusFilter = 'ACTIVE' | 'SUSPENDED' | 'DELETED' | 'ALL';
+export type TenantStatusFilter = 'ACTIVE' | 'SUSPENDED' | 'DELETED' | 'PENDING' | 'REJECTED' | 'ALL';
 type Patch = Partial<Record<LimitKey, number>>;
 
 const notFound = () => new AppError('NOT_FOUND', 404, 'Workspace tidak ditemukan');
@@ -23,7 +23,7 @@ const like = (q: string) => `%${q.replace(/[\\%_]/g, '\\$&')}%`;
 
 /** Daftar kolom ringkasan workspace: nama, slug, status, kuota, pemakaian agregat, dan surel OWNER aktif (salinan keanggotaan). Tanpa data pelanggan workspace. */
 const SUMMARY_SQL = `
-  SELECT t.id, t.name, t.slug, t.status, t.created_at, t.suspended_at,
+  SELECT t.id, t.name, t.slug, t.status, t.created_at, t.suspended_at, t.decided_at,
          s.max_sessions, s.max_api_keys, s.max_members, s.messages_per_minute,
          (SELECT count(*) FROM wa_sessions w WHERE w.tenant_id = t.id AND w.status NOT IN ('DELETING','DELETED'))::int AS sessions,
          (SELECT count(*) FROM wa_sessions w WHERE w.tenant_id = t.id AND w.status = 'CONNECTED')::int AS sessions_connected,
@@ -35,7 +35,7 @@ const SUMMARY_SQL = `
 
 const shape = (r: any) => ({
   id: r.id as string, name: r.name as string, slug: r.slug as string, status: r.status as string,
-  created_at: r.created_at as Date, suspended_at: (r.suspended_at ?? null) as Date | null,
+  created_at: r.created_at as Date, suspended_at: (r.suspended_at ?? null) as Date | null, decided_at: (r.decided_at ?? null) as Date | null,
   limits: { max_sessions: r.max_sessions, max_api_keys: r.max_api_keys, max_members: r.max_members, messages_per_minute: r.messages_per_minute } as Record<LimitKey, number | null>,
   used: { sessions: r.sessions as number, sessions_connected: r.sessions_connected as number, api_keys: r.api_keys as number, members: r.members as number },
   owners: r.owners as string[],
@@ -106,7 +106,7 @@ export function createWorkspaceOps(db: GatewayDb, deps: { requireOtp: (admin: Pl
 
   return {
     async listWorkspaces(o: { q?: string; status?: TenantStatusFilter; page: number; pageSize: number }) {
-      const statuses = o.status === 'ALL' ? ['ACTIVE', 'SUSPENDED', 'DELETED'] : o.status ? [o.status] : ['ACTIVE', 'SUSPENDED'];
+      const statuses = o.status === 'ALL' ? ['PENDING', 'ACTIVE', 'SUSPENDED', 'DELETED', 'REJECTED'] : o.status ? [o.status] : ['ACTIVE', 'SUSPENDED'];
       const pat = o.q ? like(o.q.trim()) : null;
       const where = `WHERE t.status = ANY($1::text[]) AND ($2::text IS NULL OR t.name ILIKE $2 OR t.slug ILIKE $2
           OR EXISTS (SELECT 1 FROM tenant_memberships m WHERE m.tenant_id = t.id AND m.role = 'OWNER' AND m.member_email ILIKE $2))`;
@@ -228,6 +228,49 @@ export function createWorkspaceOps(db: GatewayDb, deps: { requireOtp: (admin: Pl
           `INSERT INTO audit_logs (tenant_id, actor_user_id, actor_email, actor_role, action, target_type, target_id, details, ip, request_id)
            VALUES ($1::uuid, NULL, 'platform', NULL, 'tenant.reactivated', 'tenant', $1::text, $2::jsonb, NULL, $3)`, [tenantId, JSON.stringify({ source: 'platform' }), meta.requestId?.slice(0, 64) ?? null]);
         return { id: row.id as string, status: row.status as string, suspended_at: row.suspended_at as Date | null, sessions_affected: resumed };
+      });
+    },
+
+    /**
+     * Setujui pendaftaran workspace baru (ADR-056): PENDING atau REJECTED (kesempatan kedua) -> ACTIVE. Akses pemilik pulih seketika (semua jalur mensyaratkan ACTIVE).
+     * Kode TOTP segar wajib, alasan opsional; pra-periksa sebelum kode dikonsumsi. Tercatat di audit platform dan (tanpa identitas operator) di audit workspace.
+     */
+    async approveWorkspace(admin: PlatformAdmin, tenantId: string, reason: string | undefined, otp: string, meta: RequestMeta = {}) {
+      if (!UUID_RE.test(tenantId)) throw notFound();
+      const check = async (c: pg.PoolClient, lock: boolean) => {
+        const t = (await c.query(`SELECT status FROM tenants WHERE id = $1${lock ? ' FOR UPDATE' : ''}`, [tenantId])).rows[0] as { status: string } | undefined;
+        if (!t || t.status === 'DELETED') throw notFound();
+        if (t.status !== 'PENDING' && t.status !== 'REJECTED') throw new AppError('INVALID_STATE', 409, 'Workspace tidak menunggu persetujuan');
+        return t.status;
+      };
+      await db.tx({ platform: true }, (c) => check(c, false));
+      await deps.requireOtp(admin, otp, 'approve', meta);
+      return db.tx({ platform: true }, async (c) => {
+        const previous = await check(c, true);
+        const row = (await c.query(`UPDATE tenants SET status = 'ACTIVE', decided_at = now() WHERE id = $1 RETURNING id, status, decided_at`, [tenantId])).rows[0];
+        await auditPlatform(c, { adminUserId: admin.userId, adminEmail: admin.email, action: 'tenant.approved', tenantId, details: { previous_status: previous }, reason: reason ?? null, ...meta });
+        await c.query(
+          `INSERT INTO audit_logs (tenant_id, actor_user_id, actor_email, actor_role, action, target_type, target_id, details, ip, request_id)
+           VALUES ($1::uuid, NULL, 'platform', NULL, 'tenant.approved', 'tenant', $1::text, $2::jsonb, NULL, $3)`, [tenantId, JSON.stringify({ source: 'platform' }), meta.requestId?.slice(0, 64) ?? null]);
+        return { id: row.id as string, status: row.status as string, decided_at: row.decided_at as Date };
+      });
+    },
+
+    /** Tolak pendaftaran (hanya PENDING): status REJECTED. Pendaftar yang masuk menerima 403 REGISTRATION_REJECTED; dapat disetujui kemudian. Alasan wajib (hanya di audit platform). */
+    async rejectWorkspace(admin: PlatformAdmin, tenantId: string, reason: string, otp: string, meta: RequestMeta = {}) {
+      if (!UUID_RE.test(tenantId)) throw notFound();
+      const check = async (c: pg.PoolClient, lock: boolean) => {
+        const t = (await c.query(`SELECT status FROM tenants WHERE id = $1${lock ? ' FOR UPDATE' : ''}`, [tenantId])).rows[0] as { status: string } | undefined;
+        if (!t || t.status === 'DELETED') throw notFound();
+        if (t.status !== 'PENDING') throw new AppError('INVALID_STATE', 409, 'Hanya pendaftaran yang menunggu persetujuan yang dapat ditolak');
+      };
+      await db.tx({ platform: true }, (c) => check(c, false));
+      await deps.requireOtp(admin, otp, 'reject', meta);
+      return db.tx({ platform: true }, async (c) => {
+        await check(c, true);
+        const row = (await c.query(`UPDATE tenants SET status = 'REJECTED', decided_at = now() WHERE id = $1 RETURNING id, status, decided_at`, [tenantId])).rows[0];
+        await auditPlatform(c, { adminUserId: admin.userId, adminEmail: admin.email, action: 'tenant.rejected', tenantId, details: {}, reason, ...meta });
+        return { id: row.id as string, status: row.status as string, decided_at: row.decided_at as Date };
       });
     },
 

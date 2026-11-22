@@ -18,9 +18,10 @@ const hasQuota = (b: Record<string, unknown>) => ['max_sessions', 'max_api_keys'
 const PatchQuotasBody = z.strictObject({ ...QuotaFields, reason: Reason, otp: Otp }).refine(hasQuota, { message: 'minimal satu kuota' });
 const PatchDefaultsBody = z.strictObject({ ...QuotaFields, reason: Reason, otp: Otp }).refine(hasQuota, { message: 'minimal satu kuota' });
 const ReasonOtpBody = z.strictObject({ reason: Reason, otp: Otp });
+const ApproveBody = z.strictObject({ reason: Reason.optional(), otp: Otp });
 const IdParams = z.strictObject({ id: z.string().min(1).max(64) });
 const Paging = { page: z.coerce.number().int().min(1).max(100000).default(1), page_size: z.coerce.number().int().min(1).max(100).default(25) };
-const WorkspacesQuery = z.strictObject({ q: z.string().trim().min(1).max(100).optional(), status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED', 'ALL']).optional(), ...Paging });
+const WorkspacesQuery = z.strictObject({ q: z.string().trim().min(1).max(100).optional(), status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED', 'PENDING', 'REJECTED', 'ALL']).optional(), ...Paging });
 const AuditQuery = z.strictObject({ tenant_id: z.string().min(1).max(64).optional(), action: z.string().regex(/^[a-z_]+\.[a-z_]+$/).max(48).optional(), ...Paging });
 
 export interface PlatformRoutesOpts { platform: PlatformService; limiter?: RateLimiter }
@@ -80,6 +81,16 @@ export async function platformRoutes(app: FastifyInstance, { platform, limiter }
     mutateLimit(req);
     return ok(await platform.activateWorkspace(req.platformAdmin!, id, b.reason, b.otp, meta(req)));
   });
+  app.post('/platform/workspaces/:id/approve', { preHandler: [authenticate] }, async (req) => {
+    const { id } = IdParams.parse(req.params); const b = ApproveBody.parse(req.body);
+    mutateLimit(req);
+    return ok(await platform.approveWorkspace(req.platformAdmin!, id, b.reason, b.otp, meta(req)));
+  });
+  app.post('/platform/workspaces/:id/reject', { preHandler: [authenticate] }, async (req) => {
+    const { id } = IdParams.parse(req.params); const b = ReasonOtpBody.parse(req.body);
+    mutateLimit(req);
+    return ok(await platform.rejectWorkspace(req.platformAdmin!, id, b.reason, b.otp, meta(req)));
+  });
   app.get('/platform/defaults', { preHandler: [authenticate] }, async () => ok(await platform.getDefaults()));
   app.patch('/platform/defaults', { preHandler: [authenticate] }, async (req) => {
     const b = PatchDefaultsBody.parse(req.body);
@@ -104,6 +115,8 @@ export const routeContracts: Record<string, RouteContract> = {
   'PATCH /platform/workspaces/:id/quotas': { params: IdParams, body: PatchQuotasBody },
   'POST /platform/workspaces/:id/suspend': { params: IdParams, body: ReasonOtpBody },
   'POST /platform/workspaces/:id/activate': { params: IdParams, body: ReasonOtpBody },
+  'POST /platform/workspaces/:id/approve': { params: IdParams, body: ApproveBody },
+  'POST /platform/workspaces/:id/reject': { params: IdParams, body: ReasonOtpBody },
   'PATCH /platform/defaults': { body: PatchDefaultsBody },
   'GET /platform/audit': { query: AuditQuery },
 };

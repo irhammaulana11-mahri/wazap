@@ -184,7 +184,7 @@ export const PlatformMe = z.looseObject({ user_id: z.string(), email: z.string()
 const PLimits = z.looseObject({ max_sessions: z.number().nullable(), max_api_keys: z.number().nullable(), max_members: z.number().nullable(), messages_per_minute: z.number().nullable() });
 const Used = z.looseObject({ sessions: z.number().int(), sessions_connected: z.number().int(), api_keys: z.number().int(), members: z.number().int() });
 export const PlatformWorkspace = z.looseObject({
-  id: z.string(), name: z.string(), slug: z.string(), status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']), created_at: z.string(), suspended_at: z.string().nullable(),
+  id: z.string(), name: z.string(), slug: z.string(), status: z.enum(['PENDING', 'ACTIVE', 'SUSPENDED', 'DELETED', 'REJECTED']), created_at: z.string(), suspended_at: z.string().nullable(), decided_at: z.string().nullable().optional(),
   limits: PLimits, used: Used, owners: z.array(z.string()),
 });
 export const PlatformWorkspaceDetail = PlatformWorkspace.extend({
@@ -206,4 +206,6 @@ export const PlatformBackupStatus = z.looseObject({
     last_file: z.string().nullable().optional(), last_size_bytes: z.number().nullable().optional(), location: z.enum(['offsite', 'separate_disk', 'same_disk']), offsite_ok_at: z.string().nullable().optional(),
   }).nullable(),
 });
+export const PlatformDecision = z.looseObject({ id: z.string(), status: z.enum(['ACTIVE', 'REJECTED']), decided_at: z.string() });
+export const RegistrationPending = named('RegistrationPending', z.looseObject({ status: z.literal('PENDING_APPROVAL'), user: z.looseObject({ id: Uuid, email: str }), tenant: z.looseObject({ id: Uuid, name: str, slug: str }), recovery_codes: z.array(str) }));
 export const PlatformSuspension = z.looseObject({ id: z.string(), status: z.enum(['ACTIVE', 'SUSPENDED']), suspended_at: z.string().nullable(), sessions_affected: z.number().int() });

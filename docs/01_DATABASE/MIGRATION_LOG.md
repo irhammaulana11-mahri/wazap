@@ -185,3 +185,7 @@ Peran `ADMIN` dihapus (ADR-053). Konversi data `ADMIN` -> `MEMBER` pada `tenant_
 ## 0023_api_key_retention (2026-11-22)
 
 Kebijakan `api_keys_platform_delete_revoked`: konteks platform (penyapu retensi) boleh MENGHAPUS baris `api_keys` hanya bila `revoked_at IS NOT NULL` (`USING (is_platform() AND revoked_at IS NOT NULL)`); kunci aktif tidak dapat dihapus lewat jalur ini. Tidak ada INSERT/UPDATE platform baru. Backward-compatible; tanpa perubahan data.
+
+## 0024_registration_approval (2026-11-22)
+
+`tenants.status` CHECK diperluas menjadi `PENDING|ACTIVE|SUSPENDED|DELETED|REJECTED` (constraint `tenants_status_check` diganti); kolom `tenants.decided_at` (waktu keputusan setuju/tolak terakhir); indeks parsial `idx_tenants_pending`. Kebijakan RLS tidak berubah (platform sudah boleh SELECT/UPDATE `tenants`). Backward-compatible: baris lama tidak berubah.

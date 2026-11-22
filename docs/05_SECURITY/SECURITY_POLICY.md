@@ -176,3 +176,9 @@ Penangguhan oleh platform ditegakkan di SEMUA jalur, bukan hanya di pintu masuk:
 -   Dicabut = langsung tidak berlaku, disembunyikan dari daftar, tidak menghabiskan kuota. Baris dihapus permanen setelah `RETENTION_API_KEY_DAYS` (bawaan 1 hari); tidak ada pemulihan (kunci pengganti dibuat baru). Platform hanya dapat menghapus baris yang sudah dicabut (kebijakan RLS 0023).
 -   Pembuatan dan pencabutan diaudit (`api_key.created`, `api_key.revoked`; id, nama, scope; tanpa nilai kunci); audit bertahan sesuai `RETENTION_AUDIT_DAYS` (365) dan menjadi satu-satunya jejak setelah baris kunci dihapus.
 -   Cadangan database sebelum penghapusan masih memuat hash kunci sampai cadangan itu kedaluwarsa (retensi cadangan); hash tidak dapat dibalik menjadi kunci.
+
+### Persetujuan pendaftaran (ADR-056)
+
+-   Mode `required` menutup celah "siapa pun mendapat workspace aktif": pendaftar berstatus PENDING tidak mendapat token apa pun; semua jalur autentikasi mensyaratkan tenant ACTIVE (diuji dengan token yang ditandatangani untuk tenant PENDING). Menyetujui dan menolak hanya lewat konsol platform dengan TOTP segar, tercatat di audit platform.
+-   Pesan status pendaftaran (`REGISTRATION_PENDING|REJECTED`) hanya diberikan setelah kata sandi benar, sehingga tidak membuka enumerasi akun.
+-   **Risiko tersisa:** akun pendaftar tetap ada di `users` walau ditolak (surel tidak dapat dipakai ulang; sengaja, mencegah pengulangan); tidak ada notifikasi otomatis ke pemilik platform (konsol harus dibuka) sampai P4; pendaftaran PENDING yang tidak ditindaklanjuti tidak kedaluwarsa otomatis.

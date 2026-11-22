@@ -441,15 +441,17 @@ export function createIdentityService(db: GatewayDb) {
       });
     },
 
-    async listApiKeys(tenantId: string, page: number, pageSize: number) {
+    // Kunci yang dicabut tidak ditampilkan secara bawaan (barisnya tetap ada untuk jejak audit, tetapi bukan lagi bagian dari akun pengguna); includeRevoked=true menampilkannya.
+    async listApiKeys(tenantId: string, page: number, pageSize: number, includeRevoked = false) {
+      const live = includeRevoked ? '' : ' AND k.revoked_at IS NULL';
       return db.tx({ tenantId }, async (c) => {
-        const total = (await c.query('SELECT count(*)::int AS n FROM api_keys WHERE tenant_id = $1', [tenantId])).rows[0].n;
+        const total = (await c.query(`SELECT count(*)::int AS n FROM api_keys k WHERE k.tenant_id = $1${live}`, [tenantId])).rows[0].n;
         const rows = (
           await c.query(
             `SELECT k.id, k.name, k.key_prefix, k.scopes, k.last_used_at, k.expires_at, k.revoked_at, k.created_at,
                     k.created_by_user_id, m.member_email AS created_by_email
              FROM api_keys k LEFT JOIN tenant_memberships m ON m.tenant_id = k.tenant_id AND m.user_id = k.created_by_user_id
-             WHERE k.tenant_id = $1 ORDER BY k.created_at DESC, k.id LIMIT $2 OFFSET $3`,
+             WHERE k.tenant_id = $1${live} ORDER BY k.created_at DESC, k.id LIMIT $2 OFFSET $3`,
             [tenantId, pageSize, (page - 1) * pageSize]
           )
         ).rows;

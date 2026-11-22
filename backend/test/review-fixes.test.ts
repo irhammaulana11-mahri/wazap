@@ -138,7 +138,8 @@ test('#4 API key yang dibuat anggota dicabut saat ia dihapus; key anggota lain t
   assert.equal((await call('DELETE', `/team/members/${adm.userId}`, o.tok)).status, 200);
   assert.equal((await useKey(kA.key)).status, 401, 'key milik anggota yang dihapus tidak lagi berfungsi');
   assert.equal((await useKey(kOwner.key)).status, 200); assert.equal((await useKey(kA2.key)).status, 200);
-  const list1 = (await call('GET', '/api-keys', o.tok)).body.data as any[];
+  assert.ok(!((await call('GET', '/api-keys', o.tok)).body.data as any[]).some((x) => x.id === kA.id), 'kunci yang dicabut tidak muncul di daftar bawaan');
+  const list1 = (await call('GET', '/api-keys?include_revoked=true', o.tok)).body.data as any[];
   const revoked = list1.find((x) => x.id === kA.id);
   assert.ok(revoked.revoked_at); assert.equal(revoked.created_by, null, 'FK ON DELETE SET NULL mengosongkan pembuat saat keanggotaan dihapus; jejak id key yang dicabut ada di audit');
   const au = (await auditOf(o, '&action=member.removed'))[0];
@@ -178,3 +179,18 @@ test('#7 kunci serialisasi tim didefinisikan di SATU berkas (tidak ada salinan y
 });
 
 // (#8 ceiling diturunkan operator: kuota kini diatur platform; padanan di platform-workspaces.test.ts.)
+
+test('API key yang dicabut disembunyikan dari daftar bawaan (total ikut), tetap tersedia lewat include_revoked, dan tidak dapat dipakai', { skip }, async () => {
+  const o = await reg(); const k1 = await mkKey(o, 'kunci-aktif'); const k2 = await mkKey(o, 'kunci-dicabut');
+  const l0 = (await call('GET', '/api-keys', o.tok)).body;
+  assert.equal(l0.meta.total, 2); assert.deepEqual(l0.data.map((x: any) => x.id).sort(), [k1.id, k2.id].sort());
+  assert.equal((await call('DELETE', `/api-keys/${k2.id}`, o.tok)).status, 200);
+  const l1 = (await call('GET', '/api-keys', o.tok)).body;
+  assert.deepEqual(l1.data.map((x: any) => x.id), [k1.id], 'kunci dicabut tidak muncul');
+  assert.equal(l1.meta.total, 1, 'total hanya menghitung kunci yang masih berlaku');
+  const l2 = (await call('GET', '/api-keys?include_revoked=true', o.tok)).body;
+  assert.equal(l2.meta.total, 2); assert.ok(l2.data.find((x: any) => x.id === k2.id).revoked_at, 'opsi eksplisit menampilkan kunci dicabut dengan revoked_at');
+  assert.equal((await call('GET', '/api-keys?include_revoked=ya', o.tok)).status, 400, 'nilai tak dikenal ditolak');
+  assert.equal((await useKey(k2.key)).status, 401, 'kunci dicabut tetap tidak dapat dipakai'); assert.equal((await useKey(k1.key)).status, 200);
+  assert.equal((await call('DELETE', `/api-keys/${k2.id}`, o.tok)).status, 200, 'mencabut ulang tetap idempoten');
+});

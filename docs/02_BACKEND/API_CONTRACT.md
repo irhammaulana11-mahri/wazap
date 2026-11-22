@@ -167,9 +167,9 @@ must not be described as delivered/read.
 | POST | `/auth/refresh` | cookie | 200 token baru + cookie baru; 401 `INVALID_REFRESH_TOKEN` |
 | POST | `/auth/logout` | cookie | 204, idempoten |
 | GET | `/auth/me` | user | `{user, active_tenant_id, memberships[], role}` |
-| GET | `/api-keys` | user (semua role) | paginated `?page=1&page_size=20(max 100)`; `meta {page,page_size,total}`; tanpa hash |
+| GET | `/api-keys` | user (semua role) | paginated `?page=1&page_size=20(max 100)&include_revoked=false`; `meta {page,page_size,total}`; tanpa hash. **Kunci yang sudah dicabut disembunyikan secara bawaan** (dan tidak dihitung di `total`); `include_revoked=true` menampilkannya dengan `revoked_at` |
 | POST | `/api-keys` | user OWNER | body `{name, scopes[], expires_at?}` -> 201 termasuk `key` (**hanya sekali**) |
-| DELETE | `/api-keys/:keyId` | user OWNER | revoke idempoten; 404 bila bukan milik tenant |
+| DELETE | `/api-keys/:keyId` | user OWNER | revoke idempoten (baris tetap ada untuk audit, kunci langsung tidak berlaku, tidak menghabiskan kuota, tidak dapat dipulihkan: buat kunci baru); 404 bila bukan milik tenant |
 
 Scopes yang valid: `sessions:read`, `sessions:write`, `messages:send`,
 `messages:read`, `contacts:read`, `webhooks:manage`, `usage:read`.

@@ -37,6 +37,8 @@ const PageSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   page_size: z.coerce.number().int().min(1).max(100).default(20),
 });
+// include_revoked=true: sertakan kunci yang sudah dicabut (bawaan: disembunyikan).
+const KeyListSchema = PageSchema.extend({ include_revoked: z.enum(['true', 'false']).default('false') });
 const IdParam = z.object({ keyId: z.string().max(64) });
 
 export interface IdentityRoutesOpts {
@@ -189,8 +191,8 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
   const manage = [authenticate, requireRole('OWNER')];
 
   app.get('/api-keys', { preHandler: [authenticate, requireRole('OWNER', 'MEMBER', 'VIEWER')] }, async (req) => {
-    const { page, page_size } = PageSchema.parse(req.query);
-    const { rows, total } = await identity.listApiKeys(req.auth!.tenantId, page, page_size);
+    const { page, page_size, include_revoked } = KeyListSchema.parse(req.query);
+    const { rows, total } = await identity.listApiKeys(req.auth!.tenantId, page, page_size, include_revoked === 'true');
     return ok(rows, { page, page_size, total });
   });
 
@@ -227,7 +229,7 @@ export const routeContracts: Record<string, RouteContract> = {
   'POST /auth/recovery-codes': { body: RecoveryCodeSchema },
   'POST /auth/reset-password': { body: ResetPasswordSchema },
   'POST /auth/change-email': { body: ChangeEmailSchema },
-  'GET /api-keys': { query: PageSchema },
+  'GET /api-keys': { query: KeyListSchema },
   'POST /api-keys': { body: CreateKeySchema },
   'PATCH /api-keys/:keyId': { params: IdParam, body: PatchKeySchema },
   'DELETE /api-keys/:keyId': { params: IdParam },

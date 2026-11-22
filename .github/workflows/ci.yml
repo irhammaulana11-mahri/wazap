@@ -168,6 +168,8 @@ jobs:
           # IP pengunjung dari CF-Connecting-IP hanya dari loopback, sumber non-loopback 403, token tidak masuk log, dan kontrol negatif
           # (wildcard di samping situs spesifik HARUS gagal, bug yang pernah hampir ter-deploy).
           deploy/production/bin/test-tunnel-vhost.sh
+          # release-web.sh: publikasi atomik, aset lama dipertahankan lalu dipangkas, pemeriksaan rujukan index.html, penolakan, dan cakupan frontend saja.
+          deploy/production/bin/test-release-web.sh
           T="$(mktemp -d)"; TUNNEL=1 WEB_ROOT="$T" ACCESS_LOG="$T/a.log" deploy/production/bin/render-nginx.sh "$T" 300
           if grep -hv '^[[:space:]]*#' "$T/wazap.conf" "$T/wazap-locations.conf" | grep -qF 'proxy_add_x_forwarded_for'; then echo 'GAGAL: X-Forwarded-For ditambah, bukan ditimpa'; exit 1; fi
 

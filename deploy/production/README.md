@@ -157,6 +157,9 @@ Yang dicadangkan dan tidak: database `wazap_prod` (data tenant dan **auth state 
 **10. Uji nyata.** Pairing WhatsApp sungguhan, kirim dan terima pesan, webhook ke penerima nyata, kanal alarm Telegram, ekspor kecil.
 
 ## Rilis berikutnya
+**Hanya frontend berubah** (tidak ada perubahan di `backend/`, migrasi, atau konfigurasi): `git pull` lalu `deploy/production/bin/release-web.sh`. Tanpa sudo, tanpa cek cadangan, tanpa restart API/worker/PM2, tanpa migrasi. Build dibuat di server, aset ber-hash ditambahkan dulu (versi lama tetap ada sehingga tab yang terbuka tidak 404), `index.html` diganti atomik, lalu aset usang berumur > `KEEP_DAYS` (7) yang tidak dipakai dihapus. Rilis berhenti dan situs tidak berubah bila `index.html` merujuk berkas yang tidak ada. Pembatalan: `git checkout <commit-sebelumnya>` lalu jalankan lagi. Perilakunya diuji permanen oleh `bin/test-release-web.sh` (CI). **Bila ada perubahan backend sekecil apa pun, pakai `release.sh`.**
+
+**Perubahan backend atau migrasi:**
 `git fetch && git checkout <tag>` lalu `deploy/production/bin/release.sh` (menolak bila cadangan lebih tua dari 2 jam; jalankan `deploy/ops/backup.sh` dulu). Migrasi tidak dapat dibatalkan (immutable): rollback kode = checkout tag lama + `release.sh` (migrasi harus kompatibel mundur) atau pulihkan cadangan (`RECOVERY_SOP.md`).
 
 ## Catatan

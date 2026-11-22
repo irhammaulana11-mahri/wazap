@@ -91,15 +91,17 @@ export const AuditLogsPage: React.FC = () => {
               className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-700 focus:outline-none"
             >
               <option value="">Semua Aksi</option>
+              <option value="api_key.created">API key dibuat</option>
+              <option value="api_key.revoked">API key dicabut</option>
+              <option value="api_key.updated">API key diubah</option>
+              <option value="invitation.created">Undangan Dikirim</option>
+              <option value="invitation.accepted">Anggota Bergabung</option>
+              <option value="invitation.revoked">Undangan Dibatalkan</option>
+              <option value="member.role_changed">Perubahan Peran</option>
+              <option value="member.removed">Anggota Dikeluarkan</option>
               <option value="tenant.quota_changed">Kuota Diubah Platform</option>
               <option value="tenant.suspended">Workspace Ditangguhkan</option>
               <option value="tenant.reactivated">Workspace Diaktifkan</option>
-              <option value="MEMBER_INVITED">Undangan Dikirim</option>
-              <option value="MEMBER_JOINED">Anggota Bergabung</option>
-              <option value="ROLE_CHANGED">Perubahan Peran</option>
-              <option value="MEMBER_REMOVED">Anggota Dikeluarkan</option>
-              <option value="QUOTA_UPDATED">Kuota Diperbarui</option>
-              <option value="INVITATION_REVOKED">Undangan Dibatalkan</option>
             </select>
           </div>
 
@@ -142,8 +144,24 @@ export const AuditLogsPage: React.FC = () => {
                   ? 'Pemilik platform'
                   : log.actor?.email || log.actor?.user_id;
 
-                let actionLabel = log.action;
-                if (log.action === 'tenant.quota_changed') {
+                let actionLabel: string = log.action;
+                if (log.action === 'api_key.created') {
+                  actionLabel = 'API key dibuat';
+                } else if (log.action === 'api_key.revoked') {
+                  actionLabel = 'API key dicabut';
+                } else if (log.action === 'api_key.updated') {
+                  actionLabel = 'API key diubah';
+                } else if (log.action === 'invitation.created') {
+                  actionLabel = 'Undangan dikirim';
+                } else if (log.action === 'invitation.accepted') {
+                  actionLabel = 'Anggota bergabung';
+                } else if (log.action === 'invitation.revoked') {
+                  actionLabel = 'Undangan dibatalkan';
+                } else if (log.action === 'member.role_changed') {
+                  actionLabel = 'Peran anggota diubah';
+                } else if (log.action === 'member.removed') {
+                  actionLabel = 'Anggota dikeluarkan';
+                } else if (log.action === 'tenant.quota_changed') {
                   actionLabel = 'Kuota diubah oleh pemilik platform';
                 } else if (log.action === 'tenant.suspended') {
                   actionLabel = 'Workspace ditangguhkan';
@@ -184,6 +202,11 @@ export const AuditLogsPage: React.FC = () => {
                           <span className="font-mono text-slate-500 text-[11px]">
                             {log.target.id.slice(0, 12)}
                           </span>
+                        )}
+                        {log.details?.name && (
+                          <p className="text-[11px] text-slate-700 mt-0.5">
+                            <span className="font-semibold">Nama:</span> <span className="font-mono">{String(log.details.name)}</span>
+                          </p>
                         )}
                         {log.details?.changes ? (
                           <div className="space-y-0.5 mt-1">

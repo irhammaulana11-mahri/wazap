@@ -22,6 +22,8 @@ import {
   Wifi,
   WifiOff,
   Pencil,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 const STATUS_BADGES: Record<
@@ -128,6 +130,8 @@ export const SessionsPage: React.FC = () => {
   // Rename Session state
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [editSessionName, setEditSessionName] = useState('');
+  const [copiedSessionId, setCopiedSessionId] = useState<string | null>(null);
+  const [manualCopySessionId, setManualCopySessionId] = useState<string | null>(null);
 
   // Sesi Query
   const {
@@ -452,9 +456,61 @@ export const SessionsPage: React.FC = () => {
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <p className="text-xs text-slate-400 font-mono">
-                          {session.id.slice(0, 8)}...
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <p
+                            className="text-xs text-slate-400 font-mono select-all cursor-text"
+                            title={session.id}
+                          >
+                            {session.id.slice(0, 8)}...
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (navigator.clipboard?.writeText) {
+                                navigator.clipboard.writeText(session.id).then(
+                                  () => {
+                                    setCopiedSessionId(session.id);
+                                    showToast('info', 'ID sesi disalin');
+                                    setTimeout(() => setCopiedSessionId((prev) => (prev === session.id ? null : prev)), 2000);
+                                  },
+                                  () => {
+                                    setManualCopySessionId(session.id);
+                                    showToast('info', `Silakan salin ID sesi: ${session.id}`);
+                                  }
+                                );
+                              } else {
+                                setManualCopySessionId(session.id);
+                                showToast('info', `Silakan salin ID sesi: ${session.id}`);
+                              }
+                            }}
+                            className="text-slate-400 hover:text-emerald-600 transition p-0.5 rounded text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                            title={`Salin ID: ${session.id}`}
+                            aria-label="Salin ID sesi"
+                          >
+                            {copiedSessionId === session.id ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span className="text-[10px] font-medium text-emerald-600">ID disalin</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span className="text-[10px] font-medium">Salin ID</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        {manualCopySessionId === session.id && (
+                          <div className="mt-1">
+                            <input
+                              type="text"
+                              readOnly
+                              value={session.id}
+                              onFocus={(e) => e.target.select()}
+                              className="w-full px-2 py-1 text-[11px] font-mono bg-slate-50 border border-slate-200 rounded select-all"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                     <span

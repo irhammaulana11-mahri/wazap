@@ -529,8 +529,25 @@ export const api = {
   // API KEYS
   // ==========================================
   getApiKeys: async () => {
-    const res = await request<ApiResponse<ApiKeyItem[]>>('/api/v1/api-keys');
-    return res.data;
+    let page = 1;
+    const pageSize = 100;
+    const allKeys: ApiKeyItem[] = [];
+
+    while (true) {
+      const res = await request<ApiResponse<ApiKeyItem[]> & { meta?: { page: number; page_size: number; total: number } }>(
+        `/api/v1/api-keys?page=${page}&page_size=${pageSize}`
+      );
+      if (Array.isArray(res.data)) {
+        allKeys.push(...res.data);
+      }
+      const total = res.meta?.total ?? allKeys.length;
+      if (allKeys.length >= total || !res.data || res.data.length === 0) {
+        break;
+      }
+      page++;
+    }
+
+    return allKeys;
   },
 
   createApiKey: async (name: string, scopes: ApiKeyScope[], expires_at?: string) => {

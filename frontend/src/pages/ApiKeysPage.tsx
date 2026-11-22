@@ -6,6 +6,7 @@ import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useConfirm } from '../context/ConfirmContext';
+import { useToast } from '../context/ToastContext';
 import {
   Key,
   Plus,
@@ -59,7 +60,9 @@ export const ApiKeysPage: React.FC = () => {
   const [editKeyName, setEditKeyName] = useState('');
   const [editSelectedScopes, setEditSelectedScopes] = useState<ApiKeyScope[]>([]);
   const [editFormError, setEditFormError] = useState('');
+  const [revokeInfoMessage, setRevokeInfoMessage] = useState('');
   const { confirm } = useConfirm();
+  const { showToast } = useToast();
 
   // Fetch API keys
   const {
@@ -72,6 +75,9 @@ export const ApiKeysPage: React.FC = () => {
     queryKey: ['api-keys'],
     queryFn: api.getApiKeys,
   });
+
+  // Filter out revoked keys defensively (revoked_at)
+  const activeApiKeys = (apiKeys || []).filter((k) => !k.revoked_at);
 
   // Create Mutation
   const createMutation = useMutation({
@@ -96,7 +102,24 @@ export const ApiKeysPage: React.FC = () => {
   const revokeMutation = useMutation({
     mutationFn: (id: string) => api.revokeApiKey(id),
     onSuccess: () => {
+      showToast('success', 'API Key berhasil dicabut.');
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+    },
+    onError: (err: any) => {
+      // Tangani 404 / NOT_FOUND bila kunci sudah terhapus permanen atau dicabut dari tab lain
+      const isNotFound =
+        err?.status === 404 ||
+        err?.code === 'NOT_FOUND' ||
+        err?.message?.includes('404') ||
+        err?.message?.includes('NOT_FOUND');
+      if (isNotFound) {
+        setRevokeInfoMessage('Kunci ini sudah dicabut atau dihapus');
+        showToast('info', 'Kunci ini sudah dicabut atau dihapus');
+        queryClient.invalidateQueries({ queryKey: ['api-keys'] });
+        setTimeout(() => setRevokeInfoMessage(''), 5000);
+      } else {
+        showToast('error', err.message || 'Gagal mencabut API Key');
+      }
     },
   });
 
@@ -146,23 +169,27 @@ export const ApiKeysPage: React.FC = () => {
 
   // Generate code snippets for quick copy
   const getCodeSnippet = (lang: CodeLang) => {
-    const activeKeyHint = revealedKey || 'wzp_live_xxxxxxxxxxxxxxxx';
+    const activeKeyHint = revealedKey || 'gwk_PASTE_KUNCI_LENGKAP_DI_SINI';
     const baseUrl = window.location.origin;
 
     switch (lang) {
       case 'curl':
-        return `curl -X POST "${baseUrl}/api/v1/messages/send" \\
+        return `# Kunci lengkap (gwk_...) hanya ditampilkan sekali saat dibuat, simpan di variabel lingkungan sisi server (bukan di browser).
+# session_id: Salin ID lengkap dari kartu sesi di menu Koneksi & API -> Sesi WhatsApp.
+curl -X POST "${baseUrl}/api/v1/messages/send" \\
   -H "Authorization: Bearer ${activeKeyHint}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "session_id": "SESSION_ID_ANDA",
+    "session_id": "SALIN_ID_LENGKAP_DARI_KARTU_SESI",
     "to": "628123456789",
     "type": "text",
     "message": "Halo dari aplikasi saya via WhatsApp Gateway!"
   }'`;
 
       case 'node':
-        return `// Node.js (Fetch API)
+        return `// Kunci lengkap (gwk_...) hanya ditampilkan sekali saat dibuat, simpan di variabel lingkungan sisi server (bukan di browser).
+// session_id: Salin ID lengkap dari kartu sesi di menu Koneksi & API -> Sesi WhatsApp.
+// Node.js (Fetch API)
 const response = await fetch("${baseUrl}/api/v1/messages/send", {
   method: "POST",
   headers: {
@@ -170,7 +197,7 @@ const response = await fetch("${baseUrl}/api/v1/messages/send", {
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
-    session_id: "SESSION_ID_ANDA",
+    session_id: "SALIN_ID_LENGKAP_DARI_KARTU_SESI",
     to: "628123456789",
     type: "text",
     message: "Halo dari Node.js via WhatsApp Gateway!"
@@ -181,11 +208,13 @@ console.log(data);`;
 
       case 'php':
         return `<?php
+// Kunci lengkap (gwk_...) hanya ditampilkan sekali saat dibuat, simpan di variabel lingkungan sisi server (bukan di browser).
+// session_id: Salin ID lengkap dari kartu sesi di menu Koneksi & API -> Sesi WhatsApp.
 // PHP cURL
 $ch = curl_init("${baseUrl}/api/v1/messages/send");
 curl_setopt($ch, CURLOPT_POST, 1);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-    "session_id" => "SESSION_ID_ANDA",
+    "session_id" => "SALIN_ID_LENGKAP_DARI_KARTU_SESI",
     "to" => "628123456789",
     "type" => "text",
     "message" => "Halo dari PHP via WhatsApp Gateway!"
@@ -200,7 +229,9 @@ curl_close($ch);
 echo $response;`;
 
       case 'python':
-        return `import requests
+        return `# Kunci lengkap (gwk_...) hanya ditampilkan sekali saat dibuat, simpan di variabel lingkungan sisi server (bukan di browser).
+# session_id: Salin ID lengkap dari kartu sesi di menu Koneksi & API -> Sesi WhatsApp.
+import requests
 
 url = "${baseUrl}/api/v1/messages/send"
 headers = {
@@ -208,7 +239,7 @@ headers = {
     "Content-Type": "application/json"
 }
 payload = {
-    "session_id": "SESSION_ID_ANDA",
+    "session_id": "SALIN_ID_LENGKAP_DARI_KARTU_SESI",
     "to": "628123456789",
     "type": "text",
     "message": "Halo dari Python via WhatsApp Gateway!"
@@ -250,8 +281,18 @@ print(response.json())`;
         </button>
       </div>
 
+      {/* Revoke Info Banner */}
+      {revokeInfoMessage && (
+        <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 text-blue-800 dark:text-blue-300 rounded-xl text-xs flex items-center gap-2.5 animate-in fade-in duration-150">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-100 dark:bg-blue-900/70 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700 shrink-0">
+            Informasi
+          </span>
+          <span>{revokeInfoMessage}</span>
+        </div>
+      )}
+
       {/* API Keys List */}
-      {apiKeys.length === 0 ? (
+      {activeApiKeys.length === 0 ? (
         <EmptyState
           title="Belum ada API Key aktif"
           description="Buat API Key baru untuk mengintegrasikan backend Anda dengan WhatsApp Gateway tanpa perlu login browser."
@@ -261,7 +302,7 @@ print(response.json())`;
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {apiKeys.map((item) => (
+          {activeApiKeys.map((item) => (
             <div
               key={item.id}
               className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3 flex flex-col justify-between"
@@ -275,7 +316,7 @@ print(response.json())`;
                     <div>
                       <h3 className="font-semibold text-slate-900 text-sm">{item.name}</h3>
                       <p className="text-xs text-slate-400 font-mono">
-                        {item.key_prefix || 'wzp_live_***'}
+                        {item.key_prefix || 'gwk_********'}
                       </p>
                     </div>
                   </div>
@@ -297,7 +338,7 @@ print(response.json())`;
                       onClick={async () => {
                         const ok = await confirm({
                           title: 'Cabut Kunci API',
-                          message: `Yakin ingin mencabut API Key "${item.name}"? Akses integrasi API yang menggunakan kunci ini akan langsung terhenti.`,
+                          message: `Yakin ingin mencabut API Key "${item.name}"? Kunci akan langsung berhenti berlaku dan hilang dari daftar. Kunci yang dicabut akan dihapus permanen dalam sekitar 1 hari dan tidak dapat dipulihkan. Bila ingin akses lagi, buat kunci baru.`,
                           confirmLabel: 'Cabut Kunci API',
                           variant: 'danger',
                         });

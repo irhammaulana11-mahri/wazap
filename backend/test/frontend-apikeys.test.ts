@@ -47,3 +47,9 @@ test('kartu sesi menyediakan penyalinan ID sesi LENGKAP (integrasi membutuhkan s
   assert.match(page, /clipboard\.writeText\(\s*[A-Za-z_.]*session[A-Za-z_]*\.id\s*\)|clipboard\.writeText\(\s*[A-Za-z_]+\.id\s*\)/, 'tidak ada tombol yang menyalin ID sesi lengkap');
   assert.match(page, /Salin ID/i, 'tombol salin ID sesi tidak berlabel');
 });
+
+test('contoh kode di halaman API key memakai bentuk kunci yang benar (gwk_), bukan placeholder lama', { skip }, () => {
+  const page = read('pages/ApiKeysPage.tsx');
+  assert.doesNotMatch(page, /wzp_live/, 'placeholder kunci lama (wzp_live_...) masih ada: bukan bentuk kunci WAZAP');
+  assert.match(page, /gwk_/, 'contoh kode harus memakai bentuk kunci gwk_...');
+});

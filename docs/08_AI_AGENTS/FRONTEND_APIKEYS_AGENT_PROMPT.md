@@ -18,6 +18,7 @@ Anda melanjutkan frontend WAZAP (React/Vite). Backend sudah berubah (ADR-055) da
 | C | `api.getApiKeys` memanggil `/api/v1/api-keys` tanpa parameter dan membuang `meta`. Hanya 20 kunci pertama yang tampil, tanpa penanda. | Tenant dengan kuota kunci > 20 kehilangan kunci dari tampilan. |
 | D | **Filter aksi audit memakai nama yang tidak pernah dicatat backend** (`MEMBER_INVITED`, `MEMBER_JOINED`, `ROLE_CHANGED`, `MEMBER_REMOVED`, `QUOTA_UPDATED`, `INVITATION_REVOKED`). | Memilih filter itu selalu menghasilkan daftar kosong. Ini bug yang sudah ada, bukan akibat perubahan ini. |
 | E | Label ramah di tabel audit hanya untuk tiga aksi platform. | Aksi baru tampil sebagai teks mentah `api_key.revoked`. |
+| G | Contoh kode di `ApiKeysPage.tsx` (`getCodeSnippet`) memakai placeholder kunci `wzp_live_xxxxxxxxxxxxxxxx`, padahal kunci WAZAP berbentuk `gwk_` + 43 karakter (47 karakter). | Pengguna menyalin bentuk yang salah dan integrasi (Distriva) gagal 401 "Kredensial tidak valid". |
 | F | Kartu sesi (`SessionsPage.tsx`, sekitar baris 456) hanya menampilkan `session.id.slice(0, 8)...` tanpa cara menyalin ID lengkap. Integrasi (mis. Distriva) membutuhkan `session_id` penuh (UUID) pada `POST /messages/send`. | Pengguna tidak dapat menemukan ID sesi dari UI dan terpaksa membuka DevTools. |
 
 ## Kriteria penerimaan
@@ -26,7 +27,7 @@ Anda melanjutkan frontend WAZAP (React/Vite). Backend sudah berubah (ADR-055) da
 cd backend && FRONTEND_APIKEYS_CHECK=1 node --import tsx --test test/frontend-apikeys.test.ts test/frontend-contract.test.ts
 cd frontend && npm run build
 ```
-Semuanya harus hijau. Tes `frontend-apikeys` (4 tes) saat ini **gagal semua** pada frontend yang ada. **Jangan mengedit berkas tes**; bila sebuah tes tampak salah, hentikan dan laporkan alasannya. Tes juga harus tetap lulus bila `frontend-roles` dan `frontend-platform-client` dijalankan (`FRONTEND_ROLES_CHECK=1 FRONTEND_PLATFORM_CHECK=1`).
+Semuanya harus hijau. Tes `frontend-apikeys` (5 tes) saat ini **gagal semua** pada frontend yang ada. **Jangan mengedit berkas tes**; bila sebuah tes tampak salah, hentikan dan laporkan alasannya. Tes juga harus tetap lulus bila `frontend-roles` dan `frontend-platform-client` dijalankan (`FRONTEND_ROLES_CHECK=1 FRONTEND_PLATFORM_CHECK=1`).
 
 ## Perbaikan yang diminta
 
@@ -55,6 +56,12 @@ Di `pages/SessionsPage.tsx`, pada kartu sesi:
 -   Bila `navigator.clipboard` tidak tersedia atau ditolak, tampilkan ID lengkap yang dapat dipilih (select) agar pengguna tetap bisa menyalin manual. Jangan menelan galat diam-diam.
 -   ID sesi bukan rahasia (aman ditampilkan penuh kepada pengguna workspace yang sudah masuk), tetapi jangan mencatatnya ke `console`.
 -   Ikuti pola tombol salin yang sudah ada di `ApiKeysPage.tsx` (`navigator.clipboard.writeText`) agar gaya konsisten.
+
+### 5. Contoh kode memakai bentuk kunci yang benar (temuan G)
+Di `pages/ApiKeysPage.tsx`, `getCodeSnippet` (semua bahasa: curl, node, php, dan lainnya):
+-   Ganti placeholder `wzp_live_xxxxxxxxxxxxxxxx` dengan bentuk yang benar, mis. `gwk_PASTE_KUNCI_LENGKAP_DI_SINI` (diawali `gwk_`). Bila `revealedKey` ada (kunci baru saja dibuat), tetap pakai nilainya.
+-   Tambahkan satu baris komentar pada tiap contoh: kunci lengkap hanya ditampilkan sekali saat dibuat (bukan prefiks di daftar), simpan di variabel lingkungan sisi server, jangan di browser.
+-   Header `Authorization: Bearer` boleh dipertahankan (backend menerima `X-API-Key` dan `Authorization: Bearer` untuk kunci `gwk_`). Pertahankan `session_id`, `to`, `type`, `message` sesuai skema backend; ganti `SESSION_ID_ANDA` dengan penjelasan singkat bahwa ID sesi dapat disalin dari kartu sesi (butir 4).
 
 ## Yang TIDAK boleh dilakukan
 -   Jangan menambahkan tombol pemulihan kunci, penyimpanan nilai kunci di browser, atau menampilkan nilai kunci setelah dialog pembuatan ditutup.

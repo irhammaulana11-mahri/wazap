@@ -248,11 +248,16 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
       </div>
 
       {/* Honest Disclaimer Alert */}
-      <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl flex items-start gap-3 text-xs text-amber-900">
-        <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+      <div className="p-4 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200">
+        <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-bold">Notifikasi adalah bantuan, bukan jaminan ketersediaan mutlak</p>
-          <p className="text-amber-800 leading-relaxed">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-100 dark:bg-amber-900/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+              Informasi Penting
+            </span>
+            <p className="font-bold text-slate-900 dark:text-white">Bantuan Operasional, Bukan Garansi Mutlak</p>
+          </div>
+          <p className="text-amber-800 dark:text-amber-300/90 leading-relaxed">
             Layanan Telegram atau Slack dapat mengalami keterlambatan atau tidak tersedia sewaktu-waktu. Kejadian yang terjadi saat layanan sistem berhenti lama mungkin tidak dikirimkan. Tetap pantau dashboard operasional secara berkala.
           </p>
         </div>
@@ -260,8 +265,11 @@ export const AlertRulesSection: React.FC<AlertRulesSectionProps> = ({
 
       {/* No active channels alert */}
       {channels.length > 0 && activeChannels.length === 0 && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-xs text-rose-800">
-          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-2xl flex items-center gap-2.5 text-xs text-rose-800 dark:text-rose-300">
+          <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700">
+            Peringatan
+          </span>
           <span>
             Semua kanal notifikasi saat ini nonaktif. Aktifkan minimal satu kanal di bagian atas agar aturan dapat mengirimkan pesan.
           </span>

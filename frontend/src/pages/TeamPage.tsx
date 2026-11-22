@@ -1155,8 +1155,13 @@ export const TeamPage: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 leading-relaxed">
-                <strong>PENTING:</strong> Kode pendaftaran ini <strong>hanya ditampilkan sekali sekarang</strong>. Bagikan kepada calon anggota yang berhak. Siapa pun dengan kode ini dapat mengajukan permohonan akun yang tetap memerlukan persetujuan Anda.
+              <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs text-amber-800 dark:text-amber-300 leading-relaxed flex items-start gap-2.5">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-100 dark:bg-amber-900/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shrink-0 mt-0.5">
+                  Penting
+                </span>
+                <span>
+                  Kode pendaftaran ini <strong>hanya ditampilkan sekali sekarang</strong>. Bagikan kepada calon anggota yang berhak. Siapa pun dengan kode ini dapat mengajukan permohonan akun yang tetap memerlukan persetujuan Anda.
+                </span>
               </div>
 
               {/* Join Code */}

@@ -859,26 +859,32 @@ export const ProfilePage: React.FC = () => {
 
             {/* Informative Banner */}
             {!isOwner ? (
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-800 flex items-start gap-3">
-                <Lock className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold block">Kewenangan Pengaturan Kuota</span>
-                  <p className="text-blue-700 mt-0.5 leading-relaxed">
-                    Pengaturan batas kuota dikelola secara terpusat oleh <strong>Pemilik Workspace (Owner)</strong>. Peran Anda saat ini (<strong>{role}</strong>) dapat memantau batas kapasitas dan pemakaian di bawah ini.
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-2xl text-xs text-blue-800 dark:text-blue-300 flex items-start gap-3">
+                <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-100 dark:bg-blue-900/70 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
+                      Kewenangan Kuota
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white">Alokasi Dikelola Platform</span>
+                  </div>
+                  <p className="text-blue-700 dark:text-blue-300/90 leading-relaxed">
+                    Pengaturan batas kuota dikelola secara terpusat oleh pemilik platform. Peran Anda saat ini (<strong>{role}</strong>) dapat memantau batas kapasitas dan pemakaian di bawah ini.
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 flex items-start gap-3">
-                <Crown className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-bold block">Status Pemilik Workspace (Owner)</span>
-                  <p className="text-amber-800 mt-0.5 leading-relaxed">
-                    Anda memiliki hak penuh untuk mengubah dan mengalokasikan batas kuota kapan saja melalui menu{' '}
-                    <Link to="/settings" className="font-bold underline hover:text-amber-950">
-                      Pengaturan
-                    </Link>
-                    .
+              <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-2xl text-xs text-blue-800 dark:text-blue-300 flex items-start gap-3">
+                <Crown className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-100 dark:bg-blue-900/70 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
+                      Dikelola Platform
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white">Alokasi Kuota Terpusat</span>
+                  </div>
+                  <p className="text-blue-700 dark:text-blue-300/90 leading-relaxed">
+                    Batas kuota gateway dan kapasitas tim diatur langsung oleh pemilik platform. Hubungi pemilik platform untuk menambah kapasitas workspace.
                   </p>
                 </div>
               </div>

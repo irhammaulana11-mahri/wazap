@@ -183,10 +183,15 @@ export const PlatformLoginPage: React.FC = () => {
           {errorMsg && (
             <div className="mb-5 p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 rounded-2xl text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-              <div>
-                <span>{errorMsg}</span>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700 shrink-0">
+                    Galat
+                  </span>
+                  <span>{errorMsg}</span>
+                </div>
                 {retrySec !== null && (
-                  <div className="mt-1 font-mono text-[11px] text-rose-600 dark:text-rose-400 font-semibold">
+                  <div className="font-mono text-[11px] text-rose-600 dark:text-rose-400 font-semibold">
                     Coba lagi dalam {retrySec} detik.
                   </div>
                 )}

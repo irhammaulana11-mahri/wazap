@@ -44,11 +44,16 @@ export const SecurityBanners: React.FC = () => {
             <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5 sm:mt-0">
               <KeyRound className="w-5 h-5" />
             </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-100">
-                Peringatan: 8 Kode Pemulihan Belum Dikonfirmasi
-              </h4>
-              <p className="text-[11px] sm:text-xs text-amber-800/90 dark:text-amber-300/90 mt-0.5 leading-relaxed">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                  Peringatan Akun
+                </span>
+                <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-100">
+                  8 Kode Pemulihan Belum Dikonfirmasi
+                </h4>
+              </div>
+              <p className="text-[11px] sm:text-xs text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
                 Anda belum mengonfirmasi penyimpanan kode pemulihan akun. Jika lupa kata sandi tanpa kode ini, Anda akan terkunci permanen.
               </p>
             </div>
@@ -69,11 +74,16 @@ export const SecurityBanners: React.FC = () => {
             <div className="p-2 rounded-xl bg-rose-500/20 text-rose-700 dark:text-rose-400 shrink-0 mt-0.5 sm:mt-0">
               <AlertTriangle className="w-5 h-5" />
             </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-rose-900 dark:text-rose-100">
-                Sisa Kode Pemulihan Tinggal {recovery?.codes_remaining}
-              </h4>
-              <p className="text-[11px] sm:text-xs text-rose-800/90 dark:text-rose-300/90 mt-0.5 leading-relaxed">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/30">
+                  Peringatan Kritis
+                </span>
+                <h4 className="text-xs sm:text-sm font-bold text-rose-900 dark:text-rose-100">
+                  Sisa Kode Pemulihan Tinggal {recovery?.codes_remaining}
+                </h4>
+              </div>
+              <p className="text-[11px] sm:text-xs text-rose-800/90 dark:text-rose-300/90 leading-relaxed">
                 Sisa kode pemulihan akun Anda hampir habis. Segera terbitkan himpunan kode baru di Pengaturan Akun agar tetap dapat memulihkan akses saat darurat.
               </p>
             </div>
@@ -94,11 +104,16 @@ export const SecurityBanners: React.FC = () => {
             <div className="p-2 rounded-xl bg-blue-500/20 text-blue-700 dark:text-blue-400 shrink-0 mt-0.5 sm:mt-0">
               <ShieldAlert className="w-5 h-5" />
             </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-100">
-                Anjuran Keamanan: Tambahkan Minimal 2 Owner
-              </h4>
-              <p className="text-[11px] sm:text-xs text-blue-800/90 dark:text-blue-300/90 mt-0.5 leading-relaxed">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-500/20 text-blue-800 dark:text-blue-300 border border-blue-500/30">
+                  Anjuran Keamanan
+                </span>
+                <h4 className="text-xs sm:text-sm font-bold text-blue-900 dark:text-blue-100">
+                  Tambahkan Minimal 2 Owner
+                </h4>
+              </div>
+              <p className="text-[11px] sm:text-xs text-blue-800/90 dark:text-blue-300/90 leading-relaxed">
                 Workspace <strong>{tenant?.name}</strong> saat ini hanya memiliki 1 Owner aktif. Disarankan menambahkan minimal 2 Owner agar workspace tidak kehilangan pengelola bila salah satu akun terkunci atau kehilangan akses.
               </p>
             </div>

@@ -195,8 +195,11 @@ export const AlertChannelsSection: React.FC<AlertChannelsSectionProps> = ({
 
       {/* Quota Full Notice */}
       {isQuotaFull && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-2 text-xs text-amber-800">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex items-center gap-2.5 text-xs text-amber-800 dark:text-amber-300">
+          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-100 dark:bg-amber-900/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+            Batas Kuota
+          </span>
           <span>
             Batas maksimal alokasi kanal ({maxChannels} kanal) telah tercapai. Hapus kanal yang tidak terpakai untuk menambahkan kanal baru.
           </span>

@@ -103,8 +103,11 @@ export const PlatformDefaultsPage: React.FC = () => {
       </div>
 
       {actionSuccess && (
-        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 rounded-2xl text-xs flex items-center gap-2">
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 rounded-2xl text-xs flex items-center gap-2.5">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+            Berhasil
+          </span>
           <span>{actionSuccess}</span>
         </div>
       )}
@@ -198,14 +201,19 @@ export const PlatformDefaultsPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 shadow-xs">
+          <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400 shadow-xs">
             <span className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
               <span>Terakhir diperbarui: {new Date(defaults.updated_at).toLocaleString('id-ID')}</span>
             </span>
-            <span className="text-[11px] text-slate-400 dark:text-slate-500">
-              Perubahan hanya berlaku untuk registrasi workspace berikutnya.
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                Workspace Baru
+              </span>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                Perubahan hanya berlaku untuk registrasi workspace berikutnya.
+              </span>
+            </div>
           </div>
         </div>
       ) : null}

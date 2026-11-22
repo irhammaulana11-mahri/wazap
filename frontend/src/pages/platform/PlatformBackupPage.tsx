@@ -68,9 +68,14 @@ export const PlatformBackupPage: React.FC = () => {
           {!backup.configured ? (
             <div className="p-4 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 rounded-2xl text-xs flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="block">Status Cadangan Belum Dikonfigurasi</strong>
-                <p className="text-amber-700 dark:text-amber-400/90 mt-0.5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-100 dark:bg-amber-900/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                    Belum Terpasang
+                  </span>
+                  <strong className="text-slate-900 dark:text-white">Status Cadangan Belum Dikonfigurasi</strong>
+                </div>
+                <p className="text-amber-700 dark:text-amber-400/90 leading-relaxed">
                   Variabel lingkungan PLATFORM_BACKUP_STATUS_FILE belum diatur pada server backend.
                 </p>
               </div>
@@ -78,9 +83,14 @@ export const PlatformBackupPage: React.FC = () => {
           ) : !backup.available ? (
             <div className="p-4 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 rounded-2xl text-xs flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="block">Berkas Status Tidak Tersedia</strong>
-                <p className="text-amber-700 dark:text-amber-400/90 mt-0.5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-100 dark:bg-amber-900/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                    Tidak Tersedia
+                  </span>
+                  <strong className="text-slate-900 dark:text-white">Berkas Status Tidak Tersedia</strong>
+                </div>
+                <p className="text-amber-700 dark:text-amber-400/90 leading-relaxed">
                   {backup.reason || 'Berkas status belum dibuat atau belum ada pencadangan yang berhasil.'}
                 </p>
               </div>
@@ -88,9 +98,14 @@ export const PlatformBackupPage: React.FC = () => {
           ) : backup.stale ? (
             <div className="p-4 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 rounded-2xl text-xs flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="block">Cadangan Kedaluwarsa (Stale Backup)</strong>
-                <p className="text-rose-700 dark:text-rose-400/90 mt-0.5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700">
+                    Kritis (Stale)
+                  </span>
+                  <strong className="text-slate-900 dark:text-white">Cadangan Kedaluwarsa</strong>
+                </div>
+                <p className="text-rose-700 dark:text-rose-400/90 leading-relaxed">
                   Cadangan terakhir berusia {backup.age_hours ?? '—'} jam, melampaui batas toleransi {backup.max_age_hours} jam. Segera periksa cron script di server host.
                 </p>
               </div>
@@ -98,10 +113,15 @@ export const PlatformBackupPage: React.FC = () => {
           ) : (
             <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 rounded-2xl text-xs flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="block">Status Cadangan Sehat</strong>
-                <p className="text-emerald-700 dark:text-emerald-400/90 mt-0.5">
-                  Pencadangan rutin berjalan optimal dan berkas cadangan tersimpan dengan aman ({backup.age_hours ?? 0} jam yang lalu).
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                    Status Sehat
+                  </span>
+                  <strong className="text-slate-900 dark:text-white">Pencadangan Berjalan Optimal</strong>
+                </div>
+                <p className="text-emerald-700 dark:text-emerald-400/90 leading-relaxed">
+                  Berkas cadangan tersimpan dengan aman ({backup.age_hours ?? 0} jam yang lalu).
                 </p>
               </div>
             </div>
@@ -170,9 +190,11 @@ export const PlatformBackupPage: React.FC = () => {
 
           {/* Read-Only Policy Notice */}
           <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-600 dark:text-slate-400 space-y-2 shadow-xs">
-            <div className="flex items-center gap-2 text-slate-900 dark:text-white font-bold">
-              <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span>Kebijakan Keamanan Cadangan (ADR-054)</span>
+            <div className="flex items-center gap-2 flex-wrap text-slate-900 dark:text-white font-bold">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                Kebijakan Keamanan
+              </span>
+              <span>ADR-054 Baca-Saja</span>
             </div>
             <p className="leading-relaxed">
               Konsol platform web hanya menyediakan status pengawasan baca-saja. Tombol eksekusi cadangan atau pemulihan (restore) sengaja ditiadakan dari dashboard untuk mencegah risiko pembajakan sesi web dan serangan ransomware. Seluruh operasi pemulihan basis data harus dilakukan langsung melalui shell server host berizin oleh operator infrastruktur.

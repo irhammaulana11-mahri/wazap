@@ -509,8 +509,13 @@ print(response.json())`;
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
-                ⚠️ <strong>Hanya Tampil Sekali:</strong> Demi standar keamanan tinggi, plain text API Key ini tidak disimpan di database. Salin sekarang dan simpan di `.env` aplikasi Anda.
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-100 dark:bg-amber-900/70 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shrink-0 mt-0.5">
+                  Tampil Sekali
+                </span>
+                <span>
+                  Demi standar keamanan tinggi, plain text API Key ini tidak disimpan di database. Salin sekarang dan simpan di <code className="font-mono font-bold">.env</code> aplikasi Anda.
+                </span>
               </div>
 
               <div className="space-y-1.5">

@@ -275,11 +275,16 @@ export const SettingsPage: React.FC = () => {
       {activeTab === 'quota' && (
         <div className="space-y-6 animate-in fade-in duration-150">
           {/* Read-Only Notice */}
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-900 flex items-start gap-3 shadow-2xs">
-            <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-            <div className="space-y-0.5">
-              <span className="font-bold block">Kuota Dikelola oleh Pemilik Platform</span>
-              <p className="leading-relaxed text-blue-700">
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 rounded-2xl text-xs text-blue-900 dark:text-blue-200 flex items-start gap-3 shadow-2xs">
+            <ShieldCheck className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-blue-100 dark:bg-blue-900/70 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
+                  Dikelola Platform
+                </span>
+                <span className="font-bold text-slate-900 dark:text-white">Alokasi Kuota Terkunci</span>
+              </div>
+              <p className="leading-relaxed text-blue-700 dark:text-blue-300/90">
                 Kuota diatur oleh pemilik platform. Hubungi pemilik platform untuk menambah atau mengubahnya.
               </p>
             </div>
@@ -779,9 +784,14 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* Explanatory Policy Box */}
-            <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-2xl space-y-2 text-xs text-rose-900 leading-relaxed">
-              <span className="font-bold block">Ketentuan Kebijakan Penghapusan (ADR-037):</span>
-              <ul className="list-disc list-inside space-y-1 text-[11px] text-rose-800">
+            <div className="p-4 bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-2xl space-y-2 text-xs text-rose-900 dark:text-rose-200 leading-relaxed">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                  Kebijakan ADR-037
+                </span>
+                <span className="font-bold text-slate-900 dark:text-white">Ketentuan Penghapusan Workspace</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-[11px] text-rose-800 dark:text-rose-300/90">
                 <li>Workspace akan dinonaktifkan seketika dari sistem seluruh anggota tim.</li>
                 <li>Data disimpan sementara dalam masa tenggang <strong>30 hari</strong> sebelum dibersihkan permanen oleh database vacuum.</li>
                 <li>Selama 30 hari masa tenggang, Pemilik dapat memulihkan workspace melalui menu pemulihan bencana (<em>Disaster Recovery</em>) dengan catatan koneksi QR WhatsApp, API key, dan webhook harus didaftarkan ulang.</li>

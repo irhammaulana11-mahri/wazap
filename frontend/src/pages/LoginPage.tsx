@@ -214,10 +214,17 @@ export const LoginPage: React.FC = () => {
 
             {/* Error Notification */}
             {error && (
-              <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 space-y-2 animate-in fade-in duration-150">
+              <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 rounded-xl text-xs text-rose-700 dark:text-rose-300 space-y-2 animate-in fade-in duration-150">
                 <div className="flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                  <span className="leading-relaxed font-medium">{error}</span>
+                  <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700 shrink-0">
+                        {errorCode === 'WORKSPACE_SUSPENDED' ? 'Workspace Ditangguhkan' : 'Galat Autentikasi'}
+                      </span>
+                      <span className="leading-relaxed font-medium">{error}</span>
+                    </div>
+                  </div>
                 </div>
                 {errorCode === 'NO_ACTIVE_TENANT' && (
                   <div className="pt-1 pl-6.5">

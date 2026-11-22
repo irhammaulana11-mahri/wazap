@@ -2,6 +2,13 @@
 
 ## Unreleased --- Konsol platform admin, kuota hanya-baca, dan peran tanpa ADMIN (2026-11-21)
 
+-   Baru: Standarisasi format notifikasi dan banner menggunakan badge status di seluruh halaman (`frontend/src/`):
+    -   Banner Keamanan Akun Global (`SecurityBanners.tsx`): Menambahkan badge penanda visual proporsional (`Peringatan Akun`, `Peringatan Kritis`, `Anjuran Keamanan`) pada banner peringatan kode pemulihan dan anjuran 2 Owner di bagian atas aplikasi utama.
+    -   Pengaturan Workspace (`SettingsPage.tsx`): Menambahkan badge status `Dikelola Platform` pada banner kuota hanya-baca dan badge `Kebijakan ADR-037` pada kotak peringatan penghapusan workspace di Zona Bahaya.
+    -   Konsol Platform Operator (`PlatformBackupPage.tsx`, `PlatformDefaultsPage.tsx`, `PlatformWorkspaceDetailPage.tsx`): Seluruh banner status pencadangan kini dilengkapi badge penanda status (`Status Sehat`, `Belum Terpasang`, `Tidak Tersedia`, `Kritis (Stale)`), badge `Kebijakan Keamanan` pada ketentuan ADR-054, serta badge pill `Berhasil` pada toast alert mutasi kuota.
+    -   Kanal & Aturan Notifikasi Alarm (`AlertChannelsSection.tsx`, `AlertRulesSection.tsx`): Melengkapi kotak disclaimer dan kuota kanal dengan badge penanda `Batas Kuota`, `Informasi Penting`, dan `Peringatan`.
+    -   Halaman Kunci API, Tim, Profil, & Autentikasi (`ApiKeysPage.tsx`, `TeamPage.tsx`, `ProfilePage.tsx`, `LoginPage.tsx`, `PlatformLoginPage.tsx`): Mengganti teks peringatan mentah dengan badge pill terstruktur (`Tampil Sekali`, `Penting`, `Kewenangan Kuota`, `Galat`).
+
 -   Baru: Pengaturan Tema Gelap / Terang (Dark / Light Mode) lintas peran (`ThemeContext.tsx`).
     -   Penyedia tema terpadu (`ThemeContext.tsx`) dengan 3 pilihan mode: Mode Terang (`light`), Mode Gelap (`dark`), dan Otomatis Ikuti Preferensi OS (`system`).
     -   Pengaturan tema tersedia untuk **seluruh peran pengguna** (`OWNER`, `MEMBER`, `VIEWER`) di aplikasi utama melalui tombol cepat Sun/Moon di Header dan kartu preferensi tampilan interaktif di [ProfilePage.tsx](file:///media/data/PROJECT/WAZAP/frontend/src/pages/ProfilePage.tsx).

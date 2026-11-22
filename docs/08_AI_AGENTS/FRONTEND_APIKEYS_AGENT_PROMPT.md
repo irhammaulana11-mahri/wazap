@@ -59,7 +59,7 @@ Di `pages/SessionsPage.tsx`, pada kartu sesi:
 
 ### 5. Contoh kode memakai bentuk kunci yang benar (temuan G)
 Di `pages/ApiKeysPage.tsx`, `getCodeSnippet` (semua bahasa: curl, node, php, dan lainnya):
--   Ganti placeholder `wzp_live_xxxxxxxxxxxxxxxx` dengan bentuk yang benar, mis. `gwk_PASTE_KUNCI_LENGKAP_DI_SINI` (diawali `gwk_`). Bila `revealedKey` ada (kunci baru saja dibuat), tetap pakai nilainya.
+-   Placeholder lama ada di DUA tempat: `activeKeyHint` (`revealedKey || 'wzp_live_xxxxxxxxxxxxxxxx'`) dan teks cadangan prefiks pada daftar (`item.key_prefix || 'wzp_live_***'`). Tidak boleh ada `wzp_live` tersisa di berkas ini (tes memeriksanya). Ganti placeholder `wzp_live_xxxxxxxxxxxxxxxx` dengan bentuk yang benar, mis. `gwk_PASTE_KUNCI_LENGKAP_DI_SINI` (diawali `gwk_`) dan cadangan prefiks dengan `'gwk_********'`. Bila `revealedKey` ada (kunci baru saja dibuat), tetap pakai nilainya.
 -   Tambahkan satu baris komentar pada tiap contoh: kunci lengkap hanya ditampilkan sekali saat dibuat (bukan prefiks di daftar), simpan di variabel lingkungan sisi server, jangan di browser.
 -   Header `Authorization: Bearer` boleh dipertahankan (backend menerima `X-API-Key` dan `Authorization: Bearer` untuk kunci `gwk_`). Pertahankan `session_id`, `to`, `type`, `message` sesuai skema backend; ganti `SESSION_ID_ANDA` dengan penjelasan singkat bahwa ID sesi dapat disalin dari kartu sesi (butir 4).
 

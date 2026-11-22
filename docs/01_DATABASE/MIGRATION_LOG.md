@@ -181,3 +181,7 @@ Peran `ADMIN` dihapus (ADR-053). Konversi data `ADMIN` -> `MEMBER` pada `tenant_
 ## 0022_platform_admin (2026-11-21)
 
 `platform_admins` (rahasia TOTP terenkripsi, kode pemulihan ter-hash, penghitung gagal dan kunci), `platform_defaults` (satu baris kuota bawaan; dibaca konteks terautentikasi, ditulis platform), `platform_audit_logs` (append-only; trigger UPDATE/DELETE/TRUNCATE), kolom `tenants.suspended_at` dan `wa_sessions.resume_connect`, serta kebijakan platform sempit pada `tenants` (UPDATE), `tenant_settings` (ALL), `tenant_memberships` dan `api_keys` (SELECT), `audit_logs` (INSERT). Semua tabel baru RLS ENABLE+FORCE. Baris awal `platform_defaults` dibuat sebelum FORCE. Tidak ada konversi data.
+
+## 0023_api_key_retention (2026-11-22)
+
+Kebijakan `api_keys_platform_delete_revoked`: konteks platform (penyapu retensi) boleh MENGHAPUS baris `api_keys` hanya bila `revoked_at IS NOT NULL` (`USING (is_platform() AND revoked_at IS NOT NULL)`); kunci aktif tidak dapat dihapus lewat jalur ini. Tidak ada INSERT/UPDATE platform baru. Backward-compatible; tanpa perubahan data.

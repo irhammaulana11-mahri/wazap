@@ -193,4 +193,9 @@ test('API key yang dicabut disembunyikan dari daftar bawaan (total ikut), tetap 
   assert.equal((await call('GET', '/api-keys?include_revoked=ya', o.tok)).status, 400, 'nilai tak dikenal ditolak');
   assert.equal((await useKey(k2.key)).status, 401, 'kunci dicabut tetap tidak dapat dipakai'); assert.equal((await useKey(k1.key)).status, 200);
   assert.equal((await call('DELETE', `/api-keys/${k2.id}`, o.tok)).status, 200, 'mencabut ulang tetap idempoten');
+  // audit: pembuatan dan pencabutan tercatat (id + nama, tanpa nilai kunci); pencabutan ulang tidak menggandakan catatan
+  const created = await auditOf(o, '&action=api_key.created'), revokedA = await auditOf(o, '&action=api_key.revoked');
+  assert.equal(created.length, 2); assert.equal(revokedA.length, 1, 'pencabutan ulang tidak menambah audit');
+  assert.equal(revokedA[0].target.id, k2.id); assert.equal(revokedA[0].details.name, 'kunci-dicabut');
+  assert.ok(!JSON.stringify([...created, ...revokedA]).includes(k2.key) && !JSON.stringify(created).includes(k1.key), 'audit tidak memuat nilai kunci');
 });

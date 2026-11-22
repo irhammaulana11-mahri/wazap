@@ -205,7 +205,7 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
       name: b.name,
       scopes: b.scopes,
       expiresAt: exp,
-    });
+    }, self(req));
     return reply.code(201).send(ok(created));
   });
 
@@ -216,7 +216,7 @@ export async function identityRoutes(app: FastifyInstance, opts: IdentityRoutesO
 
   app.delete('/api-keys/:keyId', { preHandler: manage }, async (req) => {
     const { keyId } = IdParam.parse(req.params);
-    return ok(await identity.revokeApiKey(req.auth!.tenantId, keyId));
+    return ok(await identity.revokeApiKey(req.auth!.tenantId, keyId, self(req)));
   });
 }
 

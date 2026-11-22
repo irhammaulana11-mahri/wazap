@@ -179,3 +179,30 @@ test('constraint: nomor termasker hanya sah bila format tepat; tenant tidak dapa
   await assert.rejects(q(`UPDATE message_queue SET recipient = 'abc' WHERE id = $1`, [id]), /message_queue_recipient_check/);
   await assert.rejects(q(`UPDATE message_queue SET content_purged_at = now(), completed_at = NULL WHERE id = $1`, [id]), /purge_consistency|status_check|check/);
 });
+
+test('API key: yang dicabut > apiKeyDays dihapus permanen; baru dicabut, aktif, dan kedaluwarsa-tanpa-dicabut tetap; platform tidak dapat menghapus kunci aktif; audit tetap ada', { skip }, async () => {
+  const tn = await newTenant(); const ident = createIdentityService(db);
+  const mk = async (name: string) => (await ident.createApiKey(tn.tenantId, tn.principal.userId, { name, scopes: ['usage:read'] })) as any;
+  const old = await mk('lama'), fresh = await mk('baru'), active = await mk('aktif'), expired = await mk('kedaluwarsa');
+  const asTenant = (sql: string, args: any[] = []) => db.tx({ tenantId: tn.tenantId }, async (c: any) => (await c.query(sql, args)).rows);
+  // pencabutan lewat API (tercatat di audit), lalu umur dimundurkan lewat konteks tenant
+  assert.equal((await app.inject({ method: 'DELETE', url: `/api/v1/api-keys/${old.id}`, headers: bearer(tn.tok) })).statusCode, 200);
+  assert.equal((await app.inject({ method: 'DELETE', url: `/api/v1/api-keys/${fresh.id}`, headers: bearer(tn.tok) })).statusCode, 200);
+  await asTenant(`UPDATE api_keys SET revoked_at = now() - interval '2 days' WHERE id = $1`, [old.id]);
+  await asTenant(`UPDATE api_keys SET revoked_at = now() - interval '1 hour' WHERE id = $1`, [fresh.id]);
+  await asTenant(`UPDATE api_keys SET expires_at = now() - interval '10 days' WHERE id = $1`, [expired.id]);
+  // platform tidak dapat menghapus kunci aktif (kebijakan hanya untuk yang sudah dicabut)
+  assert.equal((await db.tx({ platform: true }, async (c: any) => c.query('DELETE FROM api_keys WHERE id = $1', [active.id]))).rowCount, 0);
+  const ret1 = createRetention(db, () => ({ ...POLICY, apiKeyDays: 1 }));
+  assert.equal((await ret1.runOnce()).apiKeysDeleted, 1);
+  const left = (await asTenant('SELECT id FROM api_keys ORDER BY name')).map((r: any) => r.id).sort();
+  assert.deepEqual(left, [fresh.id, active.id, expired.id].sort(), 'tersisa: baru dicabut, aktif, kedaluwarsa tanpa dicabut');
+  assert.equal((await ret1.runOnce()).apiKeysDeleted, 0, 'idempoten');
+  // kunci yang dihapus permanen: pencabutan ulang kini 404; kunci lain tidak terpengaruh
+  assert.equal((await app.inject({ method: 'DELETE', url: `/api/v1/api-keys/${old.id}`, headers: bearer(tn.tok) })).statusCode, 404);
+  assert.equal((await ident.authenticateApiKey(active.key))?.tenantId, tn.tenantId);
+  // jejak audit pembuatan/pencabutan tetap ada setelah baris kunci hilang; tanpa nilai kunci
+  const aud = await asTenant(`SELECT action, target_id, details FROM audit_logs WHERE tenant_id = $1 AND target_type = 'api_key' AND action = 'api_key.revoked'`, [tn.tenantId]);
+  assert.ok(aud.some((r: any) => r.target_id === old.id), 'audit pencabutan kunci yang sudah dihapus tetap ada');
+  assert.ok(!JSON.stringify(aud).includes(old.key));
+});

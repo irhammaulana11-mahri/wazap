@@ -419,7 +419,8 @@ export function createIdentityService(db: GatewayDb) {
     async createApiKey(
       tenantId: string,
       createdBy: string | null,
-      input: { name: string; scopes: string[]; expiresAt?: Date | null }
+      input: { name: string; scopes: string[]; expiresAt?: Date | null },
+      actor?: AccountActor // bila diisi: pembuatan dicatat di audit (atomik dengan INSERT)
     ) {
       const raw = `gwk_${randomToken(32)}`; // 4 + 43 karakter
       const prefix = raw.slice(0, 12);
@@ -437,6 +438,11 @@ export function createIdentityService(db: GatewayDb) {
             [tenantId, input.name.trim(), prefix, sha256hex(raw), JSON.stringify(input.scopes), createdBy, input.expiresAt ?? null]
           )
         ).rows[0];
+        if (actor) {
+          const m = await readMembership(c, tenantId, actor.userId);
+          await recordAudit(c, { tenantId, actor: { userId: actor.userId, email: m?.email ?? null, role: m?.role ?? null }, action: 'api_key.created', targetType: 'api_key', targetId: row.id,
+            details: { name: row.name, scopes: input.scopes, expires_at: row.expires_at }, ip: actor.ip, requestId: actor.requestId });
+        }
         return { ...row, key: raw }; // raw hanya dikembalikan sekali
       });
     },
@@ -460,17 +466,21 @@ export function createIdentityService(db: GatewayDb) {
       });
     },
 
-    async revokeApiKey(tenantId: string, keyId: string) {
+    // Pencabutan dicatat di audit (hanya saat benar-benar berpindah dari aktif ke dicabut). Baris kunci dihapus permanen oleh retensi (RETENTION_API_KEY_DAYS), sehingga audit adalah satu-satunya jejak yang tersisa.
+    async revokeApiKey(tenantId: string, keyId: string, actor?: AccountActor) {
       if (!UUID_RE.test(keyId)) throw new AppError('NOT_FOUND', 404, 'API key tidak ditemukan');
-      const row = await db.tx({ tenantId }, async (c) =>
-        (
-          await c.query(
-            `UPDATE api_keys SET revoked_at = COALESCE(revoked_at, now()) WHERE id = $1 AND tenant_id = $2
-             RETURNING id, revoked_at`,
-            [keyId, tenantId]
-          )
-        ).rows[0]
-      );
+      const row = await db.tx({ tenantId }, async (c) => {
+        const k = (await c.query('SELECT id, name, revoked_at FROM api_keys WHERE id = $1 AND tenant_id = $2 FOR UPDATE', [keyId, tenantId])).rows[0];
+        if (!k) return undefined;
+        if (k.revoked_at) return { id: k.id, revoked_at: k.revoked_at }; // idempoten: tanpa audit ganda
+        const r = (await c.query('UPDATE api_keys SET revoked_at = now() WHERE id = $1 AND tenant_id = $2 RETURNING id, revoked_at', [keyId, tenantId])).rows[0];
+        if (actor) {
+          const m = await readMembership(c, tenantId, actor.userId);
+          await recordAudit(c, { tenantId, actor: { userId: actor.userId, email: m?.email ?? null, role: m?.role ?? null }, action: 'api_key.revoked', targetType: 'api_key', targetId: keyId,
+            details: { name: k.name }, ip: actor.ip, requestId: actor.requestId });
+        }
+        return r;
+      });
       if (!row) throw new AppError('NOT_FOUND', 404, 'API key tidak ditemukan');
       return row;
     },

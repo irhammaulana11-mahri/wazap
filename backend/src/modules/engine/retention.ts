@@ -16,6 +16,8 @@ export interface RetentionPolicy {
   joinRequestDays?: number;
   /** Hari setelah workspace dihapus (status DELETED): barisnya dan seluruh datanya dihapus permanen (cascade). Opsional agar pemanggil lama tetap valid. */
   tenantDays?: number;
+  /** Hari setelah dicabut: baris API key dihapus permanen. Opsional agar pemanggil lama tetap valid. */
+  apiKeyDays?: number;
   batch: number;
 }
 export interface RetentionReport {
@@ -29,11 +31,12 @@ export interface RetentionReport {
   auditDeleted: number;
   joinRequestsDeleted: number;
   tenantsPurged: number;
+  apiKeysDeleted: number;
 }
 
 export const defaultPolicy = (): RetentionPolicy => ({
   contentDays: config.RETENTION_CONTENT_DAYS, rowDays: config.RETENTION_ROW_DAYS, outboxDays: config.RETENTION_OUTBOX_DAYS,
-  deliveryDays: config.RETENTION_WEBHOOK_DELIVERY_DAYS, auditDays: config.RETENTION_AUDIT_DAYS, joinRequestDays: config.RETENTION_JOIN_REQUEST_DAYS, tenantDays: config.RETENTION_TENANT_DAYS, batch: config.RETENTION_BATCH,
+  deliveryDays: config.RETENTION_WEBHOOK_DELIVERY_DAYS, auditDays: config.RETENTION_AUDIT_DAYS, joinRequestDays: config.RETENTION_JOIN_REQUEST_DAYS, tenantDays: config.RETENTION_TENANT_DAYS, apiKeyDays: config.RETENTION_API_KEY_DAYS, batch: config.RETENTION_BATCH,
 });
 
 const TERMINAL = `('SENT','DELIVERED','READ','FAILED','CANCELLED','UNKNOWN','RECONCILIATION_REQUIRED')`;
@@ -122,7 +125,12 @@ export function createRetention(db: GatewayDb, policy: () => RetentionPolicy = d
         `DELETE FROM tenants WHERE id IN (SELECT id FROM tenants WHERE status = 'DELETED' AND deleted_at < now() - make_interval(days => $1) ORDER BY deleted_at LIMIT $2)`,
         [d(p.tenantDays ?? config.RETENTION_TENANT_DAYS)], Math.min(p.batch, 20));
 
-      return { contentPurged, rowsDeleted, historyPurged, historyDeleted, chatsDeleted, outboxDeleted, deliveriesDeleted, auditDeleted, joinRequestsDeleted, tenantsPurged };
+      // 8) API key yang sudah dicabut lebih lama dari batas: hapus permanen (hash tidak berguna lagi; tidak ada pemulihan). Kebijakan platform hanya mengizinkan DELETE pada baris yang sudah dicabut.
+      const apiKeysDeleted = await sweep(
+        `DELETE FROM api_keys WHERE id IN (SELECT id FROM api_keys WHERE revoked_at IS NOT NULL AND revoked_at < now() - make_interval(days => $1) ORDER BY revoked_at LIMIT $2)`,
+        [d(p.apiKeyDays ?? config.RETENTION_API_KEY_DAYS)], p.batch);
+
+      return { contentPurged, rowsDeleted, historyPurged, historyDeleted, chatsDeleted, outboxDeleted, deliveriesDeleted, auditDeleted, joinRequestsDeleted, tenantsPurged, apiKeysDeleted };
     },
   };
 }

@@ -170,3 +170,9 @@ Konsol pemilik platform dilindungi berlapis: akun dibuat HANYA lewat CLI di serv
 ### Penangguhan workspace (ADR-054)
 
 Penangguhan oleh platform ditegakkan di SEMUA jalur, bukan hanya di pintu masuk: autentikasi HTTP (token akses, API key, refresh, login, pindah workspace, undangan) mensyaratkan tenant `ACTIVE`; realtime memvalidasi ulang koneksi berkala; sesi WhatsApp diputus lewat transisi resmi; pengiriman webhook dan alarm (klaim dan evaluator) hanya memproses tenant `ACTIVE`. Dapat dipulihkan dan tidak menghapus data atau kredensial. Dibuktikan oleh `platform-suspension.test.ts` pada engine sungguhan (adapter palsu), penerima webhook lokal, dan Socket.IO. `login` memberi tahu `WORKSPACE_SUSPENDED` hanya setelah kata sandi terbukti benar (tidak membuka enumerasi akun).
+
+### API key yang dicabut (ADR-055)
+
+-   Dicabut = langsung tidak berlaku, disembunyikan dari daftar, tidak menghabiskan kuota. Baris dihapus permanen setelah `RETENTION_API_KEY_DAYS` (bawaan 1 hari); tidak ada pemulihan (kunci pengganti dibuat baru). Platform hanya dapat menghapus baris yang sudah dicabut (kebijakan RLS 0023).
+-   Pembuatan dan pencabutan diaudit (`api_key.created`, `api_key.revoked`; id, nama, scope; tanpa nilai kunci); audit bertahan sesuai `RETENTION_AUDIT_DAYS` (365) dan menjadi satu-satunya jejak setelah baris kunci dihapus.
+-   Cadangan database sebelum penghapusan masih memuat hash kunci sampai cadangan itu kedaluwarsa (retensi cadangan); hash tidak dapat dibalik menjadi kunci.

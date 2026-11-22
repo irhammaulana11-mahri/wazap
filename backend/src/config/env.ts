@@ -112,6 +112,8 @@ const baseSchema = z.object({
   // Hari setelah workspace dihapus (status DELETED): barisnya dan seluruh datanya dihapus permanen (cascade).
   RETENTION_TENANT_DAYS: z.coerce.number().int().min(7).default(30),
   RETENTION_JOIN_REQUEST_DAYS: z.coerce.number().int().min(7).default(90),
+  // Hari setelah dicabut: baris API key dihapus permanen (hash, nama, scope). Kunci yang dicabut sudah tidak berlaku dan disembunyikan dari daftar; tidak ada pemulihan.
+  RETENTION_API_KEY_DAYS: z.coerce.number().int().min(1).default(1),
   // Fase H2: undangan tanpa email (tautan), audit, dan batas atas kuota yang boleh diatur OWNER (operator mengubah lewat env).
   // Alamat dashboard (frontend) yang dibuka pengguna di browser: skema + host (+ port bila bukan standar, + subpath bila di-host di subpath).
   // Bukan alamat API/backend. Tanpa kredensial, query, atau fragment; di production wajib https (token ada di tautan).

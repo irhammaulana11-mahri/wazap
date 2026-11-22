@@ -53,3 +53,18 @@ test('contoh kode di halaman API key memakai bentuk kunci yang benar (gwk_), buk
   assert.doesNotMatch(page, /wzp_live/, 'placeholder kunci lama (wzp_live_...) masih ada: bukan bentuk kunci WAZAP');
   assert.match(page, /gwk_/, 'contoh kode harus memakai bentuk kunci gwk_...');
 });
+
+test('copyKey menunggu hasil clipboard: "Tersalin" hanya setelah berhasil, ada penanganan gagal dengan penyalinan manual', { skip }, () => {
+  const page = read('pages/ApiKeysPage.tsx');
+  const start = page.indexOf('const copyKey');
+  assert.ok(start >= 0, 'fungsi copyKey tidak ditemukan');
+  const body = page.slice(start, page.indexOf('\n  };', start) + 5);
+  const write = body.search(/clipboard\.writeText\(/);
+  assert.ok(write >= 0, 'copyKey tidak menyalin');
+  assert.match(body, /async\s*\(|async\s+function|=\s*async/, 'copyKey harus async');
+  assert.match(body, /await\s+navigator\.clipboard\.writeText\(|clipboard\.writeText\([^)]*\)\s*\.then\(/, 'hasil writeText tidak ditunggu');
+  assert.match(body, /catch/, 'kegagalan clipboard tidak ditangani');
+  const ok = body.indexOf('setCopiedKey(true)');
+  assert.ok(ok > write, 'status "Tersalin" harus diatur SETELAH penyalinan');
+  assert.match(body, /manual/i, 'tidak ada pesan/jalur penyalinan manual saat gagal');
+});
